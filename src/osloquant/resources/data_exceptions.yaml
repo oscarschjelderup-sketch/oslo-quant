@@ -1,0 +1,13 @@
+# Every manual intervention in Yahoo's data is listed here with its reason.
+# `oq check` flags extreme prints; each one below was checked by hand and only vendor errors are removed.
+# Real crashes and spikes (NAS 2018 and 2020, BORR 2020, ARCH 2015) stay in the data.
+# After editing this file, record again with `oq record --force`.
+
+drop_returns:              # the close-to-close move on this date is removed from the adjusted series
+  - {ticker: AKSO.OL, date: "2024-11-25", reason: "Extraordinary dividend (~NOK 21/share) missing from Yahoo's adjustment: a -41% print that was really a cash payout"}
+  - {ticker: SOFF.OL, date: "2020-10-21", reason: "Restructuring / share consolidation mis-adjusted by Yahoo (-98% print)"}
+  - {ticker: BORR.OL, date: "2021-12-13", reason: "2:1 reverse split applied one day late by Yahoo (price doubles, then reverts)"}
+  - {ticker: BORR.OL, date: "2021-12-14", reason: "Second leg of the same split artefact"}
+
+history_start:             # earlier history belongs to a different business
+  NEL.OL: {date: "2014-10-01", reason: "Listed shell was DiaGenic (diagnostics) until it bought NEL Hydrogen in Oct 2014"}

@@ -1,0 +1,80 @@
+# The stock universe: sector -> Yahoo ticker -> company name.
+# Yahoo has no listing of Oslo Børs, so the list is kept here. Add a line and run `oq record` to extend it,
+# or point `Stock.record_data(universe="my.yaml")` at your own file.
+#
+# These are companies listed today. A backtest over this list therefore never holds a company that later
+# went bankrupt or was delisted, which flatters every result (survivorship bias).
+
+"Exploration & production":
+  EQNR.OL: Equinor
+  AKRBP.OL: Aker BP
+  VAR.OL: Vår Energi
+  DNO.OL: DNO
+  OKEA.OL: OKEA
+  PEN.OL: Panoro Energy
+  BWE.OL: BW Energy
+"Oil service & drilling":
+  SUBC.OL: Subsea 7
+  TGS.OL: TGS
+  AKSO.OL: Aker Solutions
+  ODL.OL: Odfjell Drilling
+  BORR.OL: Borr Drilling
+  SOFF.OL: Solstad Offshore
+  DOFG.OL: DOF Group
+  BWO.OL: BW Offshore
+  ARCH.OL: Archer
+"Tankers & gas shipping":
+  FRO.OL: Frontline
+  HAFNI.OL: Hafnia
+  OET.OL: Okeanis Eco Tankers
+  BWLPG.OL: BW LPG
+  ODF.OL: Odfjell
+  SNI.OL: Stolt-Nielsen
+"Other shipping":
+  WAWI.OL: Wallenius Wilhelmsen
+  HAUTO.OL: Höegh Autoliners
+  MPCC.OL: MPC Container Ships
+  WWI.OL: Wilh. Wilhelmsen Holding
+"Seafood":
+  MOWI.OL: Mowi
+  SALM.OL: SalMar
+  LSG.OL: Lerøy Seafood
+  BAKKA.OL: Bakkafrost
+  AUSS.OL: Austevoll Seafood
+  GSF.OL: Grieg Seafood
+"Banks & insurance":
+  DNB.OL: DNB
+  STB.OL: Storebrand
+  GJF.OL: Gjensidige
+  MING.OL: SpareBank 1 SMN
+  NONG.OL: SpareBank 1 Nord-Norge
+  SB1NO.OL: SpareBank 1 Sør-Norge
+  PROT.OL: Protector Forsikring
+"Industrials & materials":
+  NHY.OL: Norsk Hydro
+  YAR.OL: Yara
+  ELK.OL: Elkem
+  BRG.OL: Borregaard
+  KOG.OL: Kongsberg Gruppen
+  TOM.OL: Tomra
+  VEI.OL: Veidekke
+  AFG.OL: AF Gruppen
+  HEX.OL: Hexagon Composites
+"Consumer, telecom & real estate":
+  ORK.OL: Orkla
+  TEL.OL: Telenor
+  EPR.OL: Europris
+  KID.OL: Kid
+  SATS.OL: SATS
+  NAS.OL: Norwegian Air Shuttle
+  ENTRA.OL: Entra
+"Technology & renewables":
+  NOD.OL: Nordic Semiconductor
+  ATEA.OL: Atea
+  BOUV.OL: Bouvet
+  AUTO.OL: AutoStore
+  NEL.OL: Nel
+  SCATC.OL: Scatec
+"Investment companies":
+  AKER.OL: Aker
+  BONHR.OL: Bonheur

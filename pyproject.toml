@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oslo-quant"
+version = "0.1.0"
+description = "A modular quant framework for Oslo Børs: one way to record and query data, factors on a two-dimensional index, a backtester and a dashboard. Architecture after zvt."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Oscar Schjelderup" }]
+keywords = ["quant", "oslo børs", "backtest", "factor", "sqlalchemy", "yfinance", "dash"]
+dependencies = [
+  "pandas>=2.2",
+  "numpy>=1.26",
+  "SQLAlchemy>=2.0.36",
+  "yfinance>=0.2.50",
+  "plotly>=5.20",
+  "dash>=2.18",
+  "scikit-learn>=1.5",
+  "pyyaml>=6",
+  "typer>=0.12",
+  "rich>=13",
+  "tzdata; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+oq = "osloquant.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+osloquant = ["resources/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::FutureWarning", "ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+  "E501",   # line length is a formatting matter, not something CI should fail on
+  "B008",   # typer declares CLI options as call-valued defaults
+]
