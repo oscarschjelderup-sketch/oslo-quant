@@ -498,9 +498,15 @@ def test_intraday_bars_are_recorded_with_the_time_in_their_id_and_history_is_kep
 def test_the_default_intraday_configuration():
     config = load_config()
     assert config.created and config.path == config_path() and not load_config().created
-    assert [a.name for a in config.accounts] == ["intraday_ma", "intraday_breakout", "intraday_ma_slow", "intraday_breakout_slow"]
+    names = [a.name for a in config.accounts]
+    assert names == ["daytrade_orb", "daytrade_breakout", "intraday_ma", "intraday_breakout", "intraday_ma_slow", "intraday_breakout_slow"]
+    orb, day_breakout = config.accounts[:2]
+    assert orb.signal == {"rule": "opening_range", "minutes": 30} and orb.watchlist == "all" and day_breakout.signal == {"rule": "breakout", "lookback": 60}
+    for bot in (orb, day_breakout):
+        assert bot.flat_at_close and not bot.exit_on_signal and bot.entry_window == ["09:30", "14:30"] and bot.max_entries_per_stock_per_day == 1
+        assert (bot.max_positions, bot.max_per_sector, bot.min_relative_volume, bot.min_range_to_cost, bot.stop_loss) == (3, 1, 1.5, 4, 0.02)
     assert config.feed_delay == pd.Timedelta(minutes=15) and (config.commission_rate, config.commission_min) == (0.0015, 29.0)
-    ma, breakout, ma_slow, breakout_slow = config.accounts
+    ma, breakout, ma_slow, breakout_slow = config.accounts[2:]
     assert ma_slow.signal == {"rule": "ma_cross", "fast": 20, "slow": 60} and breakout_slow.signal == {"rule": "breakout", "lookback": 60}
     # the slow twins differ from the fast ones in the speed of the rule and in nothing else
     assert (ma_slow.stop_loss, ma_slow.take_profit, breakout_slow.trailing_stop) == (ma.stop_loss, ma.take_profit, 0.04)
@@ -531,6 +537,7 @@ def test_the_commands(market, home):
     assert "paper" in played.output and "flag()" in played.output and "nothing stored" in played.output
     # the position that hit its stop shows up in the breakdown, and free trading is the better of the two numbers
     assert "How the positions were closed" in played.output and "STOP" in played.output and "With free trading" in played.output
+    assert "Without the best trade" in played.output and "Per round trip before costs" in played.output
 
     trial = runner.invoke(app, ["intraday", "replay", "--no-record", "--days", "5000", "--rule", "breakout", "--param", "lookback=7",
                                 "--watchlist", "AAA,BBB", "--stop-loss", "0.02", "--cooldown", "4", "--positions", "1"])  # fmt: skip
@@ -539,7 +546,7 @@ def test_the_commands(market, home):
     assert runner.invoke(app, ["intraday", "replay", "--no-record", "--rule", "ma_cross", "--param", "fast"]).exit_code != 0
 
     listing = runner.invoke(app, ["intraday", "rules"])
-    assert listing.exit_code == 0 and all(code in listing.output for code in ("ma_cross", "breakout", "macd_cross", "rsi", "fast=5", "cooldown_bars"))
+    assert listing.exit_code == 0 and all(code in listing.output for code in ("ma_cross", "breakout", "macd_cross", "rsi", "opening_range", "fast=5", "cooldown_bars", "min_range_to_cost"))
     assert (home / "logs" / "intraday.log").read_text(encoding="utf-8").count("paper=100000") == 1
 
 

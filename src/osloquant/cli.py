@@ -42,8 +42,8 @@ def _codes(value: str | None) -> list[str] | None:
     return [c.strip().upper().removesuffix(".OL") for c in value.split(",") if c.strip()] if value else None
 
 
-def _pct(value) -> str:
-    return "–" if value is None or value != value else f"{100 * value:+.1f} %"
+def _pct(value, digits: int = 1) -> str:
+    return "–" if value is None or value != value else f"{100 * value:+.{digits}f} %"
 
 
 @app.command()
@@ -540,6 +540,10 @@ def intraday_rules() -> None:
         table.add_row(code, settings, " ".join((rule.__doc__ or "").split()))
     console.print(table)
     console.print("Risk settings for any account: stop_loss, take_profit, trailing_stop (fractions), flat_at_close (true/false), cooldown_bars.")
+    console.print(
+        "Day trading: day_trade (true), exit_on_signal, entry_window, max_entries_per_stock_per_day, max_entries_per_day, "
+        "min_relative_volume, min_range_to_cost, max_per_sector. See the comments at the top of intraday.yaml."
+    )
 
 
 def _parse_setting(text: str) -> tuple[str, float | int]:
@@ -562,6 +566,10 @@ def intraday_replay(
     trailing_stop: float = typer.Option(None, help="With --rule: e.g. 0.04."),
     cooldown: int = typer.Option(0, help="With --rule: bars to stay out of a stock after selling it."),
     positions: int = typer.Option(5, help="With --rule: the number of slots."),
+    day_trade: bool = typer.Option(False, "--day-trade", help="With --rule: flat at the close, exits by the stops, entries 09:30-14:30, one a stock a day."),
+    max_per_sector: int = typer.Option(None, help="With --rule: at most this many positions in one sector."),
+    min_relative_volume: float = typer.Option(None, help="With --rule: the signal bar must trade this many times the usual volume."),
+    min_range_cost: float = typer.Option(None, help="With --rule: the stock's daily range must be at least this many round-trip costs."),
     record: bool = typer.Option(True, help="Fetch the 15-minute history for every stock first."),
 ) -> None:
     """Run rules over the stored bars of the last weeks, with the delays of a live run. Stores nothing.
@@ -585,7 +593,8 @@ def intraday_replay(
         codes = watchlist if "," not in watchlist and not watchlist.isupper() else [c.strip() for c in watchlist.split(",")]
         chosen = [
             IntradayAccountConfig(name="trial", signal=spec, watchlist=codes, stop_loss=stop_loss, take_profit=take_profit,
-                                  trailing_stop=trailing_stop, cooldown_bars=cooldown, max_positions=positions)
+                                  trailing_stop=trailing_stop, cooldown_bars=cooldown, max_positions=positions, day_trade=day_trade,
+                                  max_per_sector=max_per_sector, min_relative_volume=min_relative_volume, min_range_to_cost=min_range_cost)
         ]  # fmt: skip
     else:
         chosen = [a for a in config.accounts if account in (None, a.name)]
@@ -603,7 +612,8 @@ def intraday_replay(
     free = replace(config, commission_rate=0.0, commission_min=0.0, slippage=0.0)
 
     table = Table(title=f"Replay of the last {days} days. Play money, nothing stored.")
-    for column in ("Account", "Rule", "Days", "Return", "With free trading", "OSEBX", "Round trips", "Profitable", "Average round trip", "Costs paid"):
+    for column in ("Account", "Rule", "Days", "Return", "Without the best trade", "With free trading", "OSEBX", "Round trips", "Profitable",
+                   "Per round trip before costs", "Costs paid"):  # fmt: skip
         table.add_column(column, justify="left" if column in ("Account", "Rule") else "right")
     exits = Table(title="How the positions were closed")
     for column in ("Account", "Closed by", "Times", "Profitable", "Average result"):
@@ -617,10 +627,16 @@ def intraday_replay(
         sells = trades[trades["order_type"] == "order_close_long"] if not trades.empty else trades
         index = Index1dKdata.query_data(code="OSEBX", start_timestamp=result.start, end_timestamp=result.end, columns=["timestamp", "close"]) if result.start is not None else pd.DataFrame()
         benchmark = index["close"].iloc[-1] / index["close"].iloc[0] - 1 if len(index) > 1 else None
+        style = " (day trade)" if cfg.flat_at_close and not cfg.exit_on_signal else ""
+        # a result that rests on one trade is luck until shown otherwise
+        best = sells["profit"].max() if len(sells) else 0.0
+        without_best = (result.value - result.input_money - max(best, 0.0)) / result.input_money
+        # what one round trip earned before any cost: the most a rule could pay per round trip and still break even
+        gross_sells = gross.orders[gross.orders["order_type"] == "order_close_long"] if not gross.orders.empty else gross.orders
         table.add_row(
-            result.name, result.rule, f"{result.days}", _pct(result.total_return), _pct(gross.total_return), _pct(benchmark), f"{len(sells)}",
-            _pct((sells["profit"] > 0).mean() if len(sells) else None).lstrip("+"), _pct(sells["profit_rate"].mean() if len(sells) else None),
-            f"{trades['cost'].sum() if not trades.empty else 0:,.0f}",
+            result.name, result.rule + style, f"{result.days}", _pct(result.total_return), _pct(without_best), _pct(gross.total_return), _pct(benchmark),
+            f"{len(sells)}", _pct((sells["profit"] > 0).mean() if len(sells) else None).lstrip("+"),
+            _pct(gross_sells["profit_rate"].mean() if len(gross_sells) else None, 2), f"{trades['cost'].sum() if not trades.empty else 0:,.0f}",
         )  # fmt: skip
         if len(sells):
             by_exit = sells.assign(closed_by=sells["reason"].str.split().str[0]).groupby("closed_by")
@@ -630,8 +646,9 @@ def intraday_replay(
     if exits.row_count:
         console.print(exits)
     console.print(
-        "[dim]\"With free trading\" is the rule without commission and slippage. A few weeks of one market say little, "
-        "and every variant you try is one more chance to fit the past.[/dim]"
+        "[dim]\"With free trading\" is the rule without commission and slippage. \"Per round trip before costs\" is what a round trip "
+        "earned on average before costs: the rule loses money whenever a round trip costs more than that (about 0.5 % with Nordnet Mini). "
+        "A few weeks of one market say little, and every variant you try is one more chance to fit the past.[/dim]"
     )
 
 

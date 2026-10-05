@@ -221,6 +221,7 @@ accounts:
 | `breakout` (lookback) | the close breaks above the high of the last bars | it breaks below their low |
 | `macd_cross` (fast, slow, n) | MACD crosses above its signal line | it crosses below |
 | `rsi` (period, low, high) | RSI comes back up through `low` | RSI falls back through `high` |
+| `opening_range` (minutes) | a bar closes above the high of the day's first `minutes` | one closes below its low |
 
 Risk rules: `stop_loss`, `take_profit`, `trailing_stop` (from the highest price since the purchase),
 `flat_at_close` (hold nothing overnight) and `cooldown_bars` (after selling a stock, ignore buy signals in it
@@ -283,6 +284,57 @@ minutes around the clock, without a window; `-Remove` takes it away. Outside Osl
 the clock and stops within milliseconds. It repeats without a daily start time on purpose: a repetition that
 hangs on "weekdays from 07:46" never starts on a day the laptop was asleep at 07:46, which is how the first
 trading day was missed.
+
+### The day-trade bots
+
+Two accounts are day traders: `daytrade_orb` buys the break of the day's first half hour (the classic opening
+range breakout), `daytrade_breakout` buys a new two-day high. Both are built around the one thing the numbers
+above made plain, that a round trip costs about 0.5 % whatever the rule:
+
+- **Few trades, each given time.** A position is closed by its stop or at the close, not by the next wobble of
+  the rule (`exit_on_signal: false`). Entries only between 09:30 and 14:30, so that the opening noise is
+  skipped and a position has hours left to move. One entry per stock a day, three a day in all, three slots.
+- **Only trades that can pay for themselves.** The stock's average daily range must be at least four round-trip
+  costs (`min_range_to_cost: 4`), and the signal bar must trade at least 1.5 times its usual volume
+  (`min_relative_volume: 1.5`); signals arriving together are taken busiest first.
+- **Not one bet five times.** At most one position per sector (`max_per_sector: 1`); the momentum list is mostly
+  shipping and oil.
+- **Nothing overnight.** Everything is sold before the close (`flat_at_close`).
+
+`day_trade: true` turns on the first and the last of these; the rest are settings of their own, documented at
+the top of `intraday.yaml`. The same settings work in a replay:
+
+```bash
+oq intraday replay --rule opening_range --day-trade --stop-loss 0.02 --max-per-sector 1 --min-relative-volume 1.5 --min-range-cost 4
+```
+
+Over the 43 trading days of 15-minute bars Yahoo had on 5 October 2026, next to the four accounts that hold
+overnight:
+
+| | Return | Without the best trade | With free trading | Round trips | Per round trip before costs |
+|---|---:|---:|---:|---:|---:|
+| `daytrade_orb` | -23.3 % | -24.2 % | -1.1 % | 126 | -0.02 % |
+| `daytrade_breakout` | -5.5 % | -6.2 % | +6.1 % | 66 | +0.27 % |
+| `ma_cross(5, 20)` | -11.9 % | -13.4 % | +14.7 % | 262 | +0.20 % |
+| `breakout(20)` | +0.8 % | -5.3 % | +13.9 % | 121 | +0.43 % |
+| `ma_cross(20, 60)` | +2.9 % | +1.5 % | +11.4 % | 78 | +0.54 % |
+| `breakout(60)` | +6.1 % | +0.9 % | +10.6 % | 43 | +0.47 % |
+| OSEBX | +2.3 % | | | | |
+
+The last column is the most any round trip could cost for the rule to break even. Three things follow:
+
+1. **The day-trade bots do not work.** The opening-range breakout earned nothing before costs, so no broker is
+   cheap enough for it. The day-trade breakout earned 0.27 % a round trip against a cost of about 0.5 %.
+2. **The faster quotes are not the answer.** The same bots replayed as if Yahoo's quotes were real time gave
+   -24.7 % and -5.7 %: the same. Whatever these rules are missing, it is not 15 minutes.
+3. **What the overnight accounts earned came mostly from overnight moves**, and much of it from very few of them.
+   The best trade of `breakout(20)` was AutoStore, bought on 7 August and sold on 13 August after the stock
+   opened 25 % higher; without that one trade the account lost 5.3 %. Without its best trade, no account beat
+   simply holding the index. A day trader, flat every evening, gives up exactly those moves.
+
+The bots run as live paper accounts all the same: forty-three days are few, and a record kept forward is the
+only one that cannot be fitted. But nothing here suggests that a rule on 15-minute bars, at retail costs, beats
+owning the market.
 
 ### Is it running?
 
@@ -421,7 +473,7 @@ src/osloquant/
   cli.py       the `oq` command
 examples/      runnable scripts: queries, a formal and a solo strategy, a selector, machine learning
 scripts/       the evening job and the intraday looks for Windows Task Scheduler
-tests/         186 tests on synthetic data; none touches the network
+tests/         201 tests on synthetic data; none touches the network
 ```
 
 ```bash

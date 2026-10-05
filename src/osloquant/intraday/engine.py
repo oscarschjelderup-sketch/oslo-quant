@@ -66,6 +66,20 @@ DEFAULT_CONFIG = """\
 # flat_at_close   true sells everything before the close, so nothing is held overnight
 # cooldown_bars   after selling a stock, ignore buy signals in it for this many 15-minute bars. Stops a rule
 #            from buying back what it was just stopped out of.
+#
+# Day trading. A round trip costs about 0.5 % here whatever the rule, so what decides the result is how many
+# trades there are and how far each one gets to move. These settings are about exactly that:
+# day_trade       true is shorthand for: flat_at_close, exit_on_signal false, entry_window 09:30-14:30 and
+#                 max_entries_per_stock_per_day 1. Any of them can still be set on its own.
+# exit_on_signal  false: the rule's SELL does not close a position; the stops and the close do. A position
+#                 then gets the rest of the day to move instead of being turned over at the next wobble.
+# entry_window    buy only on signals from bars starting in this window, Oslo time: ["09:30", "14:30"]
+# max_entries_per_stock_per_day / max_entries_per_day   caps on the number of buys
+# min_relative_volume   the signal bar must trade this many times the stock's normal bar volume (the median of
+#                 the five sessions before). Candidates arriving together are then taken busiest first.
+# min_range_to_cost     the stock's average daily range over the 20 sessions before must be at least this many
+#                 round-trip costs: a stock that moves 1 % a day cannot pay for 0.5 % round trips.
+# max_per_sector  at most this many positions in one sector, so that five shipping stocks are not one bet five times
 
 # Yahoo's Oslo quotes arrive about this many minutes late
 feed_delay_minutes: 15
@@ -77,6 +91,30 @@ costs:
   slippage: 0.001
 
 accounts:
+  # The day-trade bots: few trades, each held for the rest of the day unless a stop takes it, nothing overnight.
+  - name: daytrade_orb
+    watchlist: all
+    signal: {rule: opening_range, minutes: 30}
+    day_trade: true
+    stop_loss: 0.02
+    min_relative_volume: 1.5
+    min_range_to_cost: 4
+    max_per_sector: 1
+    max_entries_per_day: 3
+    input_money: 100000
+    max_positions: 3
+  - name: daytrade_breakout
+    watchlist: MomentumFactor
+    signal: {rule: breakout, lookback: 60}
+    day_trade: true
+    stop_loss: 0.02
+    min_relative_volume: 1.5
+    min_range_to_cost: 4
+    max_per_sector: 1
+    max_entries_per_day: 3
+    input_money: 100000
+    max_positions: 3
+  # The plain rules, held overnight, for comparison.
   - name: intraday_ma
     watchlist: MomentumFactor
     signal: {rule: ma_cross, fast: 5, slow: 20}
@@ -118,11 +156,43 @@ class IntradayAccountConfig:
     stop_loss: float | None = None
     take_profit: float | None = None
     trailing_stop: float | None = None
-    flat_at_close: bool = False
+    flat_at_close: bool | None = None
     #: after selling a stock, ignore buy signals in it for this many bars (0: none)
     cooldown_bars: int = 0
     input_money: float = 100_000
     max_positions: int = 5
+    #: shorthand for the day-trade settings below that are not given
+    day_trade: bool = False
+    #: false: the rule's SELL does not close a position; the stops and the close do
+    exit_on_signal: bool | None = None
+    #: buy only on signals from bars starting in this window, Oslo time, e.g. ["09:30", "14:30"]
+    entry_window: list[str] | None = None
+    max_entries_per_stock_per_day: int | None = None
+    max_entries_per_day: int | None = None
+    #: the signal bar's volume over the stock's median bar volume in the five sessions before
+    min_relative_volume: float | None = None
+    #: the stock's average daily range must be at least this many round-trip costs
+    min_range_to_cost: float | None = None
+    max_per_sector: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.day_trade:
+            self.flat_at_close = True if self.flat_at_close is None else self.flat_at_close
+            self.exit_on_signal = False if self.exit_on_signal is None else self.exit_on_signal
+            self.entry_window = ["09:30", "14:30"] if self.entry_window is None else self.entry_window
+            if self.max_entries_per_stock_per_day is None:
+                self.max_entries_per_stock_per_day = 1
+        self.flat_at_close = bool(self.flat_at_close)
+        self.exit_on_signal = True if self.exit_on_signal is None else bool(self.exit_on_signal)
+        if self.entry_window is not None:
+            start, end = (_clock(t) for t in self.entry_window)
+            if not FIRST_BAR <= start <= end <= LAST_BAR:
+                raise ValueError(f"{self.name}: entry_window must lie within 09:00-16:15 Oslo time, start first")
+
+
+def _clock(text: str) -> pd.Timedelta:
+    hours, _, minutes = str(text).partition(":")
+    return pd.Timedelta(hours=int(hours), minutes=int(minutes or 0))
 
 
 @dataclass
@@ -273,6 +343,47 @@ def load_actions(entity_ids: list[str] | None, since: pd.Timestamp) -> pd.DataFr
     return StockAction.query_data(entity_ids=entity_ids, start_timestamp=since, columns=["entity_id", "timestamp", "dividend", "split"])
 
 
+def stock_sectors() -> dict[str, str]:
+    from osloquant.domain import Stock
+
+    df = Stock.query_data(columns=["entity_id", "sector"])
+    return dict(zip(df["entity_id"], df["sector"], strict=True))
+
+
+def daily_range_table(entity_ids: list[str] | None, since: pd.Timestamp, until: pd.Timestamp, sessions: int = 20) -> pd.DataFrame:
+    """Per stock and day, the average daily range (high - low) / close over the ``sessions`` sessions up to that day."""
+    from osloquant.domain import Stock1dKdata
+
+    if entity_ids is not None and not entity_ids:
+        return pd.DataFrame()
+    df = Stock1dKdata.query_data(entity_ids=entity_ids, start_timestamp=since, end_timestamp=until, columns=["entity_id", "timestamp", "high", "low", "close"])
+    if df.empty:
+        return pd.DataFrame()
+    df["range"] = (df["high"] - df["low"]) / df["close"]
+    wide = df.pivot(index="timestamp", columns="entity_id", values="range").sort_index()
+    return wide.rolling(sessions, min_periods=sessions // 2).mean()
+
+
+def ranges_as_of(table: pd.DataFrame, day: pd.Timestamp) -> dict[str, float]:
+    """The average daily ranges as they stood at the last close before ``day``: nothing of the day itself."""
+    if table.empty:
+        return {}
+    before = table[table.index < day.normalize()]
+    return {} if before.empty else before.iloc[-1].dropna().to_dict()
+
+
+def relative_volume(bars: pd.DataFrame, sessions: int = 5) -> float | None:
+    """The newest bar's volume over the median bar volume of the ``sessions`` sessions before its day."""
+    today = bars.index[-1].normalize()
+    before = bars.iloc[: bars.index.searchsorted(today)]
+    if before.empty:
+        return None
+    days = before.index.normalize()
+    recent = before[days.isin(days.unique()[-sessions:])]
+    normal = recent["volume"].median()
+    return float(bars["volume"].iloc[-1] / normal) if normal and normal > 0 else None
+
+
 def completed_bars(bars: pd.DataFrame, feed_time: pd.Timestamp) -> pd.DataFrame:
     """The bars that had closed by ``feed_time``."""
     return bars.iloc[: bars.index.searchsorted(feed_time - INTERVAL, side="right")]
@@ -325,6 +436,10 @@ class IntradayAccount:
         self.booked: list[str] = []
         #: per stock, the bar it was last sold on (for the cooldown)
         self.closed: dict[str, pd.Timestamp] = {}
+        #: the day the entry counts are for, and the stocks bought (ordered) on it
+        self.entry_day: str | None = None
+        self.entries_today: list[str] = []
+        self.window = None if account.entry_window is None else tuple(_clock(t) for t in account.entry_window)
         self.start: pd.Timestamp | None = None
         self.last_poll: pd.Timestamp | None = None
         self.watchlist: list[str] = []
@@ -338,6 +453,8 @@ class IntradayAccount:
             self.opened = {e: pd.Timestamp(t) for e, t in state.get("opened", {}).items()}
             self.booked = list(state.get("booked", []))
             self.closed = {e: pd.Timestamp(t) for e, t in state.get("closed", {}).items()}
+            self.entry_day = state.get("entry_day")
+            self.entries_today = list(state.get("entries_today", []))
             self.start = pd.Timestamp(state["start"])
             self.last_poll = pd.Timestamp(state["last_poll"])
             self.signals_recorded = int(state.get("signals_recorded", 0))
@@ -359,6 +476,8 @@ class IntradayAccount:
             "opened": {e: t.isoformat() for e, t in self.opened.items()},
             "booked": self.booked[-200:],
             "closed": {e: t.isoformat() for e, t in self.closed.items()},
+            "entry_day": self.entry_day,
+            "entries_today": self.entries_today,
             "watchlist": self.watchlist,
             "watchlist_as_of": self.watchlist_as_of.isoformat() if self.watchlist_as_of is not None else None,
             "signals_recorded": self.signals_recorded,
@@ -373,12 +492,15 @@ class IntradayAccount:
         watchlist: list[str],
         wall_clock: pd.Timestamp | None = None,
         actions: pd.DataFrame | None = None,
+        ranges: dict[str, float] | None = None,
+        sectors: dict[str, str] | None = None,
     ) -> StepReport:
         """Everything the account does at one poll.
 
         ``now`` is Oslo time. ``wall_clock`` (UTC) marks a live run: its fills are flagged as forward, because
         the price they were filled at had not come through the feed when the order was written down.
-        ``actions`` are recent dividends and splits (entity_id, timestamp, dividend, split).
+        ``actions`` are recent dividends and splits (entity_id, timestamp, dividend, split). ``ranges`` are the
+        stocks' average daily ranges as of the last close and ``sectors`` their sectors, for the filters that use them.
         """
         report = StepReport(name=self.cfg.name)
         feed_time = now - self.feed_delay
@@ -448,6 +570,9 @@ class IntradayAccount:
         # 4. the signal rule, on the newest completed bar of each stock it has not looked at yet
         buying = {o["entity_id"] for o in self.pending if o["side"] == BUY}
         last_fillable = now.normalize() + LAST_BAR
+        if self.entry_day != now.normalize().isoformat():
+            self.entry_day, self.entries_today = now.normalize().isoformat(), []
+        candidates = []
         for entity_id in [*watchlist, *[e for e in self.account.holdings if e not in watchlist]]:
             frame = done.get(entity_id)
             if frame is None or len(frame) < self.rule.min_bars:
@@ -461,40 +586,85 @@ class IntradayAccount:
             signal = self.rule.evaluate(frame)
             if signal is None:
                 continue
-            held = entity_id in self.account.holdings
             order = self._order(entity_id, signal.code, signal.code, signal.rule, signal.reason, signal.bar, signal.price, now)
             if signal.code == SELL:
-                if not held or entity_id in selling:
+                if entity_id not in self.account.holdings or entity_id in selling:
                     continue  # a sell signal for something not held is not news
+                if not self.cfg.exit_on_signal:
+                    report.signals.append(self._signal_row(order, "not acted on: this account exits by its stops and at the close", wall_clock))
+                    continue
                 self.pending.append(order)
                 selling.add(entity_id)
-                outcome = "ordered"
+                report.signals.append(self._signal_row(order, "ordered", wall_clock))
             else:
-                free = self.cfg.max_positions - len(set(self.account.holdings) - selling) - len(buying)
-                cooling = self.cfg.cooldown_bars and entity_id in self.closed and signal.bar < self.closed[entity_id] + self.cfg.cooldown_bars * INTERVAL
-                if held:
-                    outcome = "skipped: already held"
-                elif cooling:
-                    outcome = "skipped: cooling off after the last sale"
-                elif entity_id in buying:
-                    outcome = "skipped: already ordered"
-                elif entity_id not in watchlist:
-                    outcome = "skipped: not on today's watchlist"
-                elif closing_time:
-                    outcome = "skipped: too close to the close"
-                elif order["bar"] > last_fillable:
-                    outcome = "skipped: the market has closed"
-                elif free <= 0:
-                    outcome = "skipped: no free slot"
-                else:
-                    self.pending.append(order)
-                    buying.add(entity_id)
-                    outcome = "ordered"
+                candidates.append((entity_id, order, relative_volume(frame) if self.cfg.min_relative_volume else None))
+
+        # the buys arriving together are judged busiest first when volume matters, else in watchlist order
+        if self.cfg.min_relative_volume:
+            candidates.sort(key=lambda c: -(c[2] or 0.0))
+        cost = self.round_trip_cost()
+        for entity_id, order, volume_ratio in candidates:
+            outcome = self._judge_buy(entity_id, order, volume_ratio, cost, watchlist, buying, selling, closing_time, last_fillable, ranges, sectors)
+            if outcome == "ordered":
+                self.pending.append(order)
+                buying.add(entity_id)
+                self.entries_today.append(entity_id)
             report.signals.append(self._signal_row(order, outcome, wall_clock))
 
         self.last_poll = now
         report.value = self.account.all_value
         return report
+
+    def round_trip_cost(self) -> float:
+        """What buying and selling one position of the usual size costs, as a share of it."""
+        size = self.account.all_value / self.cfg.max_positions
+        if size <= 0:
+            return float("inf")
+        floor = self.account.min_cost / size
+        return max(floor, self.account.buy_cost) + max(floor, self.account.sell_cost) + 2 * self.account.slippage
+
+    def _judge_buy(self, entity_id, order, volume_ratio, cost, watchlist, buying, selling, closing_time, last_fillable, ranges, sectors) -> str:
+        """Whether a BUY signal becomes an order, or which rule stopped it. The first rule that applies is the reason."""
+        cfg = self.cfg
+        bar_time = order["signal_bar"] - order["signal_bar"].normalize()
+        if entity_id in self.account.holdings:
+            return "skipped: already held"
+        if cfg.cooldown_bars and entity_id in self.closed and order["signal_bar"] < self.closed[entity_id] + cfg.cooldown_bars * INTERVAL:
+            return "skipped: cooling off after the last sale"
+        if entity_id in buying:
+            return "skipped: already ordered"
+        if entity_id not in watchlist:
+            return "skipped: not on today's watchlist"
+        if closing_time:
+            return "skipped: too close to the close"
+        if order["bar"] > last_fillable:
+            return "skipped: the market has closed"
+        if self.window is not None and not self.window[0] <= bar_time <= self.window[1]:
+            return f"skipped: outside the entry window {cfg.entry_window[0]}-{cfg.entry_window[1]}"
+        if cfg.max_entries_per_stock_per_day is not None and self.entries_today.count(entity_id) >= cfg.max_entries_per_stock_per_day:
+            return "skipped: already traded today"
+        if cfg.max_entries_per_day is not None and len(self.entries_today) >= cfg.max_entries_per_day:
+            return f"skipped: {len(self.entries_today)} entries today already"
+        if cfg.max_per_sector is not None:
+            sector = (sectors or {}).get(entity_id)
+            taken = sum(1 for e in (set(self.account.holdings) - selling) | buying if (sectors or {}).get(e) == sector)
+            if sector is not None and taken >= cfg.max_per_sector:
+                return f"skipped: {taken} already in {sector}"
+        if cfg.min_relative_volume is not None:
+            if volume_ratio is None:
+                return "skipped: no volume history to compare with"
+            if volume_ratio < cfg.min_relative_volume:
+                return f"skipped: volume {volume_ratio:.1f}x normal, under {cfg.min_relative_volume:g}x"
+        if cfg.min_range_to_cost is not None:
+            daily_range = (ranges or {}).get(entity_id)
+            if daily_range is None:
+                return "skipped: no daily range to weigh the costs against"
+            if daily_range < cfg.min_range_to_cost * cost:
+                return f"skipped: daily range {daily_range:.1%} is under {cfg.min_range_to_cost:g} round trips of {cost:.2%}"
+        free = cfg.max_positions - len(set(self.account.holdings) - selling) - len(buying)
+        if free <= 0:
+            return "skipped: no free slot"
+        return "ordered"
 
     def _book_actions(self, now: pd.Timestamp, actions: pd.DataFrame | None) -> None:
         """Dividends and splits for what was held going into their day. They reach the store on the evening of
@@ -626,13 +796,15 @@ def poll(config: IntradayConfig, now: pd.Timestamp | None = None, record: bool =
             logger.warning("recording intraday bars failed: %s", e)
     bars = load_bars(needed, since=now - pd.Timedelta(days=12))
     actions = load_actions(needed, since=now.normalize() - pd.Timedelta(days=30))
+    sectors = stock_sectors()
+    ranges = ranges_as_of(daily_range_table(needed, since=now.normalize() - pd.Timedelta(days=60), until=now), now)
     # the newest bar that has started: how far behind the clock it is, is how late the feed really is
     started = [frame.index[frame.index.searchsorted(now, side="right") - 1] for frame in bars.values() if len(frame) and frame.index[0] <= now]
     result.feed_lag = now - max(started) if started else None
 
     for account in accounts:
         try:
-            report = account.step(now, bars, account.watchlist, wall_clock=wall_clock, actions=actions)
+            report = account.step(now, bars, account.watchlist, wall_clock=wall_clock, actions=actions, ranges=ranges, sectors=sectors)
             _persist(account, config, report, now, wall_clock, feed_lag=result.feed_lag)
             result.reports.append(report)
         except Exception as e:
@@ -732,14 +904,17 @@ def replay(account: IntradayAccountConfig, config: IntradayConfig, days: int = 3
         bars = load_bars(None, since=since - pd.Timedelta(days=12), until=end)
     sessions = sorted({ts.normalize() for frame in bars.values() for ts in frame.index if ts >= since})
     actions = load_actions(None, since=since)
+    sectors = stock_sectors()
+    range_table = daily_range_table(None, since=since - pd.Timedelta(days=60), until=end)
     trader = IntradayAccount(account, config)
     signals, daily = [], {}
     for day in sessions:
         watchlist, _ = daily_watchlist(account.watchlist, day)
+        ranges = ranges_as_of(range_table, day)
         for when in poll_times(day, config.feed_delay):
             if when > end:
                 break
-            signals += trader.step(when, bars, watchlist, actions=actions).signals
+            signals += trader.step(when, bars, watchlist, actions=actions, ranges=ranges, sectors=sectors).signals
         daily[day] = trader.account.all_value
     return ReplayResult(
         name=account.name,

@@ -165,7 +165,42 @@ class Rsi(Rule):
         return None
 
 
-RULES: dict[str, type[Rule]] = {rule.code: rule for rule in (MaCross, Breakout, MacdCross, Rsi)}
+class OpeningRange(Rule):
+    """The classic day-trade entry: BUY when a bar closes above the high of the day's opening range (its first
+    ``minutes``), SELL when one closes below its low. The range is the day's own, so the rule needs nothing from
+    earlier days and fires at most once each way on a quiet day."""
+
+    code = "opening_range"
+
+    def __init__(self, minutes: int = 30) -> None:
+        if minutes <= 0 or minutes % 15:
+            raise ValueError("minutes must be a positive multiple of 15")
+        super().__init__(minutes=minutes)
+        self.minutes = minutes
+        self.n = minutes // 15
+
+    @property
+    def min_bars(self) -> int:
+        return self.n + 1
+
+    def evaluate(self, bars: pd.DataFrame) -> Signal | None:
+        today = bars.index[-1].normalize()
+        day = bars.iloc[bars.index.searchsorted(today) :]
+        opening_bars = pd.date_range(today + pd.Timedelta(hours=9), periods=self.n, freq="15min")
+        # the range is only a range if the stock traded in every one of its bars
+        if len(day) <= self.n or not day.index[: self.n].equals(opening_bars):
+            return None
+        opening = day.iloc[: self.n]
+        high, low = opening["high"].max(), opening["low"].min()
+        now, before = day["close"].iloc[-1], day["close"].iloc[-2]
+        if before <= high < now:
+            return self.signal(BUY, f"close {now:.2f} broke above the {self.minutes}-minute opening range high {high:.2f}", bars)
+        if before >= low > now:
+            return self.signal(SELL, f"close {now:.2f} broke below the {self.minutes}-minute opening range low {low:.2f}", bars)
+        return None
+
+
+RULES: dict[str, type[Rule]] = {rule.code: rule for rule in (MaCross, Breakout, MacdCross, Rsi, OpeningRange)}
 
 
 def build_rule(spec: dict) -> Rule:
