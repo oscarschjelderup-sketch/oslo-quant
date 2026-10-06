@@ -1,4 +1,4 @@
-"""The command line: ``oq record``, ``oq status``, ``oq check``, ``oq doctor``, ``oq query``, ``oq targets``, ``oq backtest``, ``oq live``, ``oq intraday``, ``oq ui``."""
+"""The command line: ``oq record``, ``oq status``, ``oq check``, ``oq doctor``, ``oq lab``, ``oq check-factor``, ``oq query``, ``oq targets``, ``oq backtest``, ``oq live``, ``oq intraday``, ``oq ui``."""
 
 from __future__ import annotations
 
@@ -387,6 +387,151 @@ def doctor() -> None:
         console.print("Everything is running.")
     if any(c.status == FAIL for c in checks):
         raise typer.Exit(1)
+
+
+@app.command()
+def lab(
+    start: str = typer.Option("2001-01-01", help="First month to trade."),
+    capital: float = typer.Option(100_000, help="The account's size in NOK: with a NOK 29 minimum per order, it decides what a trade costs."),
+    buffer: float = typer.Option(0.25, help="Leave a holding alone while it is within this share of its target weight."),
+    flat_cost: float = typer.Option(None, help="Instead of the account's costs, a plain cost per unit traded, e.g. 0.004."),
+    overnight: bool = typer.Option(True, help="Also split the returns into overnight and intraday."),
+    sensitivity: bool = typer.Option(True, help="Also show the excess under other account sizes and costs."),
+    odegaard: str = typer.Option(None, help="Path to Ødegaard's Norway_market_portfolios_monthly.csv: measures what the list of survivors adds."),
+) -> None:
+    """Test the documented strategies against the equal-weight basket, with the tests that tell an edge from luck.
+
+    The strategies and their settings are fixed in advance (see osloquant/research/lab.py), so nothing here is
+    tuned to the data. An edge counts when it beats the basket of the same stocks after costs, when the bootstrap
+    interval of that excess stays above zero, and when its deflated Sharpe ratio (which charges for every variant
+    tried) is high.
+    """
+    _setup()
+    from osloquant.research.lab import STRATEGIES, Costs, cost_sensitivity, overnight_split, run_lab, survivorship_gap
+
+    costs = Costs.flat(flat_cost) if flat_cost is not None else Costs(capital=capital, buffer=buffer)
+    with console.status("Running the strategies (about a minute) ..."):
+        result = run_lab(start=start, cost=costs)
+    console.print(f"[bold]The lab, {result.start:%Y-%m-%d} to {result.end:%Y-%m-%d}[/bold]: {result.stocks} stocks. Costs: {costs.describe()}.")
+    table = Table()
+    columns = ("Strategy", "Source", "Per year", "Before costs", "Over the basket", "95 % interval", "Years ahead", "Deflated Sharpe",
+               "Largest drawdown", "Positions", "Turnover", "2001-08", "2009-16", "2017-")  # fmt: skip
+    for column in columns:
+        table.add_column(column, justify="left" if column in ("Strategy", "Source") else "right")
+    for strategy in STRATEGIES:
+        r = result.table.loc[strategy.name]
+        if r["per_year"] <= -0.99:
+            # the NOK 29 minimum on many small orders, paid out of a shrinking account, takes all of it
+            table.add_row(strategy.name, strategy.source, "ruined", _pct(r["before_costs"]), "", "", "", "", "", f"{r['positions']:.0f}", f"{r['turnover']:.1f}x", "", "", "")
+            continue
+        if strategy.name == "equal_weight":
+            table.add_row(strategy.name, strategy.source, _pct(r["per_year"]), _pct(r["before_costs"]), "", "", "", "", _pct(r["max_drawdown"]),
+                          f"{r['positions']:.0f}", f"{r['turnover']:.1f}x", "", "", "")  # fmt: skip
+            continue
+        table.add_row(
+            strategy.name, strategy.source, _pct(r["per_year"]), _pct(r["before_costs"]), _pct(r["excess"]),
+            f"{_pct(r['excess_low'])} to {_pct(r['excess_high'])}", f"{r['years_ahead']:.0%}", f"{r['dsr']:.2f}",
+            _pct(r["max_drawdown"]), f"{r['positions']:.0f}", f"{r['turnover']:.1f}x", _pct(r["2001-2008"]), _pct(r["2009-2016"]), _pct(r["2017-"]),
+        )  # fmt: skip
+    console.print(table)
+    o = result.overfitting
+    console.print(
+        f"Overfitting in the momentum family ({o['configurations']} settings, {o['splits']:,} splits): PBO {o['pbo']:.0%}; the in-sample best "
+        f"kept {o['degradation']:.0%} of its Sharpe out of sample and lost money in {o['probability_of_loss']:.0%} of the splits. "
+        f"Best over the whole period: {o['best_in_full_sample']} ({_pct(o['best_excess'])} a year over the basket)."
+    )
+    console.print(f"Trials charged for: {o['trials']} variants, worth {o['effective_trials']:.1f} independent ones.")
+    if result.walk_forward:
+        w = result.walk_forward
+        picks = list(w["picks"].values())
+        chosen = f"it picked {picks[0]} every year" if not w["switches"] else f"{w['switches']} changes of setting, most often {max(set(picks), key=picks.count)}"
+        console.print(
+            f"Re-tuning the momentum settings every January on the years before, from {w['from']:%Y}: {_pct(w['tuned_excess'])} a year over the basket "
+            f"({chosen}), against {_pct(w['textbook_excess'])} for keeping the textbook 12-1 top fifth."
+        )
+
+    if sensitivity:
+        with console.status("Running the strategies under other costs ..."):
+            grid = cost_sensitivity(start=start)
+        cost_table = Table(title="Excess a year over the basket, by what trading costs (the basket's own return in its row)")
+        cost_table.add_column("Strategy")
+        for label in grid.columns:
+            cost_table.add_column(label, justify="right")
+        for name, row in grid.iterrows():
+            cost_table.add_row(name, *["ruined" if v <= -0.99 else _pct(v) for v in row])
+        console.print(cost_table)
+
+    if odegaard:
+        gap = survivorship_gap(odegaard, start=start)
+        periods = ", ".join(f"{label} {_pct(value)}" for label, value in gap["periods"].items())
+        console.print(
+            f"Survivorship, {gap['from']} to {gap['to']}: our basket of today's stocks {_pct(gap['ours'])} a year, every stock listed at the time "
+            f"(Ødegaard, equal weight) {_pct(gap['market_ew'])}: the list of survivors adds {_pct(gap['gap'])} a year ({periods}). "
+            "It flatters every absolute return above; the comparisons with the basket share the same list."
+        )
+
+    if overnight:
+        with console.status("Splitting the returns into overnight and intraday ..."):
+            split = overnight_split()
+        night = Table(title="Where the returns are earned, 2010 onwards, a year")
+        for column in ("Stocks", "Close to open (overnight)", "Open to close (intraday)", "Total"):
+            night.add_column(column, justify="left" if column == "Stocks" else "right")
+        for group, row in split.iterrows():
+            night.add_row(group, _pct(row["overnight"]), _pct(row["intraday"]), _pct(row["total"]))
+        console.print(night)
+    console.print(
+        "[dim]Over the basket: the strategy's return a year minus that of the equal-weight basket of the same stocks. The interval is a block "
+        "bootstrap of that excess. Deflated Sharpe: the probability that the excess is skill and not the luck of the best of the variants tried; "
+        "0.95 or more is convincing. The stocks are today's survivors, and cash earns nothing.[/dim]"
+    )
+
+
+@app.command("check-factor")
+def check_factor(
+    factor: str = typer.Argument(..., help="Factor class name, e.g. GoldCrossFactor, or package.module:ClassName for your own."),
+    codes: str = typer.Option(None, help="Comma-separated codes to check on; all stocks when omitted."),
+    samples: int = typer.Option(6, help="How many dates to test for look-ahead."),
+) -> None:
+    """Does a factor look into the future, and does it depend on how much history it is given?
+
+    After freqtrade's lookahead-analysis and recursive-analysis. The factor is computed on all the data and on
+    the data up to each of a few dates; any difference in what it says about such a date is look-ahead. Then the
+    newest date is computed with less and less history before it.
+    """
+    _setup()
+    import importlib
+
+    from osloquant.contract import context
+    from osloquant.research.checks import lookahead_check, warmup_check
+
+    if ":" in factor:
+        module, _, name = factor.partition(":")
+        factor_cls = getattr(importlib.import_module(module), name)
+    elif factor in context.factor_cls_registry:
+        factor_cls = context.factor_cls_registry[factor]
+    else:
+        raise typer.BadParameter(f"unknown factor; known: {', '.join(sorted(context.factor_cls_registry))}")
+    settings = {"codes": _codes(codes)} if codes else {}
+    start = pd.Timestamp.now().normalize() - pd.DateOffset(years=6)
+
+    with console.status("Looking for look-ahead ..."):
+        found = lookahead_check(factor_cls, start=start, samples=samples, **settings)
+    if found.empty:
+        console.print(f"[green]No look-ahead[/green]: on {samples} dates, {factor} said the same with and without the days after.")
+    else:
+        console.print(f"[red]Look-ahead found[/red] on {found['date'].nunique()} of {samples} dates, in {', '.join(sorted(found['column'].unique()))}:")
+        console.print(found.head(10).to_string(index=False))
+
+    with console.status("Checking the warm-up ..."):
+        newest = factor_cls(start_timestamp=start, **settings).factor_df.index.get_level_values("timestamp").max()
+        warm = warmup_check(factor_cls, newest, **settings)
+    table = Table(title=f"{factor} on {newest:%Y-%m-%d}, with less history before it")
+    for column in ("History", "Largest deviation", "In", "Not computable", "Verdicts changed"):
+        table.add_column(column, justify="left" if column == "In" else "right")
+    for r in warm.itertuples():
+        table.add_row(f"{r.warmup_days} days", f"{r.largest_deviation:.2%}", r.column or "", f"{r.not_computable}", f"{r.verdicts_changed} of {r.entities}")
+    console.print(table)
+    console.print("[dim]The traders load 400 days before their start (pre_load_days). If a shorter history changes verdicts, give them more.[/dim]")
 
 
 intraday_app = typer.Typer(add_completion=False, help="Intraday paper accounts: signal rules on 15-minute bars. Play money only.")

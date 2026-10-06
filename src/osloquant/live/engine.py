@@ -49,7 +49,7 @@ DEFAULT_CONFIG = """\
 # An account starts on the first session after it appears here and is never restarted: to try a changed
 # strategy, add it under a new name and let both run. Removing an account stops it; its history stays stored.
 #
-# strategy: one of ma, macd, trend, momentum, or your own as "package.module:ClassName".
+# strategy: one of ma, macd, trend, momentum, trend_monthly, or your own as "package.module:ClassName".
 
 costs:
   # Nordnet Mini as of October 2026: 0.15 %, at least NOK 29 per order. Set this to your broker's price list.
@@ -61,6 +61,8 @@ costs:
 accounts:
   - {name: live_momentum, strategy: momentum, input_money: 100000, max_positions: 10}
   - {name: live_trend, strategy: trend, input_money: 100000, max_positions: 10}
+  # the lab's trend strategy as it was tested: every stock above its 200-day average, decided monthly
+  - {name: live_trend_monthly, strategy: trend_monthly, input_money: 100000, max_positions: 100}
 """
 
 

@@ -236,7 +236,7 @@ class ShortTrend(MaTrader):
 def test_the_default_configuration_is_written_once_and_read_back():
     first = load_config()
     assert first.created and first.path == config_path() and first.path.exists()
-    assert [a.name for a in first.accounts] == ["live_momentum", "live_trend"]
+    assert [a.name for a in first.accounts] == ["live_momentum", "live_trend", "live_trend_monthly"]
     assert (first.commission_rate, first.commission_min, first.slippage) == (0.0015, 29.0, 0.001)
     assert not load_config().created
 

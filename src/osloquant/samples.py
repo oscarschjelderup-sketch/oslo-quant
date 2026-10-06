@@ -99,9 +99,47 @@ class MomentumTrader(StockTrader):
         return [MomentumFactor(**common), AboveMaFactor(window=200, **common)]
 
 
+class TrendMonthlyTrader(StockTrader):
+    """The lab's trend strategy as a trader: once a month, hold every stock above its 200-day average.
+
+    New holdings get an equal share of the account; holdings that stay above their average are left alone rather
+    than topped up, so that no order is placed only to rebalance (each would pay the NOK 29 minimum).
+    """
+
+    window = 200
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.setdefault("rebalance", "monthly")
+        kwargs.setdefault("profit_threshold", None)
+        kwargs.setdefault("max_positions", 100)
+        super().__init__(*args, **kwargs)
+
+    def init_factors(self, entity_ids, entity_schema, start_timestamp, end_timestamp, adjust_type=None, provider=None):
+        return [
+            AboveMaFactor(
+                window=self.window,
+                entity_schema=entity_schema,
+                entity_ids=entity_ids,
+                start_timestamp=start_timestamp,
+                end_timestamp=end_timestamp,
+                adjust_type=adjust_type,
+                provider=provider,
+            )
+        ]
+
+    def select_from_factors(self, timestamp):
+        long_selected, short_selected = super().select_from_factors(timestamp)
+        self._targets = len(long_selected)
+        return long_selected, short_selected
+
+    def long_position_control(self) -> float:
+        return 1.0 / max(getattr(self, "_targets", 0), 1)
+
+
 SAMPLE_TRADERS = {
     "ma": MaTrader,
     "macd": MacdTrader,
     "trend": TrendTrader,
     "momentum": MomentumTrader,
+    "trend_monthly": TrendMonthlyTrader,
 }

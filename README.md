@@ -42,6 +42,8 @@ oq live                  # step the paper accounts forward to the last completed
 oq intraday replay       # try the intraday rules on the last weeks of 15-minute bars
 oq intraday run          # follow today's session: a look every 15 minutes, play money only
 oq doctor                # is everything that should be running, running?
+oq lab                   # the documented strategies, tested for luck as well as for return
+oq check-factor GoldCrossFactor   # does a factor look into the future, or depend on its warm-up?
 oq ui                    # the dashboard at http://127.0.0.1:8050
 ```
 
@@ -395,6 +397,112 @@ there is to tune a backtest into whatever you hoped to see. That is the reason f
 
 These are textbook rules, there to exercise the framework and to be argued with. None is a recommendation.
 
+## The lab: what holds up
+
+Everything above invites the same mistake: try rules until one looks good. `oq lab` does the opposite. It tests a
+fixed list of strategies from the research literature, with their published settings, on 25 years of Oslo prices,
+and asks three questions of each: does it beat the equal-weight basket of the same stocks after real costs, is that
+excess clearly above zero, and would it survive the charge for every other variant tried?
+
+```bash
+oq lab
+oq lab --capital 1000000      # the same with a bigger account
+oq lab --odegaard Norway_market_portfolios_monthly.csv   # and measure the survivorship (see below)
+```
+
+The tests:
+
+- **Real costs.** Nordnet Mini (0.15 %, at least NOK 29 an order) plus 0.1 % slippage, paid out of a NOK 100 000
+  account. With thirty positions the minimum is a full percent of each order, so how many stocks a strategy
+  holds matters as much as how often it trades. Holdings within a quarter of their target weight are left alone.
+- **A bootstrap interval** (stationary blocks, Politis & Romano 1994) for the excess over the basket.
+- **The deflated Sharpe ratio** (Bailey & López de Prado 2014): the probability that the excess is skill rather
+  than the luck of the best of all the variants tried, with correlated variants counted as fewer independent ones.
+- **The probability of backtest overfitting** (Bailey, Borwein, López de Prado & Zhu 2017), by combinatorially
+  symmetric cross-validation over 24 settings of momentum: pick the best on half of the history, see where it ranks
+  on the other half, for all 12 870 ways of halving it.
+- **Walk-forward re-tuning:** each January, pick the momentum setting that did best so far and hold it for the year.
+
+On 6 October 2026, February 2001 to October 2026, 62 stocks:
+
+| Strategy | Source | Per year | Over the basket | 95 % interval | Deflated Sharpe | Largest drawdown |
+|---|---|---:|---:|---:|---:|---:|
+| equal weight (the hurdle) | | +17.7 % | | | | -62 % |
+| momentum + 200-day trend | (the live momentum account) | +29.0 % | +11.4 % | +1.0 to +19.7 % | 0.52 | -51 % |
+| trend: every stock above its 200-day average | Faber 2007 | +26.4 % | +8.8 % | +2.5 to +17.5 % | 0.62 | -42 % |
+| momentum with a buy/hold buffer | Novy-Marx & Velikov 2016 | +26.3 % | +8.6 % | -1.1 to +17.1 % | 0.36 | -57 % |
+| momentum 12-1, best fifth | Jegadeesh & Titman 1993 | +24.5 % | +6.9 % | -2.1 to +11.9 % | 0.32 | -57 % |
+| momentum, volatility-managed | Barroso & Santa-Clara 2015 | +23.8 % | +6.1 % | -3.1 to +11.2 % | 0.26 | -55 % |
+| dual momentum | Antonacci 2014 | +23.3 % | +5.6 % | -5.0 to +12.0 % | 0.20 | -47 % |
+| market timing, 10-month average | Faber 2007 | +15.8 % | -1.9 % | -13.3 to +4.9 % | 0.00 | -31 % |
+| low volatility | Blitz & van Vliet 2007 | +12.8 % | -4.9 % | -13.8 to +0.3 % | 0.00 | -62 % |
+| short-term reversal | Jegadeesh 1990 | +6.1 % | -11.5 % | -16.5 to -2.0 % | 0.00 | -71 % |
+| turn of the month | Lakonishok & Smidt 1988 | ruined by costs | | | | |
+
+What it says:
+
+1. **Trend and momentum are the only candidates**, and both are slow: decided once a month, held for months,
+   overnight. Their intervals stay above zero, but neither clears a deflated Sharpe of 0.95, so luck has not been
+   ruled out. Trend's excess came mostly from leaving the market before 2008 (+19.8 % a year over the basket in
+   2001-2008, +2.6 % since 2017); momentum with the trend filter was ahead in all three periods.
+2. **Tuning is overfitting.** Among the 24 momentum settings, the best one on half of the history landed in the
+   bottom half on the other half 78 % of the time. Re-tuned every January, momentum earned +2.1 % a year over the
+   basket; the textbook 12-1 setting, never touched, earned +5.7 %. Use the published settings.
+3. **Costs decide what is left.** Short-term reversal trades its portfolio nine times a year and pays almost five
+   points a year for it (+10.9 % before costs, +6.1 % after); turn of the month, trading forty stocks twice a month,
+   is eaten whole by the NOK 29 minimum. `oq lab --capital 1000000` shows how much of that is the account's size.
+4. **Momentum is real on Oslo Børs.** Ødegaard's momentum factor over every stock that was listed at the time,
+   delisted ones included, earned 1.44 % a month from 2001 to 2024, with a t-statistic of 4.0. That is independent
+   evidence, on data without our survivorship problem.
+
+### Survivorship, measured
+
+The stock list holds today's companies, so the past looks better than it was. Bernt Arne Ødegaard publishes an
+equal-weighted index of every stock listed on Oslo Børs at the time, from 1980
+([his data page](https://ba-odegaard.no/financial_data/ose_asset_pricing_data/index.html)). Download
+`Norway_market_portfolios_monthly.csv` from there and pass it with `--odegaard`. From March 2001 to December 2024:
+
+| | Per year |
+|---|---:|
+| our equal-weight basket of today's 62 stocks | +17.2 % |
+| every stock listed at the time, equal weight (Ødegaard) | +9.6 % |
+| **the list of survivors adds** | **+7.6 %** |
+
+The gap is 6-10 points in every period. Take it off every absolute return in this README. The comparisons with
+the basket share the same list, so they are hurt less; for trend and momentum, which tend to sell a stock long
+before it is delisted, probably not at all, but that is a reasoned guess, not a measurement.
+
+### Where the returns are earned
+
+The lab also splits each day's return into close-to-open (overnight) and open-to-close (intraday), after Lou,
+Polk & Skouras (2019). From 2010, for a portfolio rebalanced daily and trading for free:
+
+| | Overnight | Intraday | Whole day |
+|---|---:|---:|---:|
+| all stocks | +44.2 % | -17.4 % | +19.2 % |
+| momentum winners | +39.9 % | -8.8 % | +27.6 % |
+| momentum losers | +88.1 % | -41.4 % | +10.2 % |
+
+Part of the split is the spread (a close at the bid, an open at the ask), which nobody can trade, so the sizes
+should not be taken literally. The direction should: on Oslo Børs the long side has earned its return while the
+market was closed, and lost during the day. That is why the day-trade bots above found nothing, and why the
+candidates in the lab hold overnight.
+
+### Two checks on any factor
+
+`oq check-factor NAME` runs two checks borrowed from freqtrade (`lookahead-analysis` and `recursive-analysis`).
+Neither reads the code:
+
+- **Look-ahead.** The factor is computed on all the data and again on the data up to each of a few dates. If
+  what it says about a date changes once later days are known, it looked into the future (a `shift(-1)`, a
+  centred window, a fit on the whole sample).
+- **Warm-up.** The newest date is computed with less and less history before it. Exponential averages never
+  forget where they started. MACD needs about 400 days before its verdicts stop moving; 12-1 momentum needs more
+  than a year to have a value at all.
+
+Every factor that ships passes the look-ahead check. A factor of your own is checked with
+`oq check-factor my_module:MyFactor`.
+
 ## Data quality
 
 Yahoo is free and delayed, and its Oslo data has faults. The ones that follow a pattern are repaired by rule
@@ -421,7 +529,8 @@ with real events behind them (2020, restructurings, bids).
 
 ## Limits worth knowing
 
-- **Survivorship.** See above. The only real fix is a data vendor that keeps delisted companies.
+- **Survivorship.** Measured above at 7.6 percentage points a year on the equal-weight basket. The only real fix
+  is a data vendor that keeps delisted companies (Titlon, at several Norwegian universities, may have them).
 - **Reports.** Yahoo keeps about four annual and five quarterly reports per company and not the day each was
   published. A report is treated as public 90 days (annual) or 60 days (quarterly) after its period end, which
   is deliberately late. Factors on reports can screen today's market; they cannot be backtested over a cycle.
@@ -465,6 +574,7 @@ src/osloquant/
   trader/      the trader loop, the simulated account, the stored results, statistics
   live/        the evening job: session clock, stepping the paper accounts, their saved state
   intraday/    signal rules on 15-minute bars and the play-money accounts that trade them
+  research/    the lab: strategies, the cost model, the tests for luck, the checks on factors
   health.py    the checks behind `oq doctor`
   tick.py      what the 15-minute scheduled task runs
   ml/          the machine-learning harness
@@ -473,11 +583,11 @@ src/osloquant/
   cli.py       the `oq` command
 examples/      runnable scripts: queries, a formal and a solo strategy, a selector, machine learning
 scripts/       the evening job and the intraday looks for Windows Task Scheduler
-tests/         201 tests on synthetic data; none touches the network
+tests/         232 tests on synthetic data; none touches the network
 ```
 
 ```bash
-pytest          # about two and a half minutes
+pytest          # about four minutes
 ruff check .
 ```
 
@@ -498,6 +608,8 @@ Done differently on purpose:
 - The machine-learning split leaves a gap before the test period, and `evaluate()` reports the model next to
   a naive forecast.
 - Data is cleaned by rule when recorded, and restated history is detected and downloaded again.
+- A strategy lab with the deflated Sharpe ratio, the probability of backtest overfitting and walk-forward
+  re-tuning, and look-ahead and warm-up checks on factors after freqtrade.
 - Monthly and weekly strategies act on the first trading day of the period, so the loop never needs to know
   the calendar ahead.
 - Live accounts are paper accounts at real prices with a timestamped decision log, where zvt connects to a
