@@ -616,4 +616,4 @@ def test_the_scheduler_tick_asks_the_clock_before_loading_anything(monkeypatch):
     monkeypatch.setattr(tick, "might_be_open", lambda: False)
     assert tick.main() == 0 and called == []
     monkeypatch.setattr(tick, "might_be_open", lambda: True)
-    assert tick.main() == 0 and called == [["intraday", "poll", "--if-open"]]
+    assert tick.main() == 0 and called == [["intraday", "poll", "--if-open"], ["goats", "--publish", "--quiet"]], "one look, then the goats page"
