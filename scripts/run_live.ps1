@@ -26,4 +26,9 @@ $output = & $oq live 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "exit code $code" | Out-File -FilePath $log -Append -Encoding utf8
+
+# The books have moved: publish them for the Trading Goats page. A failed publish does not change the exit code.
+$goats = & $oq goats --publish --quiet 2>&1 | ForEach-Object { "$_" }
+if ($goats) { $goats | Out-File -FilePath $log -Append -Encoding utf8 }
+"goats publish exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
 exit $code

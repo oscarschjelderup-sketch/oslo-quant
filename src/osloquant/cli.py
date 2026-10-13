@@ -1,9 +1,10 @@
-"""The command line: ``oq record``, ``oq status``, ``oq check``, ``oq doctor``, ``oq lab``, ``oq check-factor``, ``oq query``, ``oq targets``, ``oq backtest``, ``oq live``, ``oq intraday``, ``oq ui``."""
+"""The command line: ``oq record``, ``oq status``, ``oq check``, ``oq doctor``, ``oq lab``, ``oq check-factor``, ``oq query``, ``oq targets``, ``oq backtest``, ``oq live``, ``oq intraday``, ``oq goats``, ``oq ui``."""
 
 from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 
 import pandas as pd
 import typer
@@ -27,7 +28,9 @@ def _keep_output_when_there_is_no_console() -> None:
 
 _keep_output_when_there_is_no_console()
 
-app = typer.Typer(add_completion=False, help="oslo-quant: record data, select targets and backtest strategies on Oslo Børs.")
+app = typer.Typer(
+    add_completion=False, help="oslo-quant: record data, select targets and backtest strategies on Oslo Børs."
+)
 console = Console()
 
 
@@ -49,7 +52,9 @@ def _pct(value, digits: int = 1) -> str:
 @app.command()
 def record(
     codes: str = typer.Option(None, help="Comma-separated stock codes, e.g. EQNR,DNB. All stocks when omitted."),
-    finance: bool = typer.Option(False, "--finance", help="Also record financial statements and ratios (slow: six requests per stock)."),
+    finance: bool = typer.Option(
+        False, "--finance", help="Also record financial statements and ratios (slow: six requests per stock)."
+    ),
     raw: bool = typer.Option(False, "--raw", help="Also record unadjusted bars."),
     force: bool = typer.Option(False, "--force", help="Download everything again instead of only what is missing."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
@@ -84,7 +89,10 @@ def record(
         steps.append((Stock1dKdata, {"codes": stock_codes, "force_update": force}))
     steps += [(schema, {"force_update": force}) for schema in (Index1dKdata, Future1dKdata, Currency1dKdata)]
     if finance:
-        steps += [(schema, {"codes": stock_codes, "force_update": force}) for schema in (IncomeStatement, BalanceSheet, CashFlowStatement, FinanceFactor)]
+        steps += [
+            (schema, {"codes": stock_codes, "force_update": force})
+            for schema in (IncomeStatement, BalanceSheet, CashFlowStatement, FinanceFactor)
+        ]
 
     for schema, kwargs in steps:
         with console.status(f"Recording {schema.__name__} ..."):
@@ -104,13 +112,20 @@ def status() -> None:
     for column in ("Schema", "Provider", "Rows", "Entities", "First", "Last"):
         table.add_column(column, justify="right" if column in ("Rows", "Entities") else "left")
     for r in coverage_table(context.schemas).to_dict("records"):
-        first, last = (pd.Timestamp(v).strftime("%Y-%m-%d") if v is not None and not pd.isna(v) else "–" for v in (r["first"], r["last"]))
+        first, last = (
+            pd.Timestamp(v).strftime("%Y-%m-%d") if v is not None and not pd.isna(v) else "–"
+            for v in (r["first"], r["last"])
+        )
         table.add_row(r["schema"], r["provider"], f"{r['rows']:,}", f"{r['entities']:,}", first, last)
     console.print(table)
 
 
 @app.command()
-def check(threshold: float = typer.Option(0.4, help="Flag a bar whose close-to-close move, opening gap or open-to-close move exceeds this.")) -> None:
+def check(
+    threshold: float = typer.Option(
+        0.4, help="Flag a bar whose close-to-close move, opening gap or open-to-close move exceeds this."
+    ),
+) -> None:
     """List the extreme bars in the adjusted stock prices, so a vendor error can be told from a real crash.
 
     A real one stays. A vendor error goes into resources/data_exceptions.yaml with its reason.
@@ -130,7 +145,9 @@ def check(threshold: float = typer.Option(0.4, help="Flag a bar whose close-to-c
     for column in ("Code", "Date", "Close to close", "Opening gap", "Open to close", "Volume"):
         table.add_column(column, justify="left" if column in ("Code", "Date") else "right")
     for r in extreme.itertuples():
-        table.add_row(r.code, f"{r.timestamp:%Y-%m-%d}", _pct(r.change_pct), _pct(r.gap), _pct(r.intraday), f"{r.volume:,.0f}")
+        table.add_row(
+            r.code, f"{r.timestamp:%Y-%m-%d}", _pct(r.change_pct), _pct(r.gap), _pct(r.intraday), f"{r.volume:,.0f}"
+        )
     console.print(table)
 
 
@@ -146,14 +163,19 @@ def query(
     from osloquant.contract import context
 
     data_schema = context.schema_by_name(schema)
-    df = data_schema.query_data(code=code.upper() if code else None, start_timestamp=start, order=data_schema.timestamp.desc(), limit=limit)
+    df = data_schema.query_data(
+        code=code.upper() if code else None, start_timestamp=start, order=data_schema.timestamp.desc(), limit=limit
+    )
     with pd.option_context("display.width", 250, "display.max_columns", 40):
         console.print(df.iloc[::-1].drop(columns=["id"], errors="ignore").to_string(index=False))
 
 
 @app.command()
 def targets(
-    factor: str = typer.Argument("MomentumFactor", help="Factor class name, e.g. CrossMaFactor, AboveMaFactor, GoldCrossFactor, MomentumFactor, GoodCompanyFactor."),
+    factor: str = typer.Argument(
+        "MomentumFactor",
+        help="Factor class name, e.g. CrossMaFactor, AboveMaFactor, GoldCrossFactor, MomentumFactor, GoodCompanyFactor.",
+    ),
     date: str = typer.Option(None, help="As of this date; the newest stored bar when omitted."),
 ) -> None:
     """The stocks a factor selects on a given day."""
@@ -178,7 +200,9 @@ def targets(
         table.add_column(column)
     for entity_id in sorted(selected, key=lambda e: -scores.get(e, 0.0)):
         row = names.loc[entity_id]
-        table.add_row(row["code"], row["name"], row["sector"], f"{scores[entity_id]:.2f}" if entity_id in scores.index else "")
+        table.add_row(
+            row["code"], row["name"], row["sector"], f"{scores[entity_id]:.2f}" if entity_id in scores.index else ""
+        )
     console.print(table)
 
 
@@ -222,11 +246,26 @@ def print_stats(stats: dict) -> None:
     def row(label: str, own: str, whole: str = "", bench: str = "") -> None:
         table.add_row(label, own, *([whole] if has_universe else []), *([bench] if has_benchmark else []))
 
-    row("Total return", _pct(stats["total_return"]), _pct(stats.get("universe_total_return")), _pct(stats.get("benchmark_total_return")))
+    row(
+        "Total return",
+        _pct(stats["total_return"]),
+        _pct(stats.get("universe_total_return")),
+        _pct(stats.get("benchmark_total_return")),
+    )
     row("Return per year", _pct(stats["cagr"]), _pct(stats.get("universe_cagr")), _pct(stats.get("benchmark_cagr")))
-    row("Volatility", _pct(stats["volatility"]).lstrip("+"), _pct(stats.get("universe_volatility")).lstrip("+"), _pct(stats.get("benchmark_volatility")).lstrip("+"))
+    row(
+        "Volatility",
+        _pct(stats["volatility"]).lstrip("+"),
+        _pct(stats.get("universe_volatility")).lstrip("+"),
+        _pct(stats.get("benchmark_volatility")).lstrip("+"),
+    )
     row("Sharpe", f"{stats['sharpe']:.2f}")
-    row("Largest drawdown", _pct(stats["max_drawdown"]), _pct(stats.get("universe_max_drawdown")), _pct(stats.get("benchmark_max_drawdown")))
+    row(
+        "Largest drawdown",
+        _pct(stats["max_drawdown"]),
+        _pct(stats.get("universe_max_drawdown")),
+        _pct(stats.get("benchmark_max_drawdown")),
+    )
     row("Round trips", f"{stats['round_trips']}")
     row("Profitable round trips", _pct(stats["win_rate"]).lstrip("+"))
     row("Invested on average", _pct(stats["exposure"]).lstrip("+"))
@@ -255,7 +294,17 @@ def traders() -> None:
         console.print("No backtest is stored yet. Run one with: oq backtest momentum")
         return
     table = Table(title="Stored backtests")
-    for column in ("Trader", "From", "To", "Per year", "Volatility", "Sharpe", "Drawdown", "All stocks per year", "Index per year"):
+    for column in (
+        "Trader",
+        "From",
+        "To",
+        "Per year",
+        "Volatility",
+        "Sharpe",
+        "Drawdown",
+        "All stocks per year",
+        "Index per year",
+    ):
         table.add_column(column, justify="left" if column == "Trader" else "right")
     for trader_name in names:
         s = get_trader_stats(trader_name)
@@ -268,7 +317,9 @@ def traders() -> None:
 
 @app.command()
 def live(
-    status_only: bool = typer.Option(False, "--status", help="Only show where the accounts stand; record and step nothing."),
+    status_only: bool = typer.Option(
+        False, "--status", help="Only show where the accounts stand; record and step nothing."
+    ),
     no_record: bool = typer.Option(False, "--no-record", help="Step the accounts on the data already stored."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
@@ -288,7 +339,9 @@ def live(
             run = run_live(record=not no_record, config=config)
         _log_live_run(run)
         if run.record_error:
-            console.print(f"[yellow]Recording failed ({run.record_error}); the accounts were stepped on stored data.[/yellow]")
+            console.print(
+                f"[yellow]Recording failed ({run.record_error}); the accounts were stepped on stored data.[/yellow]"
+            )
         for summary in run.recorded:
             if summary.failed:
                 console.print(f"[yellow]partly[/yellow] {summary}")
@@ -304,7 +357,9 @@ def live(
                 days = ", ".join(f"{d:%Y-%m-%d}" for d in result.sessions)
                 console.print(f"[green]{result.name}[/green] {result.outcome}: {days}")
                 if len(result.sessions) > 1:
-                    console.print("  [yellow]More than one session in one run: the fills of the earlier ones were decided late and do not count as forward.[/yellow]")
+                    console.print(
+                        "  [yellow]More than one session in one run: the fills of the earlier ones were decided late and do not count as forward.[/yellow]"
+                    )
 
     names = live_account_names()
     if not names:
@@ -339,7 +394,16 @@ def print_live_account(summary: dict, active: bool = True) -> None:
     if not active:
         title += "  [stopped: no longer in live.yaml]"
     table = Table(title=title)
-    for column in ("Value", "Return", "All stocks, equal weight", "OSEBX", "Cash", "Costs paid", "Dividends", "Fills logged before the open"):
+    for column in (
+        "Value",
+        "Return",
+        "All stocks, equal weight",
+        "OSEBX",
+        "Cash",
+        "Costs paid",
+        "Dividends",
+        "Fills logged before the open",
+    ):
         table.add_column(column, justify="right")
     table.add_row(
         f"{summary['value']:,.0f}", _pct(summary["total_return"]), _pct(summary["universe_return"]), _pct(summary["benchmark_return"]),
@@ -352,7 +416,15 @@ def print_live_account(summary: dict, active: bool = True) -> None:
         for column in ("Code", "Company", "Shares", "Bought at", "Close", "Value", "Since bought"):
             holdings.add_column(column, justify="left" if column in ("Code", "Company") else "right")
         for h in summary["holdings"]:
-            holdings.add_row(h["code"], h["name"], f"{h['shares']:,.0f}", f"{h['average_price']:.2f}", f"{h['last_price']:.2f}", f"{h['value']:,.0f}", _pct(h["profit_rate"]))
+            holdings.add_row(
+                h["code"],
+                h["name"],
+                f"{h['shares']:,.0f}",
+                f"{h['average_price']:.2f}",
+                f"{h['last_price']:.2f}",
+                f"{h['value']:,.0f}",
+                _pct(h["profit_rate"]),
+            )
         console.print(holdings)
     if summary["pending"]:
         pending = Table(title="Decided, to be filled at the next open")
@@ -389,15 +461,140 @@ def doctor() -> None:
         raise typer.Exit(1)
 
 
+goats_app = typer.Typer(
+    add_completion=False,
+    invoke_without_command=True,
+    help="Trading Goats: three of the paper accounts as the document a page reads, the troll's log and the rewrite flow. Play money only.",
+)
+app.add_typer(goats_app, name="goats")
+
+
+@goats_app.callback()
+def goats(
+    ctx: typer.Context,
+    out: Path | None = typer.Option(None, help="Where to write the document. Default: <home>/goats.json."),
+    split: Path | None = typer.Option(
+        None,
+        help="Also write one JSON file per page document under this directory (meta/state.json, goats/<id>.json, ...).",
+    ),
+    publish: bool = typer.Option(
+        False,
+        "--publish",
+        help="Also push goats.json to the 'goats' branch of this repository's origin, where the GitHub Pages copy of the page reads it.",
+    ),
+    show: bool = typer.Option(False, "--show", help="Print where each goat stands."),
+    quiet: bool = typer.Option(False, "--quiet", help="Print nothing unless something is wrong."),
+) -> None:
+    """Export the goats. Without a subcommand this writes the document; `oq goats troll` and `oq goats rewrite` are the troll's tools."""
+    if ctx.invoked_subcommand is not None:
+        return
+    _setup()
+    from osloquant.goats import export, load_config, publish_branch, write
+
+    config = load_config()
+    if config.created and not quiet:
+        console.print(f"Wrote the default goats to {config.path}. Edit that file to follow other accounts.")
+    doc = export(config)
+    written = write(doc, out=out, split=split)
+    for goat in doc["goats"]:
+        if goat["missing"]:
+            console.print(f"[yellow]{goat['name']}[/yellow] ({goat['account']}): {goat['status']['text']}")
+        elif show:
+            console.print(
+                f"[green]{goat['name']}[/green] ({goat['account']}, {goat['kind']}): {goat['value']:,.0f} ({_pct(goat['pnl_pct'])}), {goat['status']['code']}: {goat['status']['text']}"
+            )
+    meta = doc["meta"]
+    if not quiet:
+        console.print(
+            f"Market {meta['market']['label']}, {meta['goats']} goats, day {meta['day']}. Wrote {written[0]}"
+            + (f" and {len(written) - 1} page documents under {split}" if split else "")
+        )
+    if publish:
+        try:
+            commit = publish_branch({"goats.json": written[0]})
+        except Exception as e:  # a push that fails must not take the export down with it
+            console.print(f"[red]Publishing to the goats branch failed:[/red] {e}")
+            raise typer.Exit(2) from e
+        if not quiet:
+            console.print(f"Published goats.json to the goats branch ({commit[:10]}).")
+
+
+@goats_app.command("troll")
+def goats_troll(
+    text: str | None = typer.Argument(None, help="What the troll says. Leave it out to read the log."),
+    kind: str = typer.Option("verdict", help="intro, verdict, handsoff, rewrite or note."),
+    goat: str | None = typer.Option(None, help="The goat the line is about (its id), if one."),
+    last: int = typer.Option(10, help="How many lines to show when reading."),
+) -> None:
+    """Add a line to the troll's log (~/osloquant-home/troll.json), or read it."""
+    _setup()
+    from osloquant.goats import add_troll_entry, load_troll
+
+    if text is None:
+        entries = load_troll()["entries"][-last:]
+        if not entries:
+            console.print("The troll has not spoken yet.")
+        for e in entries:
+            console.print(f"{e['t']}  [{e['kind']}{' · ' + e['goat'] if e.get('goat') else ''}] {e['text']}")
+        return
+    try:
+        entry = add_troll_entry(text, kind=kind, goat=goat)
+    except (ValueError, LookupError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+    console.print(f"The troll said ({entry['kind']}{' about ' + entry['goat'] if goat else ''}): {entry['text']}")
+
+
+@goats_app.command("rewrite")
+def goats_rewrite(
+    goat: str = typer.Argument(..., help="The goat's id."),
+    set_: list[str] = typer.Option(
+        [],
+        "--set",
+        help="A setting to change on the new account, key=value; nested keys with dots (signal.lookback=40). Repeatable.",
+    ),
+    why: str = typer.Option(
+        ..., "--why", help="The reason, in the troll's words. It goes into the config file and the log."
+    ),
+    name: str | None = typer.Option(None, help="The new account's name. Default: <goat>_v<n>."),
+    force: bool = typer.Option(
+        False, "--force", help="Rewrite even if the goat's account is younger than min_sessions_between_rewrites."
+    ),
+) -> None:
+    """Give a goat new rules: a new account with the changed settings, staked with the old one's value. The old account keeps running in the herd."""
+    _setup()
+    from osloquant.goats import rewrite
+
+    try:
+        result = rewrite(goat, set_, why, name=name, force=force)
+    except (ValueError, LookupError, PermissionError) as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+    console.print(
+        f"[green]{result['goat']}[/green] now follows {result['new']} (staked with NOK {result['value']:,.0f} from {result['old']}); written to {result['file']}. Rewrites so far: {result['rewrites']}."
+    )
+    console.print(
+        "The new account starts at the next look or the next evening run. The old one keeps running in the herd."
+    )
+
+
 @app.command()
 def lab(
     start: str = typer.Option("2001-01-01", help="First month to trade."),
-    capital: float = typer.Option(100_000, help="The account's size in NOK: with a NOK 29 minimum per order, it decides what a trade costs."),
-    buffer: float = typer.Option(0.25, help="Leave a holding alone while it is within this share of its target weight."),
-    flat_cost: float = typer.Option(None, help="Instead of the account's costs, a plain cost per unit traded, e.g. 0.004."),
+    capital: float = typer.Option(
+        100_000, help="The account's size in NOK: with a NOK 29 minimum per order, it decides what a trade costs."
+    ),
+    buffer: float = typer.Option(
+        0.25, help="Leave a holding alone while it is within this share of its target weight."
+    ),
+    flat_cost: float = typer.Option(
+        None, help="Instead of the account's costs, a plain cost per unit traded, e.g. 0.004."
+    ),
     overnight: bool = typer.Option(True, help="Also split the returns into overnight and intraday."),
     sensitivity: bool = typer.Option(True, help="Also show the excess under other account sizes and costs."),
-    odegaard: str = typer.Option(None, help="Path to Ødegaard's Norway_market_portfolios_monthly.csv: measures what the list of survivors adds."),
+    odegaard: str = typer.Option(
+        None, help="Path to Ødegaard's Norway_market_portfolios_monthly.csv: measures what the list of survivors adds."
+    ),
 ) -> None:
     """Test the documented strategies against the equal-weight basket, with the tests that tell an edge from luck.
 
@@ -412,7 +609,9 @@ def lab(
     costs = Costs.flat(flat_cost) if flat_cost is not None else Costs(capital=capital, buffer=buffer)
     with console.status("Running the strategies (about a minute) ..."):
         result = run_lab(start=start, cost=costs)
-    console.print(f"[bold]The lab, {result.start:%Y-%m-%d} to {result.end:%Y-%m-%d}[/bold]: {result.stocks} stocks. Costs: {costs.describe()}.")
+    console.print(
+        f"[bold]The lab, {result.start:%Y-%m-%d} to {result.end:%Y-%m-%d}[/bold]: {result.stocks} stocks. Costs: {costs.describe()}."
+    )
     table = Table()
     columns = ("Strategy", "Source", "Per year", "Before costs", "Over the basket", "95 % interval", "Years ahead", "Deflated Sharpe",
                "Largest drawdown", "Positions", "Turnover", "2001-08", "2009-16", "2017-")  # fmt: skip
@@ -422,7 +621,22 @@ def lab(
         r = result.table.loc[strategy.name]
         if r["per_year"] <= -0.99:
             # the NOK 29 minimum on many small orders, paid out of a shrinking account, takes all of it
-            table.add_row(strategy.name, strategy.source, "ruined", _pct(r["before_costs"]), "", "", "", "", "", f"{r['positions']:.0f}", f"{r['turnover']:.1f}x", "", "", "")
+            table.add_row(
+                strategy.name,
+                strategy.source,
+                "ruined",
+                _pct(r["before_costs"]),
+                "",
+                "",
+                "",
+                "",
+                "",
+                f"{r['positions']:.0f}",
+                f"{r['turnover']:.1f}x",
+                "",
+                "",
+                "",
+            )
             continue
         if strategy.name == "equal_weight":
             table.add_row(strategy.name, strategy.source, _pct(r["per_year"]), _pct(r["before_costs"]), "", "", "", "", _pct(r["max_drawdown"]),
@@ -444,7 +658,11 @@ def lab(
     if result.walk_forward:
         w = result.walk_forward
         picks = list(w["picks"].values())
-        chosen = f"it picked {picks[0]} every year" if not w["switches"] else f"{w['switches']} changes of setting, most often {max(set(picks), key=picks.count)}"
+        chosen = (
+            f"it picked {picks[0]} every year"
+            if not w["switches"]
+            else f"{w['switches']} changes of setting, most often {max(set(picks), key=picks.count)}"
+        )
         console.print(
             f"Re-tuning the momentum settings every January on the years before, from {w['from']:%Y}: {_pct(w['tuned_excess'])} a year over the basket "
             f"({chosen}), against {_pct(w['textbook_excess'])} for keeping the textbook 12-1 top fifth."
@@ -453,7 +671,9 @@ def lab(
     if sensitivity:
         with console.status("Running the strategies under other costs ..."):
             grid = cost_sensitivity(start=start)
-        cost_table = Table(title="Excess a year over the basket, by what trading costs (the basket's own return in its row)")
+        cost_table = Table(
+            title="Excess a year over the basket, by what trading costs (the basket's own return in its row)"
+        )
         cost_table.add_column("Strategy")
         for label in grid.columns:
             cost_table.add_column(label, justify="right")
@@ -488,7 +708,9 @@ def lab(
 
 @app.command("check-factor")
 def check_factor(
-    factor: str = typer.Argument(..., help="Factor class name, e.g. GoldCrossFactor, or package.module:ClassName for your own."),
+    factor: str = typer.Argument(
+        ..., help="Factor class name, e.g. GoldCrossFactor, or package.module:ClassName for your own."
+    ),
     codes: str = typer.Option(None, help="Comma-separated codes to check on; all stocks when omitted."),
     samples: int = typer.Option(6, help="How many dates to test for look-ahead."),
 ) -> None:
@@ -517,9 +739,13 @@ def check_factor(
     with console.status("Looking for look-ahead ..."):
         found = lookahead_check(factor_cls, start=start, samples=samples, **settings)
     if found.empty:
-        console.print(f"[green]No look-ahead[/green]: on {samples} dates, {factor} said the same with and without the days after.")
+        console.print(
+            f"[green]No look-ahead[/green]: on {samples} dates, {factor} said the same with and without the days after."
+        )
     else:
-        console.print(f"[red]Look-ahead found[/red] on {found['date'].nunique()} of {samples} dates, in {', '.join(sorted(found['column'].unique()))}:")
+        console.print(
+            f"[red]Look-ahead found[/red] on {found['date'].nunique()} of {samples} dates, in {', '.join(sorted(found['column'].unique()))}:"
+        )
         console.print(found.head(10).to_string(index=False))
 
     with console.status("Checking the warm-up ..."):
@@ -529,12 +755,22 @@ def check_factor(
     for column in ("History", "Largest deviation", "In", "Not computable", "Verdicts changed"):
         table.add_column(column, justify="left" if column == "In" else "right")
     for r in warm.itertuples():
-        table.add_row(f"{r.warmup_days} days", f"{r.largest_deviation:.2%}", r.column or "", f"{r.not_computable}", f"{r.verdicts_changed} of {r.entities}")
+        table.add_row(
+            f"{r.warmup_days} days",
+            f"{r.largest_deviation:.2%}",
+            r.column or "",
+            f"{r.not_computable}",
+            f"{r.verdicts_changed} of {r.entities}",
+        )
     console.print(table)
-    console.print("[dim]The traders load 400 days before their start (pre_load_days). If a shorter history changes verdicts, give them more.[/dim]")
+    console.print(
+        "[dim]The traders load 400 days before their start (pre_load_days). If a shorter history changes verdicts, give them more.[/dim]"
+    )
 
 
-intraday_app = typer.Typer(add_completion=False, help="Intraday paper accounts: signal rules on 15-minute bars. Play money only.")
+intraday_app = typer.Typer(
+    add_completion=False, help="Intraday paper accounts: signal rules on 15-minute bars. Play money only."
+)
 app.add_typer(intraday_app, name="intraday")
 
 
@@ -561,9 +797,13 @@ def _print_poll(result) -> None:
     for report in result.reports:
         console.print(f"  {report.name}: {report.value:,.0f}")
         for fill in report.fills:
-            console.print(f"    [green]filled[/green] {fill['side']} {fill['shares']:,.0f} {code(fill['entity_id'])} at {fill['price']:.2f} ({fill['bar']:%H:%M} bar): {fill['reason']}")
+            console.print(
+                f"    [green]filled[/green] {fill['side']} {fill['shares']:,.0f} {code(fill['entity_id'])} at {fill['price']:.2f} ({fill['bar']:%H:%M} bar): {fill['reason']}"
+            )
         for signal in report.signals:
-            console.print(f"    signal {signal['code']} {code(signal['entity_id'])} at {signal['price']:.2f} ({signal['timestamp']:%H:%M} bar): {signal['reason']} -> {signal['outcome']}")
+            console.print(
+                f"    signal {signal['code']} {code(signal['entity_id'])} at {signal['price']:.2f} ({signal['timestamp']:%H:%M} bar): {signal['reason']} -> {signal['outcome']}"
+            )
 
 
 def _log_intraday(result) -> None:
@@ -600,7 +840,9 @@ def intraday_run(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None
         _print_poll(result)
         _log_intraday(result)
 
-    console.print(f"Following {len(config.accounts)} intraday accounts until the close. Play money only. Ctrl+C stops it.")
+    console.print(
+        f"Following {len(config.accounts)} intraday accounts until the close. Play money only. Ctrl+C stops it."
+    )
     polls = run_session(config, on_poll=on_poll)
     console.print(f"Session over after {polls} looks." if polls else "The market is closed: nothing to follow today.")
 
@@ -608,7 +850,11 @@ def intraday_run(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None
 @intraday_app.command("poll")
 def intraday_poll(
     no_record: bool = typer.Option(False, "--no-record", help="Use the bars already stored."),
-    if_open: bool = typer.Option(False, "--if-open", help="Do nothing outside Oslo's trading hours. For a scheduler that calls this every 15 minutes."),
+    if_open: bool = typer.Option(
+        False,
+        "--if-open",
+        help="Do nothing outside Oslo's trading hours. For a scheduler that calls this every 15 minutes.",
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Look at the market once, now: fill, value, raise signals, send orders. What `run` does every 15 minutes."""
@@ -628,7 +874,9 @@ def intraday_poll(
 
 
 @intraday_app.command("status")
-def intraday_status(signals: int = typer.Option(15, help="How many of the latest signals to list per account.")) -> None:
+def intraday_status(
+    signals: int = typer.Option(15, help="How many of the latest signals to list per account."),
+) -> None:
     """Where the intraday accounts stand, and what their rules have said lately."""
     _setup()
     from osloquant.intraday import account_summary, intraday_account_names
@@ -642,7 +890,9 @@ def intraday_status(signals: int = typer.Option(15, help="How many of the latest
 
 
 def print_intraday_account(summary: dict, signals: int = 15) -> None:
-    table = Table(title=f"{summary['name']} ({summary['strategy']}): since {summary['start']:%Y-%m-%d %H:%M}, last look {summary['last_poll']:%Y-%m-%d %H:%M}")
+    table = Table(
+        title=f"{summary['name']} ({summary['strategy']}): since {summary['start']:%Y-%m-%d %H:%M}, last look {summary['last_poll']:%Y-%m-%d %H:%M}"
+    )
     for column in ("Value", "Return", "OSEBX", "Cash", "Round trips", "Profitable", "Costs paid"):
         table.add_column(column, justify="right")
     table.add_row(
@@ -650,14 +900,20 @@ def print_intraday_account(summary: dict, signals: int = 15) -> None:
         f"{summary['round_trips']}", _pct(summary["win_rate"]).lstrip("+"), f"{summary['costs_paid']:,.0f}",
     )  # fmt: skip
     console.print(table)
-    as_of = f" (from the close of {summary['watchlist_as_of']:%Y-%m-%d})" if summary["watchlist_as_of"] is not None else ""
+    as_of = (
+        f" (from the close of {summary['watchlist_as_of']:%Y-%m-%d})" if summary["watchlist_as_of"] is not None else ""
+    )
     console.print(f"  Watchlist{as_of}: {', '.join(summary['watchlist']) or 'empty'}")
     coverage = summary["coverage"]
     if coverage["due"]:
         missed = f", {len(coverage['days_missed'])} whole days missed" if coverage["days_missed"] else ""
-        console.print(f"  Looks made: {coverage['today_made']} of {coverage['today_due']} today, {coverage['share']:.0%} of all since the start{missed}")
+        console.print(
+            f"  Looks made: {coverage['today_made']} of {coverage['today_due']} today, {coverage['share']:.0%} of all since the start{missed}"
+        )
     for h in summary["holdings"]:
-        console.print(f"  Holds {h['shares']:,.0f} {h['code']} bought at {h['average_price']:.2f}, now {h['last_price']:.2f} ({_pct(h['profit_rate'])})")
+        console.print(
+            f"  Holds {h['shares']:,.0f} {h['code']} bought at {h['average_price']:.2f}, now {h['last_price']:.2f} ({_pct(h['profit_rate'])})"
+        )
     for o in summary["pending"]:
         console.print(f"  Ordered: {o['side']} {o['code']} ({o['signal']}: {o['reason']})")
     log = summary["signals"].tail(signals)
@@ -681,10 +937,14 @@ def intraday_rules() -> None:
     for column in ("Code", "Settings (default)", "What it does"):
         table.add_column(column)
     for code, rule in RULES.items():
-        settings = ", ".join(f"{name}={p.default}" for name, p in inspect.signature(rule.__init__).parameters.items() if name != "self")
+        settings = ", ".join(
+            f"{name}={p.default}" for name, p in inspect.signature(rule.__init__).parameters.items() if name != "self"
+        )
         table.add_row(code, settings, " ".join((rule.__doc__ or "").split()))
     console.print(table)
-    console.print("Risk settings for any account: stop_loss, take_profit, trailing_stop (fractions), flat_at_close (true/false), cooldown_bars.")
+    console.print(
+        "Risk settings for any account: stop_loss, take_profit, trailing_stop (fractions), flat_at_close (true/false), cooldown_bars."
+    )
     console.print(
         "Day trading: day_trade (true), exit_on_signal, entry_window, max_entries_per_stock_per_day, max_entries_per_day, "
         "min_relative_volume, min_range_to_cost, max_per_sector. See the comments at the top of intraday.yaml."
@@ -701,20 +961,36 @@ def _parse_setting(text: str) -> tuple[str, float | int]:
 
 @intraday_app.command("replay")
 def intraday_replay(
-    days: int = typer.Option(30, help="How many calendar days back to replay (Yahoo keeps about 58 days of 15-minute bars)."),
+    days: int = typer.Option(
+        30, help="How many calendar days back to replay (Yahoo keeps about 58 days of 15-minute bars)."
+    ),
     account: str = typer.Option(None, help="Only this account from intraday.yaml; all of them when omitted."),
-    rule: str = typer.Option(None, help="Try this rule instead of the configured accounts, e.g. ma_cross. See `oq intraday rules`."),
-    param: list[str] = typer.Option(None, help="A setting of --rule as name=value; repeat for several, e.g. --param fast=10 --param slow=40."),
-    watchlist: str = typer.Option("MomentumFactor", help="With --rule: a daily factor, 'all', or codes separated by commas."),
+    rule: str = typer.Option(
+        None, help="Try this rule instead of the configured accounts, e.g. ma_cross. See `oq intraday rules`."
+    ),
+    param: list[str] = typer.Option(
+        None, help="A setting of --rule as name=value; repeat for several, e.g. --param fast=10 --param slow=40."
+    ),
+    watchlist: str = typer.Option(
+        "MomentumFactor", help="With --rule: a daily factor, 'all', or codes separated by commas."
+    ),
     stop_loss: float = typer.Option(None, help="With --rule: e.g. 0.03."),
     take_profit: float = typer.Option(None, help="With --rule: e.g. 0.06."),
     trailing_stop: float = typer.Option(None, help="With --rule: e.g. 0.04."),
     cooldown: int = typer.Option(0, help="With --rule: bars to stay out of a stock after selling it."),
     positions: int = typer.Option(5, help="With --rule: the number of slots."),
-    day_trade: bool = typer.Option(False, "--day-trade", help="With --rule: flat at the close, exits by the stops, entries 09:30-14:30, one a stock a day."),
+    day_trade: bool = typer.Option(
+        False,
+        "--day-trade",
+        help="With --rule: flat at the close, exits by the stops, entries 09:30-14:30, one a stock a day.",
+    ),
     max_per_sector: int = typer.Option(None, help="With --rule: at most this many positions in one sector."),
-    min_relative_volume: float = typer.Option(None, help="With --rule: the signal bar must trade this many times the usual volume."),
-    min_range_cost: float = typer.Option(None, help="With --rule: the stock's daily range must be at least this many round-trip costs."),
+    min_relative_volume: float = typer.Option(
+        None, help="With --rule: the signal bar must trade this many times the usual volume."
+    ),
+    min_range_cost: float = typer.Option(
+        None, help="With --rule: the stock's daily range must be at least this many round-trip costs."
+    ),
     record: bool = typer.Option(True, help="Fetch the 15-minute history for every stock first."),
 ) -> None:
     """Run rules over the stored bars of the last weeks, with the delays of a live run. Stores nothing.
@@ -735,7 +1011,9 @@ def intraday_replay(
     config = _intraday_config()
     if rule:
         spec = {"rule": rule, **dict(_parse_setting(p) for p in param or [])}
-        codes = watchlist if "," not in watchlist and not watchlist.isupper() else [c.strip() for c in watchlist.split(",")]
+        codes = (
+            watchlist if "," not in watchlist and not watchlist.isupper() else [c.strip() for c in watchlist.split(",")]
+        )
         chosen = [
             IntradayAccountConfig(name="trial", signal=spec, watchlist=codes, stop_loss=stop_loss, take_profit=take_profit,
                                   trailing_stop=trailing_stop, cooldown_bars=cooldown, max_positions=positions, day_trade=day_trade,
@@ -768,16 +1046,28 @@ def intraday_replay(
         with console.status(f"Replaying {cfg.name} ..."):
             result = replay(cfg, config, days=days, bars=bars, end=end)
             gross = replay(cfg, free, days=days, bars=bars, end=end)
-        trades = result.orders[result.orders["order_type"].isin(["order_long", "order_close_long"])] if not result.orders.empty else result.orders
+        trades = (
+            result.orders[result.orders["order_type"].isin(["order_long", "order_close_long"])]
+            if not result.orders.empty
+            else result.orders
+        )
         sells = trades[trades["order_type"] == "order_close_long"] if not trades.empty else trades
-        index = Index1dKdata.query_data(code="OSEBX", start_timestamp=result.start, end_timestamp=result.end, columns=["timestamp", "close"]) if result.start is not None else pd.DataFrame()
+        index = (
+            Index1dKdata.query_data(
+                code="OSEBX", start_timestamp=result.start, end_timestamp=result.end, columns=["timestamp", "close"]
+            )
+            if result.start is not None
+            else pd.DataFrame()
+        )
         benchmark = index["close"].iloc[-1] / index["close"].iloc[0] - 1 if len(index) > 1 else None
         style = " (day trade)" if cfg.flat_at_close and not cfg.exit_on_signal else ""
         # a result that rests on one trade is luck until shown otherwise
         best = sells["profit"].max() if len(sells) else 0.0
         without_best = (result.value - result.input_money - max(best, 0.0)) / result.input_money
         # what one round trip earned before any cost: the most a rule could pay per round trip and still break even
-        gross_sells = gross.orders[gross.orders["order_type"] == "order_close_long"] if not gross.orders.empty else gross.orders
+        gross_sells = (
+            gross.orders[gross.orders["order_type"] == "order_close_long"] if not gross.orders.empty else gross.orders
+        )
         table.add_row(
             result.name, result.rule + style, f"{result.days}", _pct(result.total_return), _pct(without_best), _pct(gross.total_return), _pct(benchmark),
             f"{len(sells)}", _pct((sells["profit"] > 0).mean() if len(sells) else None).lstrip("+"),
@@ -786,12 +1076,18 @@ def intraday_replay(
         if len(sells):
             by_exit = sells.assign(closed_by=sells["reason"].str.split().str[0]).groupby("closed_by")
             for closed_by, group in sorted(by_exit, key=lambda g: -len(g[1])):
-                exits.add_row(result.name, closed_by, f"{len(group)}", _pct((group["profit"] > 0).mean()).lstrip("+"), _pct(group["profit_rate"].mean()))
+                exits.add_row(
+                    result.name,
+                    closed_by,
+                    f"{len(group)}",
+                    _pct((group["profit"] > 0).mean()).lstrip("+"),
+                    _pct(group["profit_rate"].mean()),
+                )
     console.print(table)
     if exits.row_count:
         console.print(exits)
     console.print(
-        "[dim]\"With free trading\" is the rule without commission and slippage. \"Per round trip before costs\" is what a round trip "
+        '[dim]"With free trading" is the rule without commission and slippage. "Per round trip before costs" is what a round trip '
         "earned on average before costs: the rule loses money whenever a round trip costs more than that (about 0.5 % with Nordnet Mini). "
         "A few weeks of one market say little, and every variant you try is one more chance to fit the past.[/dim]"
     )

@@ -1,0 +1,657 @@
+<title>Trading Goats</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: a night terminal under the bridge. One column of panels; the three goat cards sit side by side on wide
+   screens and stack on a phone. Deliberately single-theme (dark), like the trading screens it imitates. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0f14; --bg-2: #0e131a; --surface: #121923; --surface-2: #182130; --surface-3: #1e2938;
+  --line: rgba(205,220,240,.09); --line-2: rgba(205,220,240,.18);
+  --fg: #e6edf5; --fg-2: #b4bfcd; --muted: #7d8ca0; --faint: #4f5c6e;
+  --gold: #c98500; --fjord: #3987e5; --rose: #d55181;
+  --gold-ink: #f2b544; --fjord-ink: #7fb6f6; --rose-ink: #f28fb4;
+  --up: #3dcc74; --down: #f26d6d; --warn: #f0a63a;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, "Courier New", monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 10px;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45;
+  padding-inline: 16px; padding-block: 0 56px; -webkit-font-smoothing: antialiased; }
+a { color: var(--fg-2); }
+a:hover { color: var(--fg); }
+:focus-visible { outline: 2px solid var(--fjord-ink); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 16px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.up { color: var(--up); } .down { color: var(--down); } .warn { color: var(--warn); } .muted { color: var(--muted); }
+.g-gold { --accent: var(--gold); --ink: var(--gold-ink); } .g-fjord { --accent: var(--fjord); --ink: var(--fjord-ink); } .g-rose { --accent: var(--rose); --ink: var(--rose-ink); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding-block: 18px 4px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: -.01em; line-height: 1; }
+.brand em { font-style: italic; font-weight: 500; color: var(--gold-ink); }
+.badge { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--fg-2); white-space: nowrap; }
+.badge.paper { border-color: rgba(201,133,0,.55); color: var(--gold-ink); background: rgba(201,133,0,.08); }
+.badge .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: 1px; }
+.badge.open .dot { background: var(--up); box-shadow: 0 0 0 3px rgba(61,204,116,.18); }
+.badge.stale { border-color: rgba(240,166,58,.6); color: var(--warn); }
+.sub { color: var(--muted); font-size: 12.5px; }
+.top .right { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.clock { font-family: var(--mono); font-size: 12.5px; color: var(--fg-2); }
+
+/* stat strip */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.stat { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.stat .v { font-family: var(--mono); font-size: 20px; font-weight: 500; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.stat .n { font-size: 11.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* troll */
+.troll { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px 16px; padding: 16px 18px; align-items: start; }
+.troll .avatar { width: 56px; height: 56px; }
+.troll h2 { margin: 0; font-family: var(--mono); font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--fg); }
+.troll .cad { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.troll .next { text-align: right; font-size: 12px; color: var(--muted); }
+.troll .next b { display: block; font-family: var(--mono); font-size: 15px; color: var(--fg); font-weight: 500; margin-top: 2px; }
+.quote { grid-column: 1 / -1; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.quote p { margin: 0; font-family: var(--display); font-size: 20px; font-weight: 500; line-height: 1.3; text-wrap: balance; }
+.quote .who { margin-top: 8px; display: flex; gap: 10px; font-size: 12px; color: var(--muted); align-items: baseline; }
+.quote .who b { color: var(--fg-2); font-weight: 600; }
+.log { grid-column: 1 / -1; display: grid; gap: 0; }
+.log .row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 2px; border-top: 1px solid var(--line); font-size: 13px; }
+.log .row .t { color: var(--faint); font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+.log .row .gdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent, var(--muted)); margin-right: 8px; vertical-align: 1px; }
+.troll .foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: space-between; color: var(--muted); font-size: 12px; }
+
+/* goat cards */
+.goats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1000px) { .goats { grid-template-columns: 1fr; } }
+.goat { display: grid; gap: 12px; padding: 16px; border-top: 3px solid var(--accent); position: relative; }
+.goat .head { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; }
+.goat .avatar { width: 52px; height: 52px; }
+.goat .name { font-family: var(--display); font-size: 24px; font-weight: 700; line-height: 1.05; color: var(--fg); }
+.goat .tag { color: var(--ink); font-size: 12.5px; font-style: italic; font-family: var(--display); font-weight: 500; margin-top: 2px; }
+.goat .rank { text-align: right; }
+.goat .rank b { display: block; font-family: var(--mono); font-size: 26px; font-weight: 700; line-height: 1; color: var(--fg); }
+.goat .rank span { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.goat .value { font-family: var(--mono); font-size: 34px; font-weight: 500; letter-spacing: -.01em; line-height: 1; font-variant-numeric: tabular-nums; }
+.goat .value small { font-size: 14px; color: var(--muted); font-weight: 400; margin-right: 6px; letter-spacing: 0; }
+.goat .delta { font-family: var(--mono); font-size: 13.5px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.goat .delta .vs { color: var(--muted); }
+.status { border-radius: 8px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface-2); border-left: 3px solid var(--muted); }
+.status b { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; }
+.status p { margin: 3px 0 0; font-size: 12.5px; color: var(--fg-2); }
+.status.grazing { border-left-color: var(--accent); } .status.grazing b { color: var(--ink); }
+.status.benched, .status.behind, .status.dozing, .status.missing { border-left-color: var(--warn); background: rgba(240,166,58,.07); }
+.status.benched b, .status.behind b, .status.dozing b, .status.missing b { color: var(--warn); }
+.status.watching b, .status.flat b, .status.waiting b { color: var(--fg-2); }
+.holds { display: grid; gap: 6px; }
+.hold { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); font-size: 12.5px; }
+.hold .l1 { font-family: var(--mono); font-weight: 600; font-size: 13px; }
+.hold .l1 .side { color: var(--up); font-weight: 700; margin-right: 6px; }
+.hold .l1 .co { color: var(--muted); font-weight: 400; font-family: var(--body); margin-left: 6px; font-size: 12px; }
+.hold .r1 { font-family: var(--mono); text-align: right; font-weight: 500; }
+.hold .l2, .hold .r2 { color: var(--muted); font-family: var(--mono); font-size: 11px; grid-column: 1 / -1; }
+.hold .r2 { text-align: left; }
+.hold.pending { border-style: dashed; }
+.hold.cash { grid-template-columns: 1fr; color: var(--muted); }
+.more { font-size: 12px; color: var(--muted); padding-left: 2px; }
+.chart { position: relative; height: 150px; }
+.chart canvas { width: 100%; height: 100%; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--surface-3); border: 1px solid var(--line-2); color: var(--fg); font-family: var(--mono); font-size: 11px; padding: 5px 7px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, 0); display: none; z-index: 2; }
+.block h3 { margin: 0 0 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 500; display: flex; justify-content: space-between; gap: 8px; }
+.block h3 span { color: var(--faint); letter-spacing: 0; text-transform: none; }
+.call { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; display: grid; gap: 4px; }
+.call .c1 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-family: var(--mono); font-weight: 600; font-size: 13px; }
+.pill { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--fg-2); font-weight: 600; }
+.pill.buy { color: var(--up); border-color: rgba(61,204,116,.5); } .pill.sell { color: var(--down); border-color: rgba(242,109,109,.5); } .pill.hold { color: var(--ink); border-color: var(--accent); }
+.call .why { color: var(--fg-2); }
+.call .out { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.meter .k { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.meter .k b { color: var(--fg-2); font-family: var(--mono); font-weight: 500; }
+.bar { height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s ease; }
+.bar.warn i { background: var(--warn); }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.kpi .eyebrow { font-size: 9.5px; }
+.kpi .v { font-family: var(--mono); font-size: 14px; font-weight: 500; margin-top: 2px; }
+.rules { font-size: 11.5px; color: var(--muted); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; }
+.rules b { color: var(--fg-2); font-weight: 500; }
+.story { font-size: 12.5px; color: var(--fg-2); line-height: 1.5; font-family: var(--display); font-style: italic; }
+.skeleton .value, .skeleton .name { color: var(--faint); }
+
+/* stream + side */
+.lower { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; }
+@media (max-width: 900px) { .lower { grid-template-columns: 1fr; } }
+.sec { padding: 14px 16px; }
+.sec h2 { margin: 0; font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-weight: 600; }
+.sec h2 span { color: var(--muted); font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 12px; }
+.stream { margin-top: 10px; display: grid; gap: 6px; max-height: 720px; overflow: auto; padding-right: 4px; }
+.item { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); font-size: 12.5px; align-items: start; }
+.item .gd { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-top: 4px; }
+.item .l1 { font-family: var(--mono); font-weight: 600; font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.item .l1 .g { color: var(--ink); }
+.item .l2 { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+.item .t { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; text-align: right; }
+.item .pnl { font-family: var(--mono); font-weight: 600; }
+.side { display: grid; gap: 16px; align-content: start; }
+.gate { margin-top: 10px; display: grid; gap: 6px; }
+.gate .row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--line); }
+.gate .row:first-child { border-top: 0; }
+.gate .row .s { font-family: var(--mono); font-weight: 700; }
+.gate .row .w { color: var(--fg-2); }
+.gate .row .g { color: var(--ink); font-size: 11px; font-family: var(--mono); white-space: nowrap; }
+.herd { margin-top: 10px; display: grid; gap: 0; }
+.herd .row { display: grid; grid-template-columns: 22px 1fr auto auto; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; align-items: baseline; }
+.herd .row:first-child { border-top: 0; }
+.herd .row .n { font-family: var(--mono); color: var(--faint); }
+.herd .row .a b { font-family: var(--mono); font-weight: 600; }
+.herd .row .a span { color: var(--muted); font-size: 11.5px; display: block; }
+.herd .row .r { font-family: var(--mono); font-weight: 600; text-align: right; }
+.herd .row .k { color: var(--muted); font-size: 11px; font-family: var(--mono); text-align: right; }
+.herd .row.goat-row .a b { color: var(--ink); }
+.empty { color: var(--muted); font-size: 13px; padding: 10px 2px; }
+.empty code { font-family: var(--mono); color: var(--fg-2); font-size: 12px; }
+.notice { font-size: 12.5px; color: var(--warn); }
+footer { color: var(--muted); font-size: 12px; line-height: 1.6; max-width: 72ch; }
+footer p { margin: 6px 0; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">trading<em>goats</em></div>
+    <span class="badge paper">Paper money · NOK</span>
+    <span class="sub" id="subline">three goats on Oslo Børs</span>
+    <div class="right">
+      <span class="badge" id="market"><span class="dot"></span>market</span>
+      <span class="badge" id="fresh" hidden>exported</span>
+      <span class="clock" id="clock">--:--:-- Oslo</span>
+    </div>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Totals">
+    <div class="stat"><div class="eyebrow">Total P&amp;L</div><div class="v muted">—</div><div class="n">waiting for the store</div></div>
+    <div class="stat"><div class="eyebrow">Fees paid</div><div class="v muted">—</div><div class="n">&nbsp;</div></div>
+    <div class="stat"><div class="eyebrow">Decisions</div><div class="v muted">—</div><div class="n">&nbsp;</div></div>
+    <div class="stat"><div class="eyebrow">Fills</div><div class="v muted">—</div><div class="n">&nbsp;</div></div>
+    <div class="stat"><div class="eyebrow">OSEBX</div><div class="v muted">—</div><div class="n">&nbsp;</div></div>
+    <div class="stat"><div class="eyebrow">Books</div><div class="v muted">—</div><div class="n">&nbsp;</div></div>
+  </section>
+
+  <section class="panel troll" id="troll" aria-label="The troll">
+    <svg class="avatar" viewBox="0 0 56 56" aria-hidden="true"><path d="M4 50 Q28 8 52 50 Z" fill="#141c27" stroke="#2a3647" stroke-width="2"/><path d="M14 50 C12 36 20 26 28 26 C36 26 44 36 42 50 Z" fill="#3a4a3d" stroke="#5b6f5e" stroke-width="1.5"/><ellipse cx="22" cy="37" rx="3" ry="2.6" fill="#f2b544"/><ellipse cx="34" cy="37" rx="3" ry="2.6" fill="#f2b544"/><circle cx="22.6" cy="37.3" r="1.2" fill="#0b0f14"/><circle cx="34.6" cy="37.3" r="1.2" fill="#0b0f14"/><ellipse cx="28" cy="43" rx="4" ry="3" fill="#5b6f5e"/><path d="M19 48 Q28 46 37 48" stroke="#0b0f14" stroke-width="1.5" fill="none"/><path d="M12 30 L16 24 M44 30 L40 24" stroke="#5b6f5e" stroke-width="2"/></svg>
+    <div>
+      <h2>The troll</h2>
+      <div class="cad" id="troll-cad">lives under the bridge · looks at all three goats every weekday evening</div>
+    </div>
+    <div class="next"><span>next look</span><b id="troll-next">—</b></div>
+    <div class="quote" id="troll-quote"><p class="muted">The troll has not spoken yet.</p><div class="who"><b>under the bridge</b><span>the first verdict comes after the first evening review</span></div></div>
+    <div class="log" id="troll-log"></div>
+    <div class="foot"><span>Verdicts are written by Claude after each review and stored with the goats' books.</span><span id="troll-rewrites">0 rewrites so far</span></div>
+  </section>
+
+  <section class="goats" id="goats" aria-label="The goats">
+    <article class="panel goat skeleton g-gold"><div class="head"><div></div><div><div class="name">Lillebukk</div><div class="tag">the scalper</div></div></div><div class="value">waiting…</div><div class="status"><b>LOADING</b><p>the store answers in a moment</p></div></article>
+    <article class="panel goat skeleton g-fjord"><div class="head"><div></div><div><div class="name">Mellombukk</div><div class="tag">the calculated one</div></div></div><div class="value">waiting…</div><div class="status"><b>LOADING</b><p>the store answers in a moment</p></div></article>
+    <article class="panel goat skeleton g-rose"><div class="head"><div></div><div><div class="name">Storebukk</div><div class="tag">the heavyweight</div></div></div><div class="value">waiting…</div><div class="status"><b>LOADING</b><p>the store answers in a moment</p></div></article>
+  </section>
+
+  <section class="lower">
+    <div class="panel sec">
+      <h2>Decision stream <span id="stream-meta">every signal and fill, newest first</span></h2>
+      <div class="stream" id="stream"><div class="empty">Nothing in the stream yet.</div></div>
+    </div>
+    <div class="side">
+      <div class="panel sec">
+        <h2>The bridge gate says no <span id="gate-day"></span></h2>
+        <div class="gate" id="gate"><div class="empty">No buy signal has been refused yet.</div></div>
+      </div>
+      <div class="panel sec">
+        <h2>The herd <span id="herd-meta">the other paper accounts</span></h2>
+        <div class="herd" id="herd"><div class="empty">No other accounts in the store.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="foot">
+    <p id="store-note" class="notice" hidden></p>
+    <p><b>Play money.</b> Three paper accounts from the <a href="https://github.com/oscarschjelderup-sketch/oslo-quant" target="_blank" rel="noopener">oslo-quant</a> store, NOK 100 000 each, on Oslo Børs. Quotes are Yahoo Finance's, about 15 minutes late, and the 15-minute bars skip the closing auction. An order fills at the open of the next bar plus 0.1 % slippage; commission is Nordnet Mini's 0.15 % with a NOK 29 minimum. A missed look is a missed signal: the looks are made from a laptop that sleeps. Public holidays are not known to the market clock.</p>
+    <p>Nothing here is advice and nothing can reach a broker. The troll's verdicts are commentary on the books, written by Claude to the charter in <a href="https://github.com/oscarschjelderup-sketch/oslo-quant/blob/main/site/TROLL.md" target="_blank" rel="noopener">TROLL.md</a>. A rewrite forks the goat's account: the old one keeps grazing in the herd, the new one starts with its value.</p>
+    <p id="source-note"></p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const NBSP = '\u202f';
+  const MINUS = '\u2212';
+  const ACCENTS = { gold: 'g-gold', fjord: 'g-fjord', rose: 'g-rose' };
+  const state = { meta: null, goats: {}, stream: null, gate: null, herd: null, troll: null, dbState: 'loading' };
+  const charts = new Map();
+
+  // -- time: the store writes Oslo wall-clock times without a zone; generated_at carries a Z --------
+  const osloFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short' });
+  function osloParts(date) {
+    const p = {};
+    for (const part of osloFmt.formatToParts(date)) p[part.type] = part.value;
+    return { y: +p.year, m: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute, s: +p.second, wd: p.weekday };
+  }
+  function osloOffsetMs(date) {
+    const o = osloParts(date);
+    return Date.UTC(o.y, o.m - 1, o.d, o.h, o.mi, o.s) - Math.floor(date.getTime() / 1000) * 1000;
+  }
+  function toDate(iso) {
+    if (!iso) return null;
+    if (/[zZ]$|[+-]\d\d:\d\d$/.test(iso)) return new Date(iso);
+    const guess = new Date(iso + 'Z');
+    return new Date(guess.getTime() - osloOffsetMs(guess));
+  }
+  function ago(iso, now) {
+    const d = toDate(iso); if (!d) return '—';
+    const sec = Math.max(0, ((now || new Date()) - d) / 1000);
+    if (sec < 50) return 'just now';
+    if (sec < 3600) return Math.round(sec / 60) + ' min ago';
+    if (sec < 86400) { const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return h + ' h' + (m ? ' ' + m + ' min' : '') + ' ago'; }
+    return Math.round(sec / 86400) + ' d ago';
+  }
+  function until(iso, now) {
+    const d = toDate(iso); if (!d) return '—';
+    const sec = (d - (now || new Date())) / 1000;
+    if (sec <= 0) return 'any moment';
+    if (sec < 3600) return 'in ' + Math.max(1, Math.round(sec / 60)) + ' min';
+    const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+    return sec < 86400 ? 'in ' + h + ' h ' + (m ? m + ' min' : '') : 'in ' + Math.round(sec / 86400) + ' d';
+  }
+  const hhmm = (iso) => { const d = toDate(iso); if (!d) return ''; const o = osloParts(d); return String(o.h).padStart(2, '0') + ':' + String(o.mi).padStart(2, '0'); };
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function dayLabel(iso) { const d = toDate(iso); if (!d) return ''; const o = osloParts(d); return o.d + ' ' + MONTHS[o.m - 1]; }
+  function stamp(iso) { const d = toDate(iso); if (!d) return ''; const o = osloParts(d); const t = String(o.h).padStart(2, '0') + ':' + String(o.mi).padStart(2, '0'); return (o.h === 0 && o.mi === 0) ? o.d + ' ' + MONTHS[o.m - 1] : o.d + ' ' + MONTHS[o.m - 1] + ' ' + t; }
+  function heldFor(iso, now) {
+    const d = toDate(iso); if (!d) return '';
+    const days = ((now || new Date()) - d) / 86400000;
+    if (days < 1) { const m = Math.round(days * 24 * 60); return m < 60 ? m + 'm' : Math.round(m / 60) + 'h'; }
+    return Math.round(days) + 'd';
+  }
+
+  // -- numbers --------------------------------------------------------------------------------------
+  function group(n) { return Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, NBSP); }
+  const nok = (v) => v == null ? '—' : (v < 0 ? MINUS : '') + group(v);
+  const signedNok = (v) => v == null ? '—' : (v > 0 ? '+' : v < 0 ? MINUS : '') + group(v);
+  const pct = (v, digits) => v == null ? '—' : (v > 0 ? '+' : v < 0 ? MINUS : '') + (Math.abs(v) * 100).toFixed(digits == null ? 2 : digits) + '%';
+  const px = (v) => v == null ? '—' : (Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(2));
+  const tone = (v) => v > 0 ? 'up' : v < 0 ? 'down' : 'muted';
+  const arrow = (v) => v > 0 ? '▲ ' : v < 0 ? '▼ ' : '';
+
+  // -- avatars: three billy goats, the horns grow with the goat ------------------------------------
+  function goatSVG(size) {
+    const horn = [10, 15, 21][size] || 15;
+    const w = [2.6, 3.2, 4][size] || 3.2;
+    const beard = [0, 1, 1][size];
+    return '<svg class="avatar" viewBox="0 0 52 52" aria-hidden="true">' +
+      '<path d="M18 ' + (24 - horn * 0.2) + ' C 12 ' + (22 - horn) + ', 8 ' + (26 - horn) + ', 7 ' + (30 - horn) + '" stroke="var(--accent)" stroke-width="' + w + '" fill="none" stroke-linecap="round"/>' +
+      '<path d="M34 ' + (24 - horn * 0.2) + ' C 40 ' + (22 - horn) + ', 44 ' + (26 - horn) + ', 45 ' + (30 - horn) + '" stroke="var(--accent)" stroke-width="' + w + '" fill="none" stroke-linecap="round"/>' +
+      '<ellipse cx="11" cy="27" rx="7" ry="3.2" transform="rotate(-20 11 27)" fill="var(--surface-3)" stroke="var(--accent)" stroke-width="1.4"/>' +
+      '<ellipse cx="41" cy="27" rx="7" ry="3.2" transform="rotate(20 41 27)" fill="var(--surface-3)" stroke="var(--accent)" stroke-width="1.4"/>' +
+      '<path d="M16 22 C16 14 36 14 36 22 L34 36 C33 43 19 43 18 36 Z" fill="var(--surface-3)" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<rect x="19.5" y="26" width="5" height="2.6" rx="1.3" fill="var(--ink)"/><rect x="27.5" y="26" width="5" height="2.6" rx="1.3" fill="var(--ink)"/>' +
+      '<path d="M24 35 L26 37 L28 35" stroke="var(--accent)" stroke-width="1.4" fill="none" stroke-linecap="round"/>' +
+      (beard ? '<path d="M23 42 L26 ' + (46 + size * 2) + ' L29 42 Z" fill="var(--accent)"/>' : '') +
+      '</svg>';
+  }
+
+  // -- market clock (client side; the store's phase is the fallback) --------------------------------
+  function marketPhase(now) {
+    const o = osloParts(now);
+    const weekday = !['Sat', 'Sun'].includes(o.wd);
+    const mins = o.h * 60 + o.mi;
+    if (weekday && mins >= 9 * 60 && mins < 16 * 60 + 20) return { open: true, label: 'open', note: 'closes 16:20' };
+    if (weekday && mins < 9 * 60) return { open: false, label: 'before the open', note: 'opens 09:00' };
+    return { open: false, label: weekday ? 'closed' : 'weekend', note: weekday ? 'opens 09:00' : 'opens Monday 09:00' };
+  }
+
+  // -- renderers ------------------------------------------------------------------------------------
+  function renderClock() {
+    const now = new Date();
+    const o = osloParts(now);
+    $('clock').textContent = String(o.h).padStart(2, '0') + ':' + String(o.mi).padStart(2, '0') + ':' + String(o.s).padStart(2, '0') + ' Oslo';
+    const ph = marketPhase(now);
+    const m = $('market');
+    m.className = 'badge' + (ph.open ? ' open' : '');
+    m.innerHTML = '<span class="dot"></span>' + esc(ph.label) + ' · ' + esc(ph.note);
+    const meta = state.meta;
+    const f = $('fresh');
+    if (meta && meta.generated_at) {
+      const ageMin = (now - toDate(meta.generated_at)) / 60000;
+      const stale = ph.open && ageMin > 45;
+      f.hidden = false;
+      f.className = 'badge' + (stale ? ' stale' : '');
+      f.textContent = (stale ? 'stale · ' : 'books ') + ago(meta.generated_at, now);
+      f.title = stale ? 'The export is older than the market: the laptop that runs the goats may be asleep.' : 'When the books were last exported from the store.';
+    }
+    if (meta && meta.troll) $('troll-next').textContent = until(meta.troll.next_review, now) + ' · ' + hhmm(meta.troll.next_review);
+  }
+
+  function renderStats() {
+    const meta = state.meta; if (!meta) return;
+    const t = meta.totals || {};
+    const osebx = meta.osebx;
+    const feed = meta.feed || {};
+    const nGoats = meta.goats || 0;
+    $('subline').textContent = 'day ' + (meta.day || 0) + ' · ' + nGoats + ' goats · Oslo Børs · ' + (feed.delay_minutes || 15) + '-min delayed feed';
+    const forwardAll = t.fills > 0 && t.forward_fills === t.fills;
+    const cells = [
+      ['Total P&amp;L', '<span class="' + tone(t.pnl) + '">' + signedNok(t.pnl) + '</span>', 'NOK, three goats, since ' + dayLabel(meta.started)],
+      ['Fees paid', nok(t.fees), 'commission + minimums · ' + ((t.fees / (3 * 100000)) * 100).toFixed(2) + '% of the stake'],
+      ['Decisions', group(t.decisions || 0), 'signals judged and orders written'],
+      ['Fills', group(t.fills || 0), forwardAll ? 'all logged before the price existed' : (t.forward_fills || 0) + ' logged before the open'],
+      ['OSEBX', osebx ? '<span class="' + tone(osebx.change_pct) + '">' + pct(osebx.change_pct) + '</span>' : '—', osebx ? group(osebx.last) + ' · last bar ' + dayLabel(osebx.date) : 'no index bar in the store'],
+      ['Books', hhmm(meta.oslo_now) || '—', 'exported ' + dayLabel(meta.oslo_now) + ' · feed ' + (feed.lag_minutes != null ? Math.round(feed.lag_minutes) + ' min late' : 'lag unknown')],
+    ];
+    $('stats').innerHTML = cells.map((c) => '<div class="stat"><div class="eyebrow">' + c[0] + '</div><div class="v">' + c[1] + '</div><div class="n">' + esc(c[2]) + '</div></div>').join('');
+  }
+
+  function renderTroll() {
+    const meta = state.meta, log = state.troll;
+    if (meta && meta.troll) $('troll-cad').textContent = 'lives under the bridge · ' + meta.troll.cadence;
+    const entries = (log && Array.isArray(log.entries)) ? log.entries.slice().sort((a, b) => (b.t || '').localeCompare(a.t || '')) : [];
+    const rewrites = (log && log.rewrites) || (meta && meta.troll && meta.troll.rewrites) || 0;
+    $('troll-rewrites').textContent = rewrites + (rewrites === 1 ? ' rewrite' : ' rewrites') + ' so far';
+    if (!entries.length) return;
+    const latest = entries[0];
+    const goat = latest.goat && state.goats[latest.goat];
+    $('troll-quote').innerHTML = '<p>\u201c' + esc(latest.text) + '\u201d</p><div class="who"><b>' + esc(latest.kind === 'rewrite' ? 'Rules rewritten' : latest.kind === 'handsoff' ? 'Hands off' : latest.kind === 'intro' ? 'Who is that tripping over my bridge?' : 'Verdict') + '</b>' + (goat ? '<span class="' + ACCENTS[goat.accent] + '"><span class="gdot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px"></span>' + esc(goat.name) + '</span>' : '') + '<span>' + esc(ago(latest.t)) + '</span></div>';
+    $('troll-log').innerHTML = entries.slice(1, 9).map((e) => {
+      const g = e.goat && state.goats[e.goat];
+      return '<div class="row"><div>' + (g ? '<span class="' + ACCENTS[g.accent] + '"><span class="gdot"></span></span>' : '') + esc(e.text) + '</div><div class="t">' + esc(ago(e.t)) + '</div></div>';
+    }).join('');
+  }
+
+  function statusClass(code) { return 'status ' + String(code || '').toLowerCase(); }
+
+  function holdingRow(h, kind, now) {
+    const l2 = 'entry ' + px(h.entry) + ' → mark ' + px(h.mark) + (h.stop ? ' · stop ' + px(h.stop) : '') + (h.target ? ' · target ' + px(h.target) : '');
+    const r2 = (h.since ? 'held ' + heldFor(h.since, now) : '') + (h.shares ? ' · ' + group(h.shares) + ' sh' : '');
+    return '<div class="hold"><div class="l1"><span class="side">▲ LONG</span>' + esc(h.stock) + (h.name && h.name !== h.stock ? '<span class="co">' + esc(h.name) + '</span>' : '') + '</div>' +
+      '<div class="r1">' + nok(h.value) + '</div>' +
+      '<div class="l2">' + esc(l2) + '</div>' +
+      '<div class="r2"><span class="' + tone(h.pnl) + '">' + arrow(h.pnl) + signedNok(h.pnl) + ' · ' + pct(h.pnl_pct, 1) + '</span>' + (r2 ? ' · ' + esc(r2.replace(/^ · /, '')) : '') + '</div></div>';
+  }
+
+  function rulesLine(g) {
+    const r = g.rules || {};
+    const parts = ['<b>' + esc(r.signal || '') + '</b>'];
+    if (r.kind === 'daily') { parts.push(r.slots + ' names', 'fills at the next open', 'decided at the close'); }
+    else {
+      if (r.watchlist) parts.push('watchlist ' + (r.watchlist === 'all' ? 'all 63 names' : r.watchlist));
+      if (r.slots) parts.push(r.slots + ' slots');
+      if (r.stop_loss) parts.push('stop ' + (r.stop_loss * 100).toFixed(0) + '%');
+      if (r.take_profit) parts.push('target ' + (r.take_profit * 100).toFixed(0) + '%');
+      if (r.trailing_stop) parts.push('trailing ' + (r.trailing_stop * 100).toFixed(0) + '%');
+      if (r.flat_at_close) parts.push('flat at the close');
+      if (r.entry_window) parts.push('entries ' + r.entry_window[0] + '–' + r.entry_window[1]);
+      if (r.max_entries_per_day) parts.push('≤' + r.max_entries_per_day + ' entries/day');
+      if (r.min_relative_volume) parts.push('volume ≥' + r.min_relative_volume + '× normal');
+      if (r.min_range_to_cost) parts.push('range ≥' + r.min_range_to_cost + '× the round trip');
+      if (r.max_per_sector) parts.push(r.max_per_sector + ' per sector');
+      if (r.exit_on_signal === false) parts.push('exits by stops and the close only');
+    }
+    return parts.join(' · ');
+  }
+
+  function callBlock(g) {
+    const c = g.last_call;
+    if (!c) return '<div class="block"><h3>Last look</h3><div class="call"><span class="muted">no signal judged yet</span></div></div>';
+    const side = /BUY/.test(c.code) ? 'buy' : /SELL|STOP|TARGET|TRAIL|CLOSE/.test(c.code) ? 'sell' : 'hold';
+    const outcome = c.outcome || '';
+    const acted = /^ordered|^filled|to be filled/.test(outcome);
+    return '<div class="block"><h3>Last look <span>' + esc(ago(c.at || c.t)) + ' · bar ' + esc(hhmm(c.t)) + '</span></h3><div class="call">' +
+      '<div class="c1"><span class="pill ' + side + '">' + esc(c.code) + '</span>' + esc(c.stock) + (c.price != null ? ' <span class="muted">@ ' + px(c.price) + '</span>' : '') + (c.rule ? ' <span class="muted">· ' + esc(c.rule) + '</span>' : '') + '</div>' +
+      '<div class="why">' + esc(c.reason || '') + '</div>' +
+      '<div class="out ' + (acted ? 'up' : '') + '">' + esc(outcome) + '</div></div></div>';
+  }
+
+  function metersBlock(g) {
+    const t = g.today || {};
+    const m = [];
+    if (g.kind === 'intraday') {
+      if (t.cap) m.push({ k: 'Entries today', v: t.entries + ' / ' + t.cap, w: t.entries / t.cap });
+      else m.push({ k: 'Slots', v: (g.holdings || []).length + ' / ' + ((g.rules || {}).slots || '—'), w: (g.holdings || []).length / (((g.rules || {}).slots) || 1) });
+      m.push({ k: 'Looks today', v: t.looks_made + ' / ' + t.looks_due, w: t.looks_due ? t.looks_made / t.looks_due : 0, warn: t.looks_due > 2 && t.looks_made < t.looks_due - 1 });
+      m.push({ k: 'Looks since the start', v: t.looks_share != null ? Math.round(t.looks_share * 100) + '%' : '—', w: t.looks_share || 0, warn: (t.looks_share || 1) < 0.7 });
+      m.push({ k: 'Whole days slept through', v: String(t.days_missed || 0), w: 0, warn: (t.days_missed || 0) > 0 });
+    } else {
+      m.push({ k: 'Names held', v: (g.holdings || []).length + ' / ' + ((g.rules || {}).slots || '—'), w: (g.holdings || []).length / (((g.rules || {}).slots) || 1) });
+      m.push({ k: 'Orders for the next open', v: String(t.pending || 0), w: 0 });
+      m.push({ k: 'Books stand at', v: dayLabel(t.session), w: 0 });
+      m.push({ k: 'Sessions traded', v: String(g.sessions || 0), w: 0 });
+    }
+    return '<div class="meters">' + m.map((x) => '<div class="meter"><div class="k"><span>' + esc(x.k) + '</span><b class="' + (x.warn ? 'warn' : '') + '">' + esc(x.v) + '</b></div><div class="bar' + (x.warn ? ' warn' : '') + '"><i style="width:' + Math.max(0, Math.min(100, (x.w || 0) * 100)) + '%"></i></div></div>').join('') + '</div>';
+  }
+
+  function goatCard(g, i, now) {
+    const cls = ACCENTS[g.accent] || 'g-gold';
+    if (g.missing) {
+      return '<article class="panel goat ' + cls + '"><div class="head">' + goatSVG(i) + '<div><div class="name">' + esc(g.name) + '</div><div class="tag">' + esc(g.tagline) + '</div></div></div>' +
+        '<div class="status missing"><b>MISSING</b><p>' + esc(g.status && g.status.text) + '</p></div><p class="story">' + esc(g.story || '') + '</p></article>';
+    }
+    const holds = g.holdings || [];
+    const shown = holds.slice(0, 5);
+    const pend = g.pending || [];
+    const rankNote = g.rank === 1 ? 'leading' : 'NOK ' + nok(g.behind) + ' behind';
+    const vsBench = g.benchmark_pct != null ? 'vs OSEBX ' + pct(g.benchmark_pct) : '';
+    return '<article class="panel goat ' + cls + '" id="goat-' + esc(g.id) + '">' +
+      '<div class="head">' + goatSVG(i) + '<div><div class="name">' + esc(g.name) + '</div><div class="tag">' + esc(g.tagline) + '</div></div><div class="rank"><b>#' + (g.rank || '–') + '</b><span>' + esc(rankNote) + '</span></div></div>' +
+      '<div><div class="value"><small>NOK</small>' + nok(g.value) + '</div><div class="delta"><span class="' + tone(g.pnl) + '">' + arrow(g.pnl) + signedNok(g.pnl) + ' (' + pct(g.pnl_pct) + ')</span><span class="vs">' + esc(vsBench) + '</span></div></div>' +
+      '<div class="' + statusClass(g.status && g.status.code) + '"><b>' + esc(g.status && g.status.code) + '</b><p>' + esc(g.status && g.status.text) + '</p></div>' +
+      '<div class="holds">' + (shown.length ? shown.map((h) => holdingRow(h, g.kind, now)).join('') : '<div class="hold cash"><div class="l1">cash only · NOK ' + nok(g.cash) + '</div></div>') +
+        (holds.length > shown.length ? '<div class="more">+ ' + (holds.length - shown.length) + ' more names, NOK ' + nok(holds.slice(5).reduce((s, h) => s + (h.value || 0), 0)) + '</div>' : '') +
+        pend.map((p) => '<div class="hold pending"><div class="l1"><span class="pill ' + (p.side === 'buy' ? 'buy' : 'sell') + '">' + esc(p.signal || p.side.toUpperCase()) + '</span> ' + esc(p.stock) + '</div><div class="r1 muted">waiting for a fill</div><div class="l2">' + esc(p.reason || ('decided on the close of ' + dayLabel(p.decided_on))) + '</div></div>').join('') +
+      '</div>' +
+      '<div class="block"><h3>Equity <span>' + esc((g.equity || []).length) + ' marks since ' + esc(dayLabel(g.start)) + '</span></h3><div class="chart" id="chart-' + esc(g.id) + '"><canvas></canvas><div class="tip"></div></div></div>' +
+      callBlock(g) +
+      metersBlock(g) +
+      '<div class="kpis">' +
+        '<div class="kpi"><div class="eyebrow">Fees</div><div class="v">' + nok(g.fees) + '</div></div>' +
+        '<div class="kpi"><div class="eyebrow">Round trips</div><div class="v">' + (g.round_trips || 0) + '</div></div>' +
+        '<div class="kpi"><div class="eyebrow">Win rate</div><div class="v">' + (g.win_rate == null ? '—' : Math.round(g.win_rate * 100) + '%') + '</div></div>' +
+        '<div class="kpi"><div class="eyebrow">Fills</div><div class="v">' + (g.fills || 0) + '<span class="muted" style="font-size:11px"> · ' + (g.forward_fills === g.fills ? 'all forward' : g.forward_fills + ' fwd') + '</span></div></div>' +
+      '</div>' +
+      '<div class="rules">' + rulesLine(g) + '</div>' +
+      '<p class="story">' + esc(g.story || '') + '</p>' +
+      '</article>';
+  }
+
+  function renderGoats() {
+    const now = new Date();
+    const list = Object.values(state.goats);
+    if (!list.length) {
+      if (state.dbState === 'ready') $('goats').innerHTML = '<div class="panel sec" style="grid-column:1/-1"><div class="empty">No goats in the store yet. Export them from the oslo-quant store with <code>oq goats --split out</code> and write the documents.</div></div>';
+      return;
+    }
+    const order = { gold: 0, fjord: 1, rose: 2 };
+    list.sort((a, b) => (order[a.accent] ?? 9) - (order[b.accent] ?? 9) || String(a.id).localeCompare(String(b.id)));
+    $('goats').innerHTML = list.map((g, i) => goatCard(g, i, now)).join('');
+    for (const g of list) if (!g.missing) mountChart(g);
+    renderTroll();
+    renderHerd();
+  }
+
+  // -- equity chart: one series per goat, start line, endpoint, crosshair ----------------------------
+  function mountChart(g) {
+    const host = $('chart-' + g.id); if (!host) return;
+    const canvas = host.querySelector('canvas'), tip = host.querySelector('.tip');
+    const pts = (g.equity || []).filter((p) => p && p[1] != null);
+    const accent = getComputedStyle(host.closest('.goat')).getPropertyValue('--accent').trim() || '#c98500';
+    const ink = getComputedStyle(host.closest('.goat')).getPropertyValue('--ink').trim() || accent;
+    const chart = { host, canvas, tip, pts, accent, ink, base: g.input_money || 100000, hover: -1 };
+    charts.set(g.id, chart);
+    canvas.onmousemove = (e) => { const r = canvas.getBoundingClientRect(); chart.hover = nearest(chart, e.clientX - r.left, r.width); draw(chart); };
+    canvas.onmouseleave = () => { chart.hover = -1; draw(chart); };
+    canvas.ontouchstart = canvas.ontouchmove = (e) => { const t = e.touches[0]; if (!t) return; const r = canvas.getBoundingClientRect(); chart.hover = nearest(chart, t.clientX - r.left, r.width); draw(chart); };
+    draw(chart);
+  }
+  const PAD = { l: 8, r: 54, t: 14, b: 20 };
+  function nearest(c, x, w) {
+    if (c.pts.length < 2) return -1;
+    const inner = w - PAD.l - PAD.r;
+    return Math.max(0, Math.min(c.pts.length - 1, Math.round(((x - PAD.l) / inner) * (c.pts.length - 1))));
+  }
+  function draw(c) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = c.host.clientWidth, h = c.host.clientHeight;
+    if (!w || !h) return;
+    c.canvas.width = Math.round(w * dpr); c.canvas.height = Math.round(h * dpr);
+    const ctx = c.canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    const css = getComputedStyle(document.documentElement);
+    const muted = css.getPropertyValue('--muted').trim(), line = css.getPropertyValue('--line-2').trim(), surface = css.getPropertyValue('--surface').trim();
+    ctx.font = '10.5px ' + css.getPropertyValue('--mono').trim();
+    const pts = c.pts;
+    if (pts.length < 2) { ctx.fillStyle = muted; ctx.fillText(pts.length ? 'one mark so far: ' + nok(pts[0][1]) : 'no marks yet', PAD.l, h / 2); return; }
+    const vals = pts.map((p) => p[1]);
+    let lo = Math.min(c.base, ...vals), hi = Math.max(c.base, ...vals);
+    const span = Math.max(hi - lo, c.base * 0.004); lo -= span * 0.1; hi += span * 0.1;
+    const X = (i) => PAD.l + (i / (pts.length - 1)) * (w - PAD.l - PAD.r);
+    const Y = (v) => PAD.t + (1 - (v - lo) / (hi - lo)) * (h - PAD.t - PAD.b);
+    // grid: three faint lines
+    ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.setLineDash([]);
+    for (let k = 0; k <= 2; k++) { const y = PAD.t + (k / 2) * (h - PAD.t - PAD.b); ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(PAD.l, y + 0.5); ctx.lineTo(w - PAD.r, y + 0.5); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    // the start line
+    ctx.setLineDash([3, 4]); ctx.strokeStyle = muted; ctx.beginPath(); ctx.moveTo(PAD.l, Y(c.base) + 0.5); ctx.lineTo(w - PAD.r, Y(c.base) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = muted; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('start', w - PAD.r + 6, Y(c.base));
+    // area + line
+    const grad = ctx.createLinearGradient(0, PAD.t, 0, h - PAD.b); grad.addColorStop(0, hexA(c.accent, 0.28)); grad.addColorStop(1, hexA(c.accent, 0));
+    ctx.beginPath(); ctx.moveTo(X(0), Y(c.base)); pts.forEach((p, i) => ctx.lineTo(X(i), Y(p[1]))); ctx.lineTo(X(pts.length - 1), Y(c.base)); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(X(i), Y(p[1])) : ctx.moveTo(X(i), Y(p[1]))); ctx.strokeStyle = c.accent; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+    // extremes
+    const iMax = vals.indexOf(Math.max(...vals)), iMin = vals.indexOf(Math.min(...vals));
+    ctx.fillStyle = muted; ctx.textAlign = 'left';
+    // the high and the low, only where they do not collide with the start line or the endpoint
+    const yEnd = Y(vals[vals.length - 1]);
+    const clear = (y) => Math.abs(y - Y(c.base)) >= 12 && Math.abs(y - yEnd) >= 12;
+    if (clear(Y(vals[iMax]))) ctx.fillText(pct(vals[iMax] / c.base - 1, 1), w - PAD.r + 6, Math.max(PAD.t - 6, Y(vals[iMax])));
+    if (iMin !== iMax && clear(Y(vals[iMin]))) ctx.fillText(pct(vals[iMin] / c.base - 1, 1), w - PAD.r + 6, Math.min(h - PAD.b + 2, Y(vals[iMin])));
+    // endpoint
+    const last = pts.length - 1;
+    ctx.beginPath(); ctx.arc(X(last), Y(vals[last]), 5, 0, Math.PI * 2); ctx.fillStyle = surface; ctx.fill();
+    ctx.beginPath(); ctx.arc(X(last), Y(vals[last]), 3.2, 0, Math.PI * 2); ctx.fillStyle = c.accent; ctx.fill();
+    ctx.fillStyle = c.ink; ctx.font = 'bold 11px ' + css.getPropertyValue('--mono').trim(); ctx.fillText(pct(vals[last] / c.base - 1, 1), w - PAD.r + 6, Y(vals[last]) + (Math.abs(Y(vals[last]) - Y(c.base)) < 9 ? -11 : 0));
+    // x labels
+    ctx.font = '10px ' + css.getPropertyValue('--mono').trim(); ctx.fillStyle = muted; ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left'; ctx.fillText(stamp(pts[0][0]), PAD.l, h - 5);
+    ctx.textAlign = 'right'; ctx.fillText(stamp(pts[last][0]), w - PAD.r, h - 5);
+    // crosshair
+    if (c.hover >= 0) {
+      const i = c.hover, x = X(i), y = Y(vals[i]);
+      ctx.strokeStyle = line; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x + 0.5, PAD.t); ctx.lineTo(x + 0.5, h - PAD.b); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fillStyle = surface; ctx.fill(); ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = c.ink; ctx.fill();
+      c.tip.style.display = 'block'; c.tip.style.left = Math.max(60, Math.min(w - 60, x)) + 'px'; c.tip.style.top = (y < h / 2 ? y + 12 : y - 42) + 'px';
+      c.tip.textContent = stamp(pts[i][0]) + ' · NOK ' + nok(vals[i]) + ' · ' + pct(vals[i] / c.base - 1);
+    } else c.tip.style.display = 'none';
+  }
+  function hexA(hex, a) {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+    return m ? 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')' : hex;
+  }
+  let resizeTimer;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => charts.forEach(draw), 120); });
+
+  // -- stream, gate, herd --------------------------------------------------------------------------
+  function goatOf(id) { return state.goats[id] || { name: id, accent: 'gold' }; }
+  function renderStream() {
+    const s = state.stream; const items = (s && s.items) || [];
+    if (!items.length) { $('stream').innerHTML = '<div class="empty">Nothing in the stream yet.</div>'; return; }
+    const todayKey = (() => { const o = osloParts(new Date()); return o.y + '-' + String(o.m).padStart(2, '0') + '-' + String(o.d).padStart(2, '0'); })();
+    const today = items.filter((i) => (i.t || '').slice(0, 10) === todayKey).length;
+    $('stream-meta').textContent = items.length + ' latest · ' + today + ' today';
+    $('stream').innerHTML = items.map((it) => {
+      const g = goatOf(it.goat); const cls = ACCENTS[g.accent] || 'g-gold';
+      if (it.kind === 'fill') {
+        const sold = it.side === 'sell';
+        const pnl = sold && it.pnl != null ? '<span class="pnl ' + tone(it.pnl) + '">' + arrow(it.pnl) + signedNok(it.pnl) + ' (' + pct(it.pnl_pct, 1) + ')</span>' : '<span class="muted">NOK ' + nok(it.value) + '</span>';
+        return '<div class="item ' + cls + '"><div class="gd"></div><div><div class="l1"><span class="g">' + esc(g.name) + '</span><span class="pill ' + (sold ? 'sell' : 'buy') + '">' + esc(sold ? 'SOLD' : 'BOUGHT') + '</span>' + esc(it.stock) + ' <span class="muted">' + group(it.shares || 0) + ' @ ' + px(it.price) + '</span>' + pnl + '</div><div class="l2">' + esc(it.reason || (sold ? 'sold' : 'bought') + ' at the open' + (it.forward ? ' · logged before the price existed' : '')) + '</div></div><div class="t">' + esc(stamp(it.t)) + '</div></div>';
+      }
+      const side = /BUY/.test(it.code) ? 'buy' : 'sell';
+      const out = it.outcome || '';
+      return '<div class="item ' + cls + '"><div class="gd"></div><div><div class="l1"><span class="g">' + esc(g.name) + '</span><span class="pill ' + side + '">' + esc(it.code) + '</span>' + esc(it.stock) + ' <span class="muted">@ ' + px(it.price) + ' · ' + esc(it.rule || '') + '</span><span class="' + (out.startsWith('ordered') ? 'up' : 'muted') + '" style="font-weight:500">' + esc(out) + '</span></div><div class="l2">' + esc(it.reason || '') + '</div></div><div class="t">' + esc(stamp(it.t)) + '</div></div>';
+    }).join('');
+  }
+  function renderGate() {
+    const g = state.gate; const items = (g && g.items) || [];
+    $('gate-day').textContent = g && g.day ? 'refused on ' + dayLabel(g.day) : '';
+    if (!items.length) { $('gate').innerHTML = '<div class="empty">No buy signal has been refused yet.</div>'; return; }
+    $('gate').innerHTML = items.map((it) => { const go = goatOf(it.goat); return '<div class="row ' + (ACCENTS[go.accent] || '') + '"><span class="s">' + esc(it.stock) + '</span><span class="w">' + esc(it.why) + '</span><span class="g">' + esc(go.name) + ' ' + esc(hhmm(it.t)) + '</span></div>'; }).join('');
+  }
+  function renderHerd() {
+    const h = state.herd; const others = (h && h.items) || [];
+    const goats = Object.values(state.goats).filter((g) => !g.missing).map((g) => ({ account: g.account, kind: g.kind, signal: (g.rules || {}).signal, value: g.value, pnl_pct: g.pnl_pct, benchmark_pct: g.benchmark_pct, fills: g.fills, round_trips: g.round_trips, goat: g }));
+    const all = goats.concat(others).sort((a, b) => (b.pnl_pct || 0) - (a.pnl_pct || 0));
+    if (!all.length) { $('herd').innerHTML = '<div class="empty">No other accounts in the store.</div>'; return; }
+    $('herd-meta').textContent = all.length + ' paper accounts, NOK 100 000 each';
+    $('herd').innerHTML = all.map((a, i) => '<div class="row' + (a.goat ? ' goat-row ' + ACCENTS[a.goat.accent] : '') + '"><span class="n">' + (i + 1) + '</span><span class="a"><b>' + esc(a.goat ? a.goat.name : a.account) + '</b><span>' + esc((a.goat ? a.account + ' · ' : '') + (a.signal || '') + ' · ' + (a.kind === 'daily' ? 'daily' : '15-min')) + '</span></span><span class="r ' + tone(a.pnl_pct) + '">' + pct(a.pnl_pct) + '</span><span class="k">' + (a.benchmark_pct != null ? 'OSEBX ' + pct(a.benchmark_pct, 1) : '') + '<br>' + (a.round_trips != null ? a.round_trips + ' round trips' : (a.fills || 0) + ' fills') + '</span></div>').join('');
+  }
+
+  function renderAll() { renderStats(); renderClock(); renderGoats(); renderStream(); renderGate(); renderHerd(); renderTroll(); }
+
+  // -- the store -------------------------------------------------------------------------------------
+  function onErr(where) { return (e) => { console.warn(where, e); if (e && e.code === 'revoked') note('The store stopped answering for this view. Reload to see the goats again.'); }; }
+  function note(text) { const n = $('store-note'); n.textContent = text; n.hidden = !text; }
+
+  // Two homes, one page: as a claude.ai artifact it reads its own store; anywhere else (GitHub Pages, a local
+  // copy) it fetches the document the laptop pushes to the goats branch.
+  const DATA_URL = 'https://raw.githubusercontent.com/oscarschjelderup-sketch/oslo-quant/goats/goats.json';
+  function takeDocument(doc) {
+    if (!doc || !doc.meta) return;
+    state.meta = doc.meta;
+    const next = {};
+    (doc.goats || []).forEach((g) => { next[g.id] = g; });
+    state.goats = next;
+    state.stream = doc.stream || null; state.gate = doc.gate || null; state.herd = doc.herd || null; state.troll = doc.troll || null;
+    renderAll();
+  }
+  async function pollStatic() {
+    try {
+      const res = await fetch(DATA_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      takeDocument(await res.json());
+      note('');
+      $('source-note').textContent = 'Books from the goats branch of the oslo-quant repository, read again every minute.';
+    } catch (e) {
+      console.warn('static load failed', e);
+      if (!state.meta) note('The books could not be fetched from GitHub yet. The laptop pushes them after every look; try again in a minute.');
+    }
+  }
+
+  async function boot() {
+    renderClock();
+    setInterval(renderClock, 1000);
+    setInterval(() => { renderTroll(); renderStream(); }, 60000);
+    const db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+    if (!db) {
+      state.dbState = 'static';
+      await pollStatic();
+      setInterval(pollStatic, 60000);
+      if (!state.meta) document.querySelectorAll('.skeleton .status').forEach((s) => { s.innerHTML = '<b>FETCHING</b><p>reading the books from GitHub</p>'; });
+      return;
+    }
+    state.dbState = 'ready';
+    $('source-note').textContent = 'Books from this artifact’s store, written after every review.';
+    db.doc('meta/state').onSnapshot((s) => { state.meta = s.exists ? s.data() : null; renderStats(); renderClock(); renderTroll(); }, onErr('meta'));
+    db.collection('goats').onSnapshot((q) => { const next = {}; q.docs.forEach((d) => { next[d.id] = d.data(); }); state.goats = next; renderGoats(); renderStream(); renderGate(); }, onErr('goats'));
+    db.doc('stream/latest').onSnapshot((s) => { state.stream = s.exists ? s.data() : null; renderStream(); }, onErr('stream'));
+    db.doc('gate/latest').onSnapshot((s) => { state.gate = s.exists ? s.data() : null; renderGate(); }, onErr('gate'));
+    db.doc('herd/latest').onSnapshot((s) => { state.herd = s.exists ? s.data() : null; renderHerd(); }, onErr('herd'));
+    db.doc('troll/log').onSnapshot((s) => { state.troll = s.exists ? s.data() : null; renderTroll(); }, onErr('troll'));
+    setTimeout(() => { if (!Object.keys(state.goats).length) renderGoats(); }, 4000);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>

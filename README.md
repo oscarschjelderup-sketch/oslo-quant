@@ -42,6 +42,7 @@ oq live                  # step the paper accounts forward to the last completed
 oq intraday replay       # try the intraday rules on the last weeks of 15-minute bars
 oq intraday run          # follow today's session: a look every 15 minutes, play money only
 oq doctor                # is everything that should be running, running?
+oq goats                 # three of the paper accounts as the document the Trading Goats page reads
 oq lab                   # the documented strategies, tested for luck as well as for return
 oq check-factor GoldCrossFactor   # does a factor look into the future, or depend on its warm-up?
 oq ui                    # the dashboard at http://127.0.0.1:8050
@@ -338,6 +339,41 @@ The bots run as live paper accounts all the same: forty-three days are few, and 
 only one that cannot be fitted. But nothing here suggests that a rule on 15-minute bars, at retail costs, beats
 owning the market.
 
+### Trading Goats
+
+[beebots.tech](https://beebots.tech/) shows three AI bees trading crypto with real money. `oq goats` is the Oslo Børs
+version with play money: three of the paper accounts above are the three billy goats Gruff, a troll looks at
+them every evening, and a page shows where they stand.
+
+```bash
+oq goats                      # write ~/osloquant-home/goats.json
+oq goats --split out --show   # also one JSON file per page document: meta/state, goats/<id>, herd, stream, gate, troll/log
+oq goats --publish            # also push goats.json to the `goats` branch of origin, where the public page reads it
+oq goats troll                # read the troll's log
+oq goats troll "Out of the pasture, goat." --kind verdict --goat lillebukk
+oq goats rewrite lillebukk --set stop_loss=0.03 --set max_entries_per_day=2 --why "stopped out six times in a week"
+```
+
+The mapping lives in `~/osloquant-home/goats.yaml` (written with three defaults on the first run: `daytrade_orb`
+as Lillebukk, `intraday_breakout_slow` as Mellombukk, `live_momentum` as Storebukk). The export reads the store
+and writes JSON; it trades nothing and never touches an account. Each goat carries its holdings with stop
+levels, its equity curve, its latest signal, a status in one word (`GRAZING`, `WATCHING`, `BENCHED`, `FLAT`,
+`DOZING` when the laptop has slept through the looks, `BEHIND` when the evening job has not run) and how many
+of its looks it actually made. The other accounts are exported as the herd, and the buy signals the filters
+refused as the bridge gate.
+
+The troll is whoever reviews the goats (a scheduled Claude task, in practice). Its lines go into
+`~/osloquant-home/troll.json` with `oq goats troll` and travel inside the document. When it decides a goat needs
+new rules, `oq goats rewrite` adds a new account to `intraday.yaml` or `live.yaml` with the changed settings and
+the old account's current value as its stake, and points the goat at it. The old account keeps running in the
+herd under its own name (accounts are never edited or restarted), and the goat's curve is its lineage stitched
+together, so a rewrite never resets the record. A goat's account must be `min_sessions_between_rewrites`
+sessions old (five by default) before it can be rewritten. The charter the troll works to is `site/TROLL.md`.
+
+The page is `site/trading-goats.html`. Opened as a claude.ai artifact it reads the artifact's store; opened from
+GitHub Pages it reads `goats.json` from the `goats` branch, which `python -m osloquant.tick` refreshes after
+every look and `scripts/run_live.ps1` after every evening run.
+
 ### Is it running?
 
 A job that silently does not run looks exactly like a quiet market. `oq doctor` tells the two apart:
@@ -576,6 +612,7 @@ src/osloquant/
   intraday/    signal rules on 15-minute bars and the play-money accounts that trade them
   research/    the lab: strategies, the cost model, the tests for luck, the checks on factors
   health.py    the checks behind `oq doctor`
+  goats.py     the Trading Goats export: three paper accounts as one JSON document
   tick.py      what the 15-minute scheduled task runs
   ml/          the machine-learning harness
   ui/          the Dash dashboard
@@ -583,7 +620,7 @@ src/osloquant/
   cli.py       the `oq` command
 examples/      runnable scripts: queries, a formal and a solo strategy, a selector, machine learning
 scripts/       the evening job and the intraday looks for Windows Task Scheduler
-tests/         232 tests on synthetic data; none touches the network
+tests/         243 tests on synthetic data; none touches the network
 ```
 
 ```bash
