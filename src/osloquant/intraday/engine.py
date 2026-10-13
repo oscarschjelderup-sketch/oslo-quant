@@ -35,9 +35,9 @@ from osloquant.contract import IntervalLevel
 from osloquant.contract.api import get_data
 from osloquant.contract.storage import df_to_db
 from osloquant.env import oq_env
-from osloquant.intraday.rules import BUY, SELL, Rule, build_rule
+from osloquant.intraday.rules import BUY, SELL, Rule, build_rule, clip01
 from osloquant.trader.schemas import AccountStats, IntradaySignal, IntradaySnapshot, LiveState, Order, TraderInfo
-from osloquant.trader.sim_account import PROVIDER, TRADES, SimAccount
+from osloquant.trader.sim_account import CLOSES, PROVIDER, TRADES, SimAccount
 
 logger = logging.getLogger(__name__)
 
@@ -174,8 +174,25 @@ class IntradayAccountConfig:
     #: the stock's average daily range must be at least this many round-trip costs
     min_range_to_cost: float | None = None
     max_per_sector: int | None = None
+    #: a bearish signal in a stock not held may open a short (needs a margin account: max_leverage above 1)
+    shorts: bool = False
+    #: gross exposure may reach this many times equity; 1 is a plain cash account, 10 the most allowed here.
+    #: A margin account sizes each entry by the signal's strength: a faint signal gets one slot, an emphatic one
+    #: up to max_leverage slots, never more than the buying power left
+    max_leverage: float = 1.0
+    #: yearly interest on borrowed cash, and yearly fee on the value sold short, charged per calendar day held
+    financing_rate: float = 0.06
+    borrow_rate: float = 0.03
+    #: a margin account is closed out when its equity falls under this share of its gross exposure
+    maintenance_margin: float = 0.05
 
     def __post_init__(self) -> None:
+        if not 1 <= self.max_leverage <= 10:
+            raise ValueError(f"{self.name}: max_leverage must be between 1 (cash) and 10")
+        if self.shorts and self.max_leverage <= 1:
+            raise ValueError(f"{self.name}: shorts need a margin account; set max_leverage above 1")
+        if not 0 < self.maintenance_margin < 1:
+            raise ValueError(f"{self.name}: maintenance_margin is a share of the exposure, between 0 and 1")
         if self.day_trade:
             self.flat_at_close = True if self.flat_at_close is None else self.flat_at_close
             self.exit_on_signal = False if self.exit_on_signal is None else self.exit_on_signal
@@ -279,7 +296,10 @@ def last_daily_session(before: pd.Timestamp) -> pd.Timestamp | None:
     from osloquant.domain import Stock1dAdjKdata
 
     df = Stock1dAdjKdata.query_data(
-        columns=["timestamp"], end_timestamp=before.normalize() - pd.Timedelta(days=1), order=Stock1dAdjKdata.timestamp.desc(), limit=1
+        columns=["timestamp"],
+        end_timestamp=before.normalize() - pd.Timedelta(days=1),
+        order=Stock1dAdjKdata.timestamp.desc(),
+        limit=1,
     )
     return None if df.empty else df["timestamp"].iloc[0]
 
@@ -291,8 +311,12 @@ def _factor(factor_name: str, newest: pd.Timestamp):
     from osloquant.contract import context
 
     if factor_name not in context.factor_cls_registry:
-        raise ValueError(f"watchlist {factor_name!r} is not a factor; known: {', '.join(sorted(context.factor_cls_registry))}, 'all', or a list of codes")
-    return context.factor_cls_registry[factor_name](start_timestamp=newest - pd.DateOffset(years=4), end_timestamp=newest)
+        raise ValueError(
+            f"watchlist {factor_name!r} is not a factor; known: {', '.join(sorted(context.factor_cls_registry))}, 'all', or a list of codes"
+        )
+    return context.factor_cls_registry[factor_name](
+        start_timestamp=newest - pd.DateOffset(years=4), end_timestamp=newest
+    )
 
 
 @lru_cache(maxsize=256)
@@ -323,16 +347,24 @@ def daily_watchlist(spec: str | list, day: pd.Timestamp) -> tuple[list[str], pd.
     return list(_factor_targets(spec, as_of)), as_of
 
 
-def load_bars(entity_ids: list[str] | None, since: pd.Timestamp, until: pd.Timestamp | None = None) -> dict[str, pd.DataFrame]:
+def load_bars(
+    entity_ids: list[str] | None, since: pd.Timestamp, until: pd.Timestamp | None = None
+) -> dict[str, pd.DataFrame]:
     """Stored 15-minute bars per stock, indexed by bar start."""
     from osloquant.domain import Stock15mKdata
 
     if entity_ids is not None and not entity_ids:
         return {}
     df = Stock15mKdata.query_data(
-        entity_ids=entity_ids, start_timestamp=since, end_timestamp=until, columns=["entity_id", "timestamp", "open", "high", "low", "close", "volume"]
+        entity_ids=entity_ids,
+        start_timestamp=since,
+        end_timestamp=until,
+        columns=["entity_id", "timestamp", "open", "high", "low", "close", "volume"],
     )
-    return {entity_id: frame.drop(columns="entity_id").set_index("timestamp").sort_index() for entity_id, frame in df.groupby("entity_id")}
+    return {
+        entity_id: frame.drop(columns="entity_id").set_index("timestamp").sort_index()
+        for entity_id, frame in df.groupby("entity_id")
+    }
 
 
 def load_actions(entity_ids: list[str] | None, since: pd.Timestamp) -> pd.DataFrame:
@@ -340,7 +372,9 @@ def load_actions(entity_ids: list[str] | None, since: pd.Timestamp) -> pd.DataFr
 
     if entity_ids is not None and not entity_ids:
         return pd.DataFrame(columns=["entity_id", "timestamp", "dividend", "split"])
-    return StockAction.query_data(entity_ids=entity_ids, start_timestamp=since, columns=["entity_id", "timestamp", "dividend", "split"])
+    return StockAction.query_data(
+        entity_ids=entity_ids, start_timestamp=since, columns=["entity_id", "timestamp", "dividend", "split"]
+    )
 
 
 def stock_sectors() -> dict[str, str]:
@@ -350,13 +384,20 @@ def stock_sectors() -> dict[str, str]:
     return dict(zip(df["entity_id"], df["sector"], strict=True))
 
 
-def daily_range_table(entity_ids: list[str] | None, since: pd.Timestamp, until: pd.Timestamp, sessions: int = 20) -> pd.DataFrame:
+def daily_range_table(
+    entity_ids: list[str] | None, since: pd.Timestamp, until: pd.Timestamp, sessions: int = 20
+) -> pd.DataFrame:
     """Per stock and day, the average daily range (high - low) / close over the ``sessions`` sessions up to that day."""
     from osloquant.domain import Stock1dKdata
 
     if entity_ids is not None and not entity_ids:
         return pd.DataFrame()
-    df = Stock1dKdata.query_data(entity_ids=entity_ids, start_timestamp=since, end_timestamp=until, columns=["entity_id", "timestamp", "high", "low", "close"])
+    df = Stock1dKdata.query_data(
+        entity_ids=entity_ids,
+        start_timestamp=since,
+        end_timestamp=until,
+        columns=["entity_id", "timestamp", "high", "low", "close"],
+    )
     if df.empty:
         return pd.DataFrame()
     df["range"] = (df["high"] - df["low"]) / df["close"]
@@ -389,7 +430,9 @@ def completed_bars(bars: pd.DataFrame, feed_time: pd.Timestamp) -> pd.DataFrame:
     return bars.iloc[: bars.index.searchsorted(feed_time - INTERVAL, side="right")]
 
 
-def open_at_or_after(bars: pd.DataFrame, since: pd.Timestamp, feed_time: pd.Timestamp) -> tuple[pd.Timestamp, float] | None:
+def open_at_or_after(
+    bars: pd.DataFrame, since: pd.Timestamp, feed_time: pd.Timestamp
+) -> tuple[pd.Timestamp, float] | None:
     """The first bar starting at or after ``since`` that the feed has shown the open of."""
     first, visible = bars.index.searchsorted(since, side="left"), bars.index.searchsorted(feed_time, side="right")
     if first >= visible:
@@ -406,6 +449,20 @@ class StepReport:
     fills: list[dict] = field(default_factory=list)
     signals: list[dict] = field(default_factory=list)
     value: float = 0.0
+    #: interest and borrow fees charged at this look (a margin account, on the first look of a new day)
+    financing: float = 0.0
+
+
+def _upgrade_order(order: dict) -> dict:
+    """An order saved by an earlier version knows only its side; give it the action that side meant then."""
+    if "action" not in order:
+        order = {**order, "action": "open_long" if order["side"] == BUY else "close_long"}
+    return order
+
+
+def _side_of(action: str) -> str:
+    """What the broker sees: opening a long and covering a short are buys, the other two are sells."""
+    return BUY if action in ("open_long", "close_short") else SELL
 
 
 class IntradayAccount:
@@ -423,12 +480,15 @@ class IntradayAccount:
             slippage=config.slippage,
             min_cost=config.commission_min,
             level=IntervalLevel.LEVEL_15MIN,
+            max_leverage=account.max_leverage,
+            financing_rate=account.financing_rate,
+            borrow_rate=account.borrow_rate,
         )
-        #: orders sent and not yet filled
+        #: orders sent and not yet filled: action open_long, close_long, open_short or close_short
         self.pending: list[dict] = []
         #: per stock, the newest bar the signal rule has already looked at
         self.seen: dict[str, pd.Timestamp] = {}
-        #: per holding, the highest close since it was bought (for the trailing stop)
+        #: per holding, the best close since the entry: the highest for a long, the lowest for a short (trailing stops)
         self.peaks: dict[str, float] = {}
         #: per holding, the bar it was bought on (a dividend belongs to whoever held the day before it)
         self.opened: dict[str, pd.Timestamp] = {}
@@ -447,7 +507,10 @@ class IntradayAccount:
         self.signals_recorded = 0
         if state is not None:
             self.account.restore(state["account"])
-            self.pending = [{**o, "bar": pd.Timestamp(o["bar"]), "signal_bar": pd.Timestamp(o["signal_bar"])} for o in state["pending"]]
+            self.pending = [
+                {**_upgrade_order(o), "bar": pd.Timestamp(o["bar"]), "signal_bar": pd.Timestamp(o["signal_bar"])}
+                for o in state["pending"]
+            ]
             self.seen = {e: pd.Timestamp(t) for e, t in state["seen"].items()}
             self.peaks = dict(state["peaks"])
             self.opened = {e: pd.Timestamp(t) for e, t in state.get("opened", {}).items()}
@@ -470,7 +533,9 @@ class IntradayAccount:
             "strategy": self.rule.describe(),
             "input_money": self.account.input_money,
             "account": self.account.to_state(),
-            "pending": [{**o, "bar": o["bar"].isoformat(), "signal_bar": o["signal_bar"].isoformat()} for o in self.pending],
+            "pending": [
+                {**o, "bar": o["bar"].isoformat(), "signal_bar": o["signal_bar"].isoformat()} for o in self.pending
+            ],
             "seen": {e: t.isoformat() for e, t in self.seen.items()},
             "peaks": self.peaks,
             "opened": {e: t.isoformat() for e, t in self.opened.items()},
@@ -509,34 +574,56 @@ class IntradayAccount:
         self.watchlist = watchlist
         log = {} if wall_clock is None else {"decided_at": wall_clock, "forward": 1.0}
         self._book_actions(now, actions)
+        # a margin account pays for what it borrowed over the nights since the last look
+        if self.account.margin and self.last_poll is not None and now.normalize() > self.last_poll.normalize():
+            report.financing = self.account.charge_financing((now.normalize() - self.last_poll.normalize()).days, now)
 
-        # 1. fill what was sent earlier, sells first so that their cash is there for the buys
+        # 1. fill what was sent earlier, closes first so that their cash and margin are there for the opens
         waiting = []
-        for order in sorted(self.pending, key=lambda o: o["side"] != SELL):
-            fill = open_at_or_after(bars[order["entity_id"]], order["bar"], feed_time) if order["entity_id"] in bars else None
+        for order in sorted(self.pending, key=lambda o: not o["action"].startswith("close")):
+            fill = (
+                open_at_or_after(bars[order["entity_id"]], order["bar"], feed_time)
+                if order["entity_id"] in bars
+                else None
+            )
             if fill is None:
-                if order["side"] == BUY and feed_time - order["bar"] > BUY_EXPIRES:
+                if order["action"].startswith("open") and feed_time - order["bar"] > BUY_EXPIRES:
                     report.signals.append(self._signal_row(order, "expired: no trade to fill it on", wall_clock))
                 else:
                     waiting.append(order)
                 continue
             bar, price = fill
             entity_id, reason = order["entity_id"], f"{order['code']} {order['rule']}: {order['reason']}"
-            if order["side"] == BUY:
-                amount = self.account.buy(
-                    entity_id, price, bar, money=self.account.all_value / self.cfg.max_positions, signal_timestamp=order["signal_bar"], reason=reason, **log
+            action = order["action"]
+            if action in ("open_long", "open_short"):
+                money = min(order.get("notional") or self.base_size(), self.account.buying_power)
+                opener = self.account.buy if action == "open_long" else self.account.sell_short
+                amount = opener(
+                    entity_id, price, bar, money=money, signal_timestamp=order["signal_bar"], reason=reason, **log
                 )
                 if amount:
                     self.peaks[entity_id] = price
                     self.opened[entity_id] = bar
             else:
-                amount = self.account.sell(entity_id, price, bar, signal_timestamp=order["signal_bar"], reason=reason, **log)
+                amount = self.account.close(
+                    entity_id, price, bar, signal_timestamp=order["signal_bar"], reason=reason, **log
+                )
                 self.peaks.pop(entity_id, None)
                 self.opened.pop(entity_id, None)
                 if amount:
                     self.closed[entity_id] = bar
             if amount:
-                report.fills.append({"entity_id": entity_id, "side": order["side"], "bar": bar, "price": price, "shares": amount, "reason": reason})
+                report.fills.append(
+                    {
+                        "entity_id": entity_id,
+                        "side": order["side"],
+                        "action": action,
+                        "bar": bar,
+                        "price": price,
+                        "shares": amount,
+                        "reason": reason,
+                    }
+                )
         self.pending = waiting
 
         # 2. value the holdings at the newest completed bar
@@ -544,35 +631,64 @@ class IntradayAccount:
         prices = {entity_id: float(frame["close"].iloc[-1]) for entity_id, frame in done.items() if len(frame)}
         self.account.mark(prices)
 
-        # 3. the risk rules, on what is held and not already being sold
-        selling = {o["entity_id"] for o in self.pending if o["side"] == SELL}
+        # 3. the risk rules, on what is held and not already being closed
+        selling = {o["entity_id"] for o in self.pending if o["action"].startswith("close")}
         closing_time = self.cfg.flat_at_close and now >= now.normalize() + LAST_BAR - 2 * INTERVAL
+        # a margin account that has lost too much of its equity is closed out, whatever the rules say
+        margin_call = (
+            self.account.margin
+            and self.account.exposure > 0
+            and self.account.all_value < self.cfg.maintenance_margin * self.account.exposure
+        )
         for entity_id, holding in list(self.account.holdings.items()):
             if entity_id in selling or entity_id not in prices or not len(done[entity_id]):
                 continue
-            price, bought = prices[entity_id], holding.average_price
-            self.peaks[entity_id] = peak = max(self.peaks.get(entity_id, bought), price)
+            price, bought, short = prices[entity_id], holding.average_price, holding.amount < 0
+            best = self.peaks.get(entity_id, bought)
+            self.peaks[entity_id] = peak = min(best, price) if short else max(best, price)
+            gain = 1 - price / bought if short else price / bought - 1
+            entry = "short" if short else "purchase"
             exit_signal = None
-            if self.cfg.stop_loss and price <= bought * (1 - self.cfg.stop_loss):
-                exit_signal = ("STOP", f"{price:.2f} is {price / bought - 1:+.1%} from the purchase at {bought:.2f}")
-            elif self.cfg.take_profit and price >= bought * (1 + self.cfg.take_profit):
-                exit_signal = ("TARGET", f"{price:.2f} is {price / bought - 1:+.1%} from the purchase at {bought:.2f}")
-            elif self.cfg.trailing_stop and price <= peak * (1 - self.cfg.trailing_stop):
-                exit_signal = ("TRAIL", f"{price:.2f} is {price / peak - 1:+.1%} from the high of {peak:.2f} since the purchase")
+            if margin_call:
+                exit_signal = (
+                    "MARGIN",
+                    f"equity {self.account.all_value:,.0f} is under {self.cfg.maintenance_margin:.0%} of the exposure {self.account.exposure:,.0f}",
+                )
+            elif self.cfg.stop_loss and gain <= -self.cfg.stop_loss:
+                exit_signal = ("STOP", f"{price:.2f} is {price / bought - 1:+.1%} from the {entry} at {bought:.2f}")
+            elif self.cfg.take_profit and gain >= self.cfg.take_profit:
+                exit_signal = ("TARGET", f"{price:.2f} is {price / bought - 1:+.1%} from the {entry} at {bought:.2f}")
+            elif self.cfg.trailing_stop and (
+                price >= peak * (1 + self.cfg.trailing_stop) if short else price <= peak * (1 - self.cfg.trailing_stop)
+            ):
+                exit_signal = (
+                    "TRAIL",
+                    f"{price:.2f} is {price / peak - 1:+.1%} from the {'low' if short else 'high'} of {peak:.2f} since the {entry}",
+                )
             elif closing_time:
                 exit_signal = ("CLOSE", "nothing is held overnight")
             if exit_signal:
-                order = self._order(entity_id, SELL, exit_signal[0], "risk", exit_signal[1], done[entity_id].index[-1], price, now)
+                order = self._order(
+                    entity_id,
+                    "close_short" if short else "close_long",
+                    exit_signal[0],
+                    "risk",
+                    exit_signal[1],
+                    done[entity_id].index[-1],
+                    price,
+                    now,
+                )
                 self.pending.append(order)
                 selling.add(entity_id)
                 report.signals.append(self._signal_row(order, "ordered", wall_clock))
 
         # 4. the signal rule, on the newest completed bar of each stock it has not looked at yet
-        buying = {o["entity_id"] for o in self.pending if o["side"] == BUY}
+        buying = {o["entity_id"] for o in self.pending if o["action"].startswith("open")}
         last_fillable = now.normalize() + LAST_BAR
         if self.entry_day != now.normalize().isoformat():
             self.entry_day, self.entries_today = now.normalize().isoformat(), []
         candidates = []
+        wants_volume = bool(self.cfg.min_relative_volume) or self.account.margin
         for entity_id in [*watchlist, *[e for e in self.account.holdings if e not in watchlist]]:
             frame = done.get(entity_id)
             if frame is None or len(frame) < self.rule.min_bars:
@@ -586,26 +702,75 @@ class IntradayAccount:
             signal = self.rule.evaluate(frame)
             if signal is None:
                 continue
-            order = self._order(entity_id, signal.code, signal.code, signal.rule, signal.reason, signal.bar, signal.price, now)
-            if signal.code == SELL:
-                if entity_id not in self.account.holdings or entity_id in selling:
-                    continue  # a sell signal for something not held is not news
+            holding = self.account.holdings.get(entity_id)
+            held_long, held_short = (
+                holding is not None and holding.amount > 0,
+                holding is not None and holding.amount < 0,
+            )
+            if (signal.code == SELL and held_long) or (signal.code == BUY and held_short):
+                # the rule has turned against what is held: close it, if this account closes on signals
+                if entity_id in selling:
+                    continue
+                order = self._order(
+                    entity_id,
+                    "close_long" if held_long else "close_short",
+                    signal.code,
+                    signal.rule,
+                    signal.reason,
+                    signal.bar,
+                    signal.price,
+                    now,
+                )
                 if not self.cfg.exit_on_signal:
-                    report.signals.append(self._signal_row(order, "not acted on: this account exits by its stops and at the close", wall_clock))
+                    report.signals.append(
+                        self._signal_row(
+                            order, "not acted on: this account exits by its stops and at the close", wall_clock
+                        )
+                    )
                     continue
                 self.pending.append(order)
                 selling.add(entity_id)
-                report.signals.append(self._signal_row(order, "ordered", wall_clock))
+                report.signals.append(
+                    self._signal_row(order, "ordered" if held_long else "ordered: covered", wall_clock)
+                )
+            elif signal.code == SELL and not self.cfg.shorts:
+                continue  # a sell signal for something not held is not news to a long-only account
+            elif signal.code == SELL and held_short:
+                continue  # already short: the rule repeating itself is not news either
             else:
-                candidates.append((entity_id, order, relative_volume(frame) if self.cfg.min_relative_volume else None))
+                action = "open_long" if signal.code == BUY else "open_short"
+                order = self._order(
+                    entity_id,
+                    action,
+                    signal.code,
+                    signal.rule,
+                    signal.reason,
+                    signal.bar,
+                    signal.price,
+                    now,
+                    strength=signal.strength,
+                )
+                candidates.append((entity_id, order, relative_volume(frame) if wants_volume else None))
 
-        # the buys arriving together are judged busiest first when volume matters, else in watchlist order
+        # the entries arriving together are judged busiest first when volume matters, else in watchlist order
         if self.cfg.min_relative_volume:
             candidates.sort(key=lambda c: -(c[2] or 0.0))
         cost = self.round_trip_cost()
         for entity_id, order, volume_ratio in candidates:
-            outcome = self._judge_buy(entity_id, order, volume_ratio, cost, watchlist, buying, selling, closing_time, last_fillable, ranges, sectors)
-            if outcome == "ordered":
+            outcome = self._judge_open(
+                entity_id,
+                order,
+                volume_ratio,
+                cost,
+                watchlist,
+                buying,
+                selling,
+                closing_time,
+                last_fillable,
+                ranges,
+                sectors,
+            )
+            if outcome.startswith("ordered"):
                 self.pending.append(order)
                 buying.add(entity_id)
                 self.entries_today.append(entity_id)
@@ -615,21 +780,60 @@ class IntradayAccount:
         report.value = self.account.all_value
         return report
 
+    def base_size(self) -> float:
+        """One slot's worth of exposure: the equity over the number of slots."""
+        return self.account.all_value / self.cfg.max_positions
+
     def round_trip_cost(self) -> float:
-        """What buying and selling one position of the usual size costs, as a share of it."""
-        size = self.account.all_value / self.cfg.max_positions
+        """What opening and closing one position of the usual size costs, as a share of it."""
+        size = self.base_size()
         if size <= 0:
             return float("inf")
         floor = self.account.min_cost / size
         return max(floor, self.account.buy_cost) + max(floor, self.account.sell_cost) + 2 * self.account.slippage
 
-    def _judge_buy(self, entity_id, order, volume_ratio, cost, watchlist, buying, selling, closing_time, last_fillable, ranges, sectors) -> str:
-        """Whether a BUY signal becomes an order, or which rule stopped it. The first rule that applies is the reason."""
+    def size(self, order: dict, volume_ratio: float | None) -> tuple[float, float]:
+        """How much exposure an entry gets, and that as a multiple of one slot.
+
+        A cash account gives every entry one slot. A margin account gives a faint signal one slot and an emphatic one
+        up to ``max_leverage`` slots, by the signal's strength blended with how busy the bar was (five times the
+        normal volume counts as emphatic), and never more than the buying power left after the opens already waiting.
+        """
+        base = self.base_size()
+        if not self.account.margin or base <= 0:
+            return base, 1.0
+        strength = float(order.get("strength") or 0.0)
+        if volume_ratio is not None:
+            strength = 0.6 * strength + 0.4 * clip01((volume_ratio - 1) / 4)
+        wanted = base * (1 + (self.cfg.max_leverage - 1) * strength)
+        waiting = sum(o.get("notional") or 0.0 for o in self.pending if o["action"].startswith("open"))
+        notional = max(min(wanted, self.account.buying_power - waiting), 0.0)
+        return notional, notional / base
+
+    def _judge_open(
+        self,
+        entity_id,
+        order,
+        volume_ratio,
+        cost,
+        watchlist,
+        buying,
+        selling,
+        closing_time,
+        last_fillable,
+        ranges,
+        sectors,
+    ) -> str:
+        """Whether an entry signal becomes an order, or which rule stopped it. The first rule that applies is the reason."""
         cfg = self.cfg
         bar_time = order["signal_bar"] - order["signal_bar"].normalize()
         if entity_id in self.account.holdings:
             return "skipped: already held"
-        if cfg.cooldown_bars and entity_id in self.closed and order["signal_bar"] < self.closed[entity_id] + cfg.cooldown_bars * INTERVAL:
+        if (
+            cfg.cooldown_bars
+            and entity_id in self.closed
+            and order["signal_bar"] < self.closed[entity_id] + cfg.cooldown_bars * INTERVAL
+        ):
             return "skipped: cooling off after the last sale"
         if entity_id in buying:
             return "skipped: already ordered"
@@ -641,7 +845,10 @@ class IntradayAccount:
             return "skipped: the market has closed"
         if self.window is not None and not self.window[0] <= bar_time <= self.window[1]:
             return f"skipped: outside the entry window {cfg.entry_window[0]}-{cfg.entry_window[1]}"
-        if cfg.max_entries_per_stock_per_day is not None and self.entries_today.count(entity_id) >= cfg.max_entries_per_stock_per_day:
+        if (
+            cfg.max_entries_per_stock_per_day is not None
+            and self.entries_today.count(entity_id) >= cfg.max_entries_per_stock_per_day
+        ):
             return "skipped: already traded today"
         if cfg.max_entries_per_day is not None and len(self.entries_today) >= cfg.max_entries_per_day:
             return f"skipped: {len(self.entries_today)} entries today already"
@@ -664,7 +871,13 @@ class IntradayAccount:
         free = cfg.max_positions - len(set(self.account.holdings) - selling) - len(buying)
         if free <= 0:
             return "skipped: no free slot"
-        return "ordered"
+        notional, slots = self.size(order, volume_ratio)
+        if notional < 0.25 * self.base_size():
+            return "skipped: no buying power left"
+        order["notional"], order["slots"] = notional, slots
+        if order["action"] == "open_short":
+            return f"ordered: short x{slots:.1f}" if self.account.margin else "ordered: short"
+        return f"ordered x{slots:.1f}" if self.account.margin else "ordered"
 
     def _book_actions(self, now: pd.Timestamp, actions: pd.DataFrame | None) -> None:
         """Dividends and splits for what was held going into their day. They reach the store on the evening of
@@ -686,8 +899,19 @@ class IntradayAccount:
             if row.dividend:
                 self.account.receive_dividend(row.entity_id, row.dividend, row.timestamp)
 
-    def _order(self, entity_id, side, code, rule, reason, signal_bar, price, now) -> dict:
-        return {"entity_id": entity_id, "side": side, "code": code, "rule": rule, "reason": reason, "signal_bar": signal_bar, "price": price, "bar": order_bar(now)}
+    def _order(self, entity_id, action, code, rule, reason, signal_bar, price, now, strength: float = 0.0) -> dict:
+        return {
+            "entity_id": entity_id,
+            "action": action,
+            "side": _side_of(action),
+            "code": code,
+            "rule": rule,
+            "reason": reason,
+            "signal_bar": signal_bar,
+            "price": price,
+            "bar": order_bar(now),
+            "strength": float(strength),
+        }
 
     def _signal_row(self, order: dict, outcome: str, wall_clock) -> dict:
         self.signals_recorded += 1
@@ -714,7 +938,12 @@ def load_state(name: str) -> dict | None:
 
 
 def _persist(
-    account: IntradayAccount, config: IntradayConfig, report: StepReport, now: pd.Timestamp, wall_clock: pd.Timestamp, feed_lag: pd.Timedelta | None = None
+    account: IntradayAccount,
+    config: IntradayConfig,
+    report: StepReport,
+    now: pd.Timestamp,
+    wall_clock: pd.Timestamp,
+    feed_lag: pd.Timedelta | None = None,
 ) -> None:
     name, sim = account.cfg.name, account.account
     sim.persist(append=True)  # the orders; an intraday account writes no daily positions
@@ -729,9 +958,13 @@ def _persist(
         "all_value": sim.all_value,
         "holdings": float(len(sim.holdings)),
         "feed_lag": None if feed_lag is None else feed_lag.total_seconds() / 60,
+        "exposure": sim.exposure,
+        "leverage": sim.leverage if sim.leverage != float("inf") else None,
     }
     df_to_db(pd.DataFrame([snapshot]), IntradaySnapshot, PROVIDER)
-    df_to_db(pd.DataFrame([sim.day_row(now)]), AccountStats, PROVIDER)  # the day's row, overwritten until the day is over
+    df_to_db(
+        pd.DataFrame([sim.day_row(now)]), AccountStats, PROVIDER
+    )  # the day's row, overwritten until the day is over
     info = {
         "id": name,
         "entity_id": name,
@@ -755,7 +988,14 @@ def _persist(
         "mode": "intraday",
     }
     df_to_db(pd.DataFrame([info]), TraderInfo, PROVIDER)
-    state = {"id": name, "entity_id": name, "timestamp": now, "trader_name": name, "state": json.dumps(account.to_state()), "updated_at": wall_clock}
+    state = {
+        "id": name,
+        "entity_id": name,
+        "timestamp": now,
+        "trader_name": name,
+        "state": json.dumps(account.to_state()),
+        "updated_at": wall_clock,
+    }
     df_to_db(pd.DataFrame([state]), LiveState, PROVIDER)
 
 
@@ -787,7 +1027,9 @@ def poll(config: IntradayConfig, now: pd.Timestamp | None = None, record: bool =
             logger.exception("intraday account %s could not be set up", cfg.name)
             result.errors[cfg.name] = f"{type(e).__name__}: {e}"
 
-    needed = sorted({e for a in accounts for e in [*a.watchlist, *a.account.holdings, *[o["entity_id"] for o in a.pending]]})
+    needed = sorted(
+        {e for a in accounts for e in [*a.watchlist, *a.account.holdings, *[o["entity_id"] for o in a.pending]]}
+    )
     if record and needed:
         try:
             Stock15mKdata.record_data(entity_ids=needed)
@@ -799,12 +1041,18 @@ def poll(config: IntradayConfig, now: pd.Timestamp | None = None, record: bool =
     sectors = stock_sectors()
     ranges = ranges_as_of(daily_range_table(needed, since=now.normalize() - pd.Timedelta(days=60), until=now), now)
     # the newest bar that has started: how far behind the clock it is, is how late the feed really is
-    started = [frame.index[frame.index.searchsorted(now, side="right") - 1] for frame in bars.values() if len(frame) and frame.index[0] <= now]
+    started = [
+        frame.index[frame.index.searchsorted(now, side="right") - 1]
+        for frame in bars.values()
+        if len(frame) and frame.index[0] <= now
+    ]
     result.feed_lag = now - max(started) if started else None
 
     for account in accounts:
         try:
-            report = account.step(now, bars, account.watchlist, wall_clock=wall_clock, actions=actions, ranges=ranges, sectors=sectors)
+            report = account.step(
+                now, bars, account.watchlist, wall_clock=wall_clock, actions=actions, ranges=ranges, sectors=sectors
+            )
             _persist(account, config, report, now, wall_clock, feed_lag=result.feed_lag)
             result.reports.append(report)
         except Exception as e:
@@ -892,7 +1140,13 @@ class ReplayResult:
         return self.value / self.input_money - 1
 
 
-def replay(account: IntradayAccountConfig, config: IntradayConfig, days: int = 30, bars: dict[str, pd.DataFrame] | None = None, end: pd.Timestamp | None = None) -> ReplayResult:
+def replay(
+    account: IntradayAccountConfig,
+    config: IntradayConfig,
+    days: int = 30,
+    bars: dict[str, pd.DataFrame] | None = None,
+    end: pd.Timestamp | None = None,
+) -> ReplayResult:
     """Run an account over the stored bars of the last ``days`` calendar days, poll by poll, as it would have run live.
 
     Nothing is stored. The delays are the live ones: a bar is seen ``feed_delay`` after it closed, and an order is
@@ -934,7 +1188,13 @@ def replay(account: IntradayAccountConfig, config: IntradayConfig, days: int = 3
 
 
 def intraday_account_names() -> list[str]:
-    df = get_data(TraderInfo, provider=PROVIDER, filters=[TraderInfo.mode == "intraday"], columns=["trader_name"], order=TraderInfo.trader_name.asc())
+    df = get_data(
+        TraderInfo,
+        provider=PROVIDER,
+        filters=[TraderInfo.mode == "intraday"],
+        columns=["trader_name"],
+        order=TraderInfo.trader_name.asc(),
+    )
     return df["trader_name"].tolist()
 
 
@@ -955,28 +1215,48 @@ def account_summary(name: str, feed_delay: pd.Timedelta = pd.Timedelta(minutes=1
 
     stats = get_data(AccountStats, provider=PROVIDER, filters=[AccountStats.trader_name == name], index="timestamp")
     orders = get_data(Order, provider=PROVIDER, filters=[Order.trader_name == name], order=Order.id.asc())
-    signals = get_data(IntradaySignal, provider=PROVIDER, filters=[IntradaySignal.trader_name == name], order=IntradaySignal.id.asc())
-    snapshots = get_data(IntradaySnapshot, provider=PROVIDER, filters=[IntradaySnapshot.trader_name == name], index="timestamp")
+    signals = get_data(
+        IntradaySignal, provider=PROVIDER, filters=[IntradaySignal.trader_name == name], order=IntradaySignal.id.asc()
+    )
+    snapshots = get_data(
+        IntradaySnapshot, provider=PROVIDER, filters=[IntradaySnapshot.trader_name == name], index="timestamp"
+    )
     for frame in (orders, signals):
         if not frame.empty:
             frame["stock"] = [label(e)[0] for e in frame["entity_id"]]
     trades = orders[orders["order_type"].isin(TRADES)] if not orders.empty else orders
-    sells = trades[trades["order_type"] == "order_close_long"] if not trades.empty else trades
+    sells = trades[trades["order_type"].isin(CLOSES)] if not trades.empty else trades
+    financing = orders[orders["order_type"] == "financing"] if not orders.empty else orders
     input_money = float(state["input_money"])
     value = float(state["account"]["all_value"])
     benchmark = get_benchmark_series(name, stats.index) if not stats.empty else None
 
     holdings = []
-    for h in sorted(state["account"]["holdings"], key=lambda h: -h["amount"] * h["last_price"]):
+    exposure = 0.0
+    for h in sorted(state["account"]["holdings"], key=lambda h: -abs(h["amount"]) * h["last_price"]):
         code, company = label(h["entity_id"])
+        exposure += abs(h["amount"]) * h["last_price"]
         holdings.append(
-            {"entity_id": h["entity_id"], "code": code, "name": company, "shares": h["amount"], "average_price": h["average_price"],
-             "last_price": h["last_price"], "value": h["amount"] * h["last_price"], "profit_rate": h["profit_rate"]}
+            {"entity_id": h["entity_id"], "code": code, "name": company, "side": "short" if h["amount"] < 0 else "long", "shares": abs(h["amount"]),
+             "average_price": h["average_price"], "last_price": h["last_price"], "value": h["amount"] * h["last_price"],
+             "pnl": (h["last_price"] - h["average_price"]) * h["amount"], "profit_rate": h["profit_rate"]}
         )  # fmt: skip
     pending = []
     for o in state["pending"]:
+        o = _upgrade_order(o)
         code, company = label(o["entity_id"])
-        pending.append({"entity_id": o["entity_id"], "code": code, "name": company, "side": o["side"].lower(), "signal": o["code"], "reason": o["reason"], "decided_on": pd.Timestamp(o["signal_bar"])})
+        pending.append(
+            {
+                "entity_id": o["entity_id"],
+                "code": code,
+                "name": company,
+                "side": o["side"].lower(),
+                "action": o["action"],
+                "signal": o["code"],
+                "reason": o["reason"],
+                "decided_on": pd.Timestamp(o["signal_bar"]),
+            }
+        )
 
     return {
         "name": name,
@@ -991,7 +1271,9 @@ def account_summary(name: str, feed_delay: pd.Timedelta = pd.Timedelta(minutes=1
         "cash": float(state["account"]["cash"]),
         "total_return": value / input_money - 1,
         "universe_return": None,
-        "benchmark_return": float(benchmark.iloc[-1] / benchmark.iloc[0] - 1) if benchmark is not None and len(benchmark) else None,
+        "benchmark_return": float(benchmark.iloc[-1] / benchmark.iloc[0] - 1)
+        if benchmark is not None and len(benchmark)
+        else None,
         "holdings": holdings,
         "pending": pending,
         "watchlist": [label(e)[0] for e in state.get("watchlist", [])],
@@ -1001,11 +1283,17 @@ def account_summary(name: str, feed_delay: pd.Timedelta = pd.Timedelta(minutes=1
         "round_trips": int(len(sells)),
         "win_rate": float((sells["profit"] > 0).mean()) if len(sells) else None,
         "costs_paid": float(trades["cost"].sum()) if not trades.empty else 0.0,
-        "dividends_received": float(orders.loc[orders["order_type"] == "dividend", "profit"].sum()) if not orders.empty else 0.0,
+        "financing_paid": float(financing["cost"].sum()) if not financing.empty else 0.0,
+        "dividends_received": float(orders.loc[orders["order_type"] == "dividend", "profit"].sum())
+        if not orders.empty
+        else 0.0,
+        "exposure": exposure,
+        "leverage": exposure / value if value > 0 and exposure else 0.0,
         "coverage": look_coverage(snapshots.index, pd.Timestamp(state["start"]), market_now(), feed_delay),
-        "feed_lag": float(snapshots["feed_lag"].dropna().iloc[-1]) if "feed_lag" in snapshots.columns and snapshots["feed_lag"].notna().any() else None,
+        "feed_lag": float(snapshots["feed_lag"].dropna().iloc[-1])
+        if "feed_lag" in snapshots.columns and snapshots["feed_lag"].notna().any()
+        else None,
         "orders": orders,
         "signals": signals,
         "snapshots": snapshots,
     }
-

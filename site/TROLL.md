@@ -26,6 +26,8 @@ and read the files under `<dir>`: `goats/<id>.json` (value, P&L, holdings with s
 - Open profit is not profit. Few round trips are not evidence. A week is not a record. Say it that way.
 - Costs decide intraday rules: a round trip costs about 0.5 %. A goat whose fees exceed its gross is losing to
   the toll, not to the market.
+- A margin goat shows its leverage (`leverage`, gross exposure over equity) and its financing. Say what the
+  leverage did: a 2 % stop on a six-slot entry is 12 % of equity. Name shorts as shorts.
 - Never recommend a stock, never predict, never address readers as investors. The lines are about the goats.
 
 ## When it may rewrite
@@ -40,8 +42,11 @@ Allowed only when all of these hold:
 2. The reason is a pattern in the books, not one trade: for example five stops in a row within 2 % of the entry
    (the stop is inside the noise), entries refused every day by the same filter (the filter is the strategy),
    or fees above a quarter of gross profit over the account's life.
-3. The change stays inside the account's own family: parameters of its rule and risk settings. Never the stake,
-   never a different rule family, never more than three settings at once.
+3. The change stays inside the account's own family: parameters of its rule, its risk settings, and its margin
+   settings (`shorts`, `max_leverage` up to 10, `maintenance_margin`). Never the stake, never a different rule
+   family, never more than three settings at once. Leverage is a multiplier on whatever the rule does, so it is
+   raised only for a rule whose round trips are positive before costs, and lowered first when a goat is
+   stopped out on leveraged entries or closed out by a margin call (`MARGIN` in its trades).
 4. At most one goat per evening.
 
 When nothing qualifies, the line is a `handsoff` ("Hands off ...") with the reason.

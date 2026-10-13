@@ -912,7 +912,7 @@ def print_intraday_account(summary: dict, signals: int = 15) -> None:
         )
     for h in summary["holdings"]:
         console.print(
-            f"  Holds {h['shares']:,.0f} {h['code']} bought at {h['average_price']:.2f}, now {h['last_price']:.2f} ({_pct(h['profit_rate'])})"
+            f"  {'Short' if h.get('side') == 'short' else 'Holds'} {h['shares']:,.0f} {h['code']} at {h['average_price']:.2f}, now {h['last_price']:.2f} ({_pct(h['profit_rate'])})"
         )
     for o in summary["pending"]:
         console.print(f"  Ordered: {o['side']} {o['code']} ({o['signal']}: {o['reason']})")
@@ -991,6 +991,15 @@ def intraday_replay(
     min_range_cost: float = typer.Option(
         None, help="With --rule: the stock's daily range must be at least this many round-trip costs."
     ),
+    shorts: bool = typer.Option(
+        False,
+        "--shorts",
+        help="With --rule: a bearish signal in a stock not held opens a short (needs --max-leverage above 1).",
+    ),
+    max_leverage: float = typer.Option(
+        1.0,
+        help="With --rule: gross exposure up to this many times equity; entries are sized by the signal's strength.",
+    ),
     record: bool = typer.Option(True, help="Fetch the 15-minute history for every stock first."),
 ) -> None:
     """Run rules over the stored bars of the last weeks, with the delays of a live run. Stores nothing.
@@ -1017,7 +1026,8 @@ def intraday_replay(
         chosen = [
             IntradayAccountConfig(name="trial", signal=spec, watchlist=codes, stop_loss=stop_loss, take_profit=take_profit,
                                   trailing_stop=trailing_stop, cooldown_bars=cooldown, max_positions=positions, day_trade=day_trade,
-                                  max_per_sector=max_per_sector, min_relative_volume=min_relative_volume, min_range_to_cost=min_range_cost)
+                                  max_per_sector=max_per_sector, min_relative_volume=min_relative_volume, min_range_to_cost=min_range_cost,
+                                  shorts=shorts, max_leverage=max_leverage)
         ]  # fmt: skip
     else:
         chosen = [a for a in config.accounts if account in (None, a.name)]

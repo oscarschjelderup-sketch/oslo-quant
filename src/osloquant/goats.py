@@ -288,11 +288,14 @@ def held_since(orders: pd.DataFrame, entity_id: str) -> pd.Timestamp | None:
     """When the current holding of ``entity_id`` was opened: the first buy after the last time it was sold out."""
     if orders is None or orders.empty:
         return None
-    rows = orders[(orders["entity_id"] == entity_id) & orders["order_type"].isin(("order_long", "order_close_long"))]
+    rows = orders[
+        (orders["entity_id"] == entity_id)
+        & orders["order_type"].isin(("order_long", "order_close_long", "order_short", "order_close_short"))
+    ]
     if rows.empty:
         return None
-    sells = rows.index[rows["order_type"] == "order_close_long"]
-    buys = rows[rows["order_type"] == "order_long"]
+    sells = rows.index[rows["order_type"].isin(("order_close_long", "order_close_short"))]
+    buys = rows[rows["order_type"].isin(("order_long", "order_short"))]
     if len(sells):
         buys = buys[buys.index > sells[-1]]
     return None if buys.empty else pd.Timestamp(buys["timestamp"].iloc[0])
@@ -392,14 +395,17 @@ def _label(names: pd.DataFrame, entity_id: str) -> tuple[str, str]:
     return entity_id.split("_", 2)[-1], ""
 
 
+SIDES = {"order_long": "buy", "order_close_long": "sell", "order_short": "short", "order_close_short": "cover"}
+
+
 def _side(order_type: str) -> str:
-    return "buy" if order_type == "order_long" else "sell"
+    return SIDES.get(order_type, "sell")
 
 
 def _fill_items(goat_id: str, orders: pd.DataFrame, names: pd.DataFrame) -> list[dict]:
     if orders is None or orders.empty:
         return []
-    trades = orders[orders["order_type"].isin(("order_long", "order_close_long"))]
+    trades = orders[orders["order_type"].isin(tuple(SIDES))]
     items = []
     for row in trades.itertuples():
         code, _ = _label(names, row.entity_id)
@@ -505,6 +511,11 @@ def _rules(kind: str, state: dict, cfg) -> dict:
                 "min_range_to_cost": cfg.min_range_to_cost,
                 "max_per_sector": cfg.max_per_sector,
                 "cooldown_bars": cfg.cooldown_bars,
+                "shorts": cfg.shorts,
+                "max_leverage": cfg.max_leverage,
+                "financing_rate": cfg.financing_rate,
+                "borrow_rate": cfg.borrow_rate,
+                "maintenance_margin": cfg.maintenance_margin,
             }
         )
     return rules
@@ -580,6 +591,8 @@ def goat_document(
         "lineage": goat.lineage,
     }
     current = account_facts(goat.account, goat.id, intraday_config, live_config)
+    if current is None and goat.lineage:
+        return _rewritten_goat(goat, head, intraday_config, live_config)
     if current is None:
         return {
             **head,
@@ -602,24 +615,33 @@ def goat_document(
 
     holdings = []
     for h in summary["holdings"]:
+        short = h.get("side") == "short"
         stop = target = None
         if kind == "intraday" and cfg is not None:
             levels = []
+            best = peaks.get(h["entity_id"], h["average_price"])
             if cfg.stop_loss:
-                levels.append(h["average_price"] * (1 - cfg.stop_loss))
+                levels.append(
+                    h["average_price"] * (1 + cfg.stop_loss) if short else h["average_price"] * (1 - cfg.stop_loss)
+                )
             if cfg.trailing_stop:
-                levels.append(peaks.get(h["entity_id"], h["average_price"]) * (1 - cfg.trailing_stop))
-            stop = max(levels) if levels else None
-            target = h["average_price"] * (1 + cfg.take_profit) if cfg.take_profit else None
+                levels.append(best * (1 + cfg.trailing_stop) if short else best * (1 - cfg.trailing_stop))
+            stop = (min(levels) if short else max(levels)) if levels else None
+            if cfg.take_profit:
+                target = (
+                    h["average_price"] * (1 - cfg.take_profit) if short else h["average_price"] * (1 + cfg.take_profit)
+                )
+        shares = abs(float(h["shares"]))
         holdings.append(
             {
                 "stock": h["code"],
                 "name": h["name"],
-                "shares": _num(h["shares"]),
+                "side": "short" if short else "long",
+                "shares": shares,
                 "entry": _num(h["average_price"]),
                 "mark": _num(h["last_price"]),
-                "value": _num(h["value"]),
-                "pnl": _num((h["last_price"] - h["average_price"]) * h["shares"]),
+                "value": _num(abs(h["value"])),
+                "pnl": _num(h.get("pnl", (h["last_price"] - h["average_price"]) * h["shares"])),
                 "pnl_pct": _num(h["profit_rate"]),
                 "since": _iso(held_since(orders, h["entity_id"])),
                 "stop": _num(stop),
@@ -644,7 +666,7 @@ def goat_document(
     signals = [s for facts in chain for s in facts.signals]
     today = now.normalize()
     today_key = today.strftime("%Y-%m-%d")
-    sells = [f for f in fills if f["side"] == "sell"]
+    sells = [f for f in fills if f["side"] in ("sell", "cover")]
     wins = [f for f in sells if (f["pnl"] or 0) > 0]
     equity = pd.concat([facts.equity for facts in chain]) if chain else pd.Series(dtype=float)
     equity = equity[~equity.index.duplicated(keep="last")].sort_index()
@@ -743,6 +765,9 @@ def goat_document(
         "today": today_doc,
         "last_call": last_call,
         "fees": sum(_num(f.summary["costs_paid"]) or 0 for f in chain),
+        "financing": sum(_num(f.summary.get("financing_paid")) or 0 for f in chain),
+        "exposure": _num(summary.get("exposure")),
+        "leverage": _num(summary.get("leverage")),
         "dividends": sum(_num(f.summary["dividends_received"]) or 0 for f in chain),
         "fills": len(fills),
         "forward_fills": sum(1 for f in fills if f["forward"]),
@@ -750,6 +775,84 @@ def goat_document(
         "win_rate": (len(wins) / len(sells)) if sells else None,
         "decisions": len(signals) if kind == "intraday" else len(fills) + len(pending),
         "feed_lag": _num(summary.get("feed_lag")),
+        "equity": compact_series(equity),
+        "trades": fills[-30:],
+        "rewrites": len(goat.lineage),
+    }
+    return doc, signals + fills
+
+
+def _rewritten_goat(goat: GoatConfig, head: dict, intraday_config, live_config) -> tuple[dict, list[dict]]:
+    """A goat whose new account has not made its first look yet: its record so far, and the stake it starts with."""
+    chain = []
+    for link in goat.lineage:
+        facts = account_facts(link["account"], goat.id, intraday_config, live_config)
+        if facts is not None:
+            facts.cut(link.get("to"))
+            chain.append(facts)
+    last = goat.lineage[-1]
+    cfg = next((a for a in intraday_config.accounts if a.name == goat.account), None) or next(
+        (a for a in live_config.accounts if a.name == goat.account), None
+    )
+    kind = "intraday" if cfg is None or hasattr(cfg, "signal") else "daily"
+    fills = [f for facts in chain for f in facts.fills]
+    signals = [sig for facts in chain for sig in facts.signals]
+    sells = [f for f in fills if f["side"] in ("sell", "cover")]
+    wins = [f for f in sells if (f["pnl"] or 0) > 0]
+    equity = pd.concat([facts.equity for facts in chain]) if chain else pd.Series(dtype=float)
+    equity = equity[~equity.index.duplicated(keep="last")].sort_index()
+    stake = float(chain[0].summary["input_money"]) if chain else float(last["value"])
+    value = float(last["value"])
+    strategy = cfg.signal if cfg is not None and hasattr(cfg, "signal") else getattr(cfg, "strategy", None)
+    describe = (
+        f"{strategy['rule']}({', '.join(f'{k}={v}' for k, v in strategy.items() if k != 'rule')})"
+        if isinstance(strategy, dict)
+        else strategy
+    )
+    today = {
+        "entries": 0,
+        "cap": getattr(cfg, "max_entries_per_day", None),
+        "signals": 0,
+        "fills": 0,
+        "looks_made": 0,
+        "looks_due": 0,
+        "looks_share": None,
+        "days_missed": 0,
+    }
+    doc = {
+        **head,
+        "missing": False,
+        "kind": kind,
+        "start": _iso(chain[0].summary["start"]) if chain else last.get("from"),
+        "last_seen": last.get("to"),
+        "sessions": int(sum(f.summary["sessions"] for f in chain)),
+        "input_money": stake,
+        "value": value,
+        "cash": value,
+        "pnl": value - stake,
+        "pnl_pct": value / stake - 1 if stake else None,
+        "benchmark_pct": _num(chain[-1].summary["benchmark_return"]) if chain else None,
+        "universe_pct": None,
+        "status": {
+            "code": "REWRITTEN",
+            "text": f"new rules from the next look · {last['account']} handed over NOK {value:,.0f}",
+        },
+        "holdings": [],
+        "pending": [],
+        "rules": _rules(kind, {"strategy": describe}, cfg),
+        "today": today if kind == "intraday" else {"pending": 0, "fills": 0, "session": None},
+        "last_call": None,
+        "fees": sum(_num(f.summary["costs_paid"]) or 0 for f in chain),
+        "financing": sum(_num(f.summary.get("financing_paid")) or 0 for f in chain),
+        "exposure": 0.0,
+        "leverage": 0.0,
+        "dividends": sum(_num(f.summary["dividends_received"]) or 0 for f in chain),
+        "fills": len(fills),
+        "forward_fills": sum(1 for f in fills if f["forward"]),
+        "round_trips": len(sells),
+        "win_rate": (len(wins) / len(sells)) if sells else None,
+        "decisions": len(signals) if kind == "intraday" else len(fills),
+        "feed_lag": None,
         "equity": compact_series(equity),
         "trades": fills[-30:],
         "rewrites": len(goat.lineage),

@@ -86,7 +86,7 @@ class Order(TraderBase, Mixin):
     decided_at = Column(DateTime)
     #: 1 when decided_at was before the open of the fill day, 0 when not, empty for a backtest
     forward = Column(Float)
-    #: order_long, order_close_long, dividend or split
+    #: order_long, order_close_long, order_short, order_close_short, dividend, split or financing
     order_type = Column(String(32))
     #: the fill price, after slippage
     order_price = Column(Float)
@@ -146,6 +146,9 @@ class IntradaySnapshot(TraderBase, Mixin):
     holdings = Column(Float)
     #: minutes between the look and the start of the newest bar the feed had: what the delay really was
     feed_lag = Column(Float)
+    #: the gross value of the holdings, longs and shorts added, and that over the equity (a margin account)
+    exposure = Column(Float)
+    leverage = Column(Float)
 
 
 register_schema(providers=["osloquant"], db_name="trader_info", schema_base=TraderBase)

@@ -25,6 +25,17 @@ from osloquant.contract.drawer import (
     draw_trades,
     style,
 )
+from osloquant.trader.sim_account import TRADES
+
+ORDER_LABELS = {
+    "order_long": "Buy",
+    "order_close_long": "Sell",
+    "order_short": "Short",
+    "order_close_short": "Cover",
+    "dividend": "Dividend",
+    "split": "Split",
+    "financing": "Financing",
+}
 
 PAGE = "#f9f9f7"
 NAVY = "#003255"
@@ -39,10 +50,29 @@ FACTORS = {
 }
 WINDOWS = {"1 year": 1, "2 years": 2, "5 years": 5}
 
-CARD = {"background": SURFACE, "border": "1px solid rgba(11,11,11,0.10)", "borderRadius": "8px", "padding": "16px", "marginBottom": "16px"}
+CARD = {
+    "background": SURFACE,
+    "border": "1px solid rgba(11,11,11,0.10)",
+    "borderRadius": "8px",
+    "padding": "16px",
+    "marginBottom": "16px",
+}
 LABEL = {"fontSize": "12px", "color": MUTED, "marginBottom": "4px"}
-TH = {"textAlign": "left", "padding": "6px 12px 6px 0", "color": MUTED, "fontWeight": 500, "fontSize": "12px", "borderBottom": f"1px solid {AXIS}"}
-TD = {"padding": "6px 12px 6px 0", "fontSize": "13px", "color": INK, "borderBottom": f"1px solid {GRID}", "fontVariantNumeric": "tabular-nums"}
+TH = {
+    "textAlign": "left",
+    "padding": "6px 12px 6px 0",
+    "color": MUTED,
+    "fontWeight": 500,
+    "fontSize": "12px",
+    "borderBottom": f"1px solid {AXIS}",
+}
+TD = {
+    "padding": "6px 12px 6px 0",
+    "fontSize": "13px",
+    "color": INK,
+    "borderBottom": f"1px solid {GRID}",
+    "fontVariantNumeric": "tabular-nums",
+}
 
 
 def _pct(value, digits: int = 1) -> str:
@@ -59,16 +89,25 @@ def _date(value) -> str:
 
 def _table(headers: list[str], rows: list[list[str]]) -> html.Table:
     return html.Table(
-        [html.Thead(html.Tr([html.Th(h, style=TH) for h in headers])), html.Tbody([html.Tr([html.Td(c, style=TD) for c in row]) for row in rows])],
+        [
+            html.Thead(html.Tr([html.Th(h, style=TH) for h in headers])),
+            html.Tbody([html.Tr([html.Td(c, style=TD) for c in row]) for row in rows]),
+        ],
         style={"borderCollapse": "collapse", "width": "100%"},
     )
 
 
 def _tile(label: str, value: str, note: str | None = None) -> html.Div:
-    children = [html.Div(label, style=LABEL), html.Div(value, style={"fontSize": "22px", "color": INK, "fontWeight": 600})]
+    children = [
+        html.Div(label, style=LABEL),
+        html.Div(value, style={"fontSize": "22px", "color": INK, "fontWeight": 600}),
+    ]
     if note:
         children.append(html.Div(note, style={"fontSize": "12px", "color": INK_SECONDARY, "marginTop": "2px"}))
-    return html.Div(children, style={**CARD, "marginBottom": "0", "flex": "1 1 140px", "minWidth": "140px", "boxSizing": "border-box"})
+    return html.Div(
+        children,
+        style={**CARD, "marginBottom": "0", "flex": "1 1 140px", "minWidth": "140px", "boxSizing": "border-box"},
+    )
 
 
 def _message(text: str) -> html.Div:
@@ -102,10 +141,16 @@ def _stock_options() -> list[dict]:
 
     try:
         stocks = Stock.query_data(columns=["entity_id", "code", "name"], order=Stock.code.asc())
-        recorded = set(Stock1dAdjKdata.query_data(columns=["entity_id"], filters=[Stock1dAdjKdata.timestamp >= _latest_bar() - pd.Timedelta(days=30)])["entity_id"])
+        recorded = set(
+            Stock1dAdjKdata.query_data(
+                columns=["entity_id"], filters=[Stock1dAdjKdata.timestamp >= _latest_bar() - pd.Timedelta(days=30)]
+            )["entity_id"]
+        )
     except Exception:
         return []
-    return [{"label": f"{r.code}  {r.name}", "value": r.entity_id} for r in stocks.itertuples() if r.entity_id in recorded]
+    return [
+        {"label": f"{r.code}  {r.name}", "value": r.entity_id} for r in stocks.itertuples() if r.entity_id in recorded
+    ]
 
 
 def _latest_bar() -> pd.Timestamp:
@@ -132,16 +177,34 @@ def _traders_tab() -> html.Div:
     return html.Div(
         [
             html.Div(
-                [html.Div("Backtest", style=LABEL), dcc.Dropdown(id="trader", options=names, value=names[0], clearable=False, style={"maxWidth": "360px"})],
+                [
+                    html.Div("Backtest", style=LABEL),
+                    dcc.Dropdown(
+                        id="trader", options=names, value=names[0], clearable=False, style={"maxWidth": "360px"}
+                    ),
+                ],
                 style={"marginBottom": "16px"},
             ),
-            html.Div(id="trader-tiles", style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "16px"}),
+            html.Div(
+                id="trader-tiles", style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "16px"}
+            ),
             html.Div(dcc.Graph(id="trader-account", config={"displaylogo": False}), style=CARD),
-            html.Div(id="trader-notes", style={"fontSize": "12px", "color": INK_SECONDARY, "margin": "-8px 0 16px 2px", "maxWidth": "900px", "lineHeight": 1.5}),
+            html.Div(
+                id="trader-notes",
+                style={
+                    "fontSize": "12px",
+                    "color": INK_SECONDARY,
+                    "margin": "-8px 0 16px 2px",
+                    "maxWidth": "900px",
+                    "lineHeight": 1.5,
+                },
+            ),
             html.Div(
                 [
                     html.Div("Fills in one stock", style=LABEL),
-                    dcc.Dropdown(id="trader-entity", clearable=False, style={"maxWidth": "360px", "marginBottom": "8px"}),
+                    dcc.Dropdown(
+                        id="trader-entity", clearable=False, style={"maxWidth": "360px", "marginBottom": "8px"}
+                    ),
                     dcc.Graph(id="trader-trades", config={"displaylogo": False}),
                 ],
                 style=CARD,
@@ -172,27 +235,49 @@ def _system_card() -> html.Div:
     except Exception as e:
         return _message(f"The health checks could not be made: {e}")
     rows = [[words[c.status], c.name, c.detail, c.hint or ""] for c in checks]
-    return html.Div([html.Div("Is it running?", style=LABEL), _table(["", "What", "Finding", "What to do"], rows)], style=CARD)
+    return html.Div(
+        [html.Div("Is it running?", style=LABEL), _table(["", "What", "Finding", "What to do"], rows)], style=CARD
+    )
 
 
 def _live_tab() -> html.Div:
     names = _live_names()
     if not names:
-        return _message("No live account yet. Start the daily paper accounts with: oq live. Start the intraday ones with: oq intraday run")
+        return _message(
+            "No live account yet. Start the daily paper accounts with: oq live. Start the intraday ones with: oq intraday run"
+        )
     return html.Div(
         [
             _system_card(),
             html.Div(
-                [html.Div("Paper account", style=LABEL), dcc.Dropdown(id="live", options=names, value=names[0], clearable=False, style={"maxWidth": "360px"})],
+                [
+                    html.Div("Paper account", style=LABEL),
+                    dcc.Dropdown(
+                        id="live", options=names, value=names[0], clearable=False, style={"maxWidth": "360px"}
+                    ),
+                ],
                 style={"marginBottom": "16px"},
             ),
-            html.Div(id="live-tiles", style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "16px"}),
-            html.Div(id="live-notes", style={"fontSize": "12px", "color": INK_SECONDARY, "margin": "0 0 16px 2px", "maxWidth": "900px", "lineHeight": 1.5}),
+            html.Div(
+                id="live-tiles", style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "16px"}
+            ),
+            html.Div(
+                id="live-notes",
+                style={
+                    "fontSize": "12px",
+                    "color": INK_SECONDARY,
+                    "margin": "0 0 16px 2px",
+                    "maxWidth": "900px",
+                    "lineHeight": 1.5,
+                },
+            ),
             html.Div([html.Div("Decided, waiting to be filled", style=LABEL), html.Div(id="live-pending")], style=CARD),
             html.Div([html.Div("Holdings", style=LABEL), html.Div(id="live-holdings")], style=CARD),
             html.Div(dcc.Graph(id="live-account", config={"displaylogo": False}), style=CARD),
             html.Div(id="live-signals"),
-            html.Div([html.Div("Everything booked, newest first", style=LABEL), html.Div(id="live-orders")], style=CARD),
+            html.Div(
+                [html.Div("Everything booked, newest first", style=LABEL), html.Div(id="live-orders")], style=CARD
+            ),
         ]
     )
 
@@ -205,9 +290,32 @@ def _factors_tab() -> html.Div:
         [
             html.Div(
                 [
-                    html.Div([html.Div("Factor", style=LABEL), dcc.Dropdown(id="factor", options=[{"label": f"{k}: {v}", "value": k} for k, v in FACTORS.items()], value="CrossMaFactor", clearable=False)], style={"flex": "2 1 320px"}),
-                    html.Div([html.Div("Stock", style=LABEL), dcc.Dropdown(id="factor-entity", options=stocks, value=stocks[0]["value"], clearable=False)], style={"flex": "2 1 260px"}),
-                    html.Div([html.Div("Period", style=LABEL), dcc.Dropdown(id="factor-window", options=list(WINDOWS), value="1 year", clearable=False)], style={"flex": "1 1 140px"}),
+                    html.Div(
+                        [
+                            html.Div("Factor", style=LABEL),
+                            dcc.Dropdown(
+                                id="factor",
+                                options=[{"label": f"{k}: {v}", "value": k} for k, v in FACTORS.items()],
+                                value="CrossMaFactor",
+                                clearable=False,
+                            ),
+                        ],
+                        style={"flex": "2 1 320px"},
+                    ),
+                    html.Div(
+                        [
+                            html.Div("Stock", style=LABEL),
+                            dcc.Dropdown(id="factor-entity", options=stocks, value=stocks[0]["value"], clearable=False),
+                        ],
+                        style={"flex": "2 1 260px"},
+                    ),
+                    html.Div(
+                        [
+                            html.Div("Period", style=LABEL),
+                            dcc.Dropdown(id="factor-window", options=list(WINDOWS), value="1 year", clearable=False),
+                        ],
+                        style={"flex": "1 1 140px"},
+                    ),
                 ],
                 style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "16px"},
             ),
@@ -219,7 +327,10 @@ def _factors_tab() -> html.Div:
 
 def _data_tab() -> html.Div:
     df = coverage_table(context.schemas)
-    rows = [[r["schema"], r["provider"], _num(r["rows"], 0), _num(r["entities"], 0), _date(r["first"]), _date(r["last"])] for r in df.to_dict("records")]
+    rows = [
+        [r["schema"], r["provider"], _num(r["rows"], 0), _num(r["entities"], 0), _date(r["first"]), _date(r["last"])]
+        for r in df.to_dict("records")
+    ]
     return html.Div(
         [
             html.Div(_table(["Schema", "Provider", "Rows", "Entities", "First", "Last"], rows), style=CARD),
@@ -233,12 +344,23 @@ def _data_tab() -> html.Div:
 
 
 def serve_layout() -> html.Div:
-    tab_style = {"padding": "10px 16px", "border": "none", "background": PAGE, "color": INK_SECONDARY, "fontFamily": FONT}
+    tab_style = {
+        "padding": "10px 16px",
+        "border": "none",
+        "background": PAGE,
+        "color": INK_SECONDARY,
+        "fontFamily": FONT,
+    }
     selected = {**tab_style, "color": INK, "fontWeight": 600, "borderBottom": f"2px solid {NAVY}"}
     return html.Div(
         [
             html.Div(
-                [html.Div("oslo-quant", style={"fontSize": "20px", "fontWeight": 700, "color": NAVY}), html.Div("Backtests, factors and data for Oslo Børs", style={"fontSize": "13px", "color": INK_SECONDARY})],
+                [
+                    html.Div("oslo-quant", style={"fontSize": "20px", "fontWeight": 700, "color": NAVY}),
+                    html.Div(
+                        "Backtests, factors and data for Oslo Børs", style={"fontSize": "13px", "color": INK_SECONDARY}
+                    ),
+                ],
                 style={"marginBottom": "16px"},
             ),
             dcc.Tabs(
@@ -251,7 +373,15 @@ def serve_layout() -> html.Div:
                 style={"marginBottom": "20px", "borderBottom": f"1px solid {AXIS}"},
             ),
         ],
-        style={"fontFamily": FONT, "background": PAGE, "minHeight": "100vh", "padding": "24px 32px", "color": INK, "maxWidth": "1280px", "margin": "0 auto"},
+        style={
+            "fontFamily": FONT,
+            "background": PAGE,
+            "minHeight": "100vh",
+            "padding": "24px 32px",
+            "color": INK,
+            "maxWidth": "1280px",
+            "margin": "0 auto",
+        },
     )
 
 
@@ -278,14 +408,32 @@ def show_trader(trader_name: str):
     index_name = stats["benchmark"].split("_", 2)[2] if has_benchmark else ""
     tiles = [
         _tile("Total return", _pct(stats["total_return"]), f"{_date(stats['start'])} to {_date(stats['end'])}"),
-        _tile("Return per year", _pct(stats["cagr"]), f"{index_name} {_pct(stats['benchmark_cagr'])} from {_date(stats['benchmark_from'])}" if has_benchmark else None),
-        _tile("All stocks, equal weight", _pct(stats["universe_cagr"]) if has_universe else "–", "per year: the hurdle to clear"),
+        _tile(
+            "Return per year",
+            _pct(stats["cagr"]),
+            f"{index_name} {_pct(stats['benchmark_cagr'])} from {_date(stats['benchmark_from'])}"
+            if has_benchmark
+            else None,
+        ),
+        _tile(
+            "All stocks, equal weight",
+            _pct(stats["universe_cagr"]) if has_universe else "–",
+            "per year: the hurdle to clear",
+        ),
         _tile("Volatility", _pct(stats["volatility"]).lstrip("+"), f"Sharpe {_num(stats['sharpe'])}"),
-        _tile("Largest drawdown", _pct(stats["max_drawdown"]), f"{index_name} {_pct(stats['benchmark_max_drawdown'])}" if has_benchmark else None),
+        _tile(
+            "Largest drawdown",
+            _pct(stats["max_drawdown"]),
+            f"{index_name} {_pct(stats['benchmark_max_drawdown'])}" if has_benchmark else None,
+        ),
         _tile("Round trips", _num(stats["round_trips"], 0), f"{_pct(stats['win_rate']).lstrip('+')} profitable"),
-        _tile("Invested on average", _pct(stats["exposure"]).lstrip("+"), f"Turnover {_num(stats['turnover'], 1)}x a year"),
+        _tile(
+            "Invested on average", _pct(stats["exposure"]).lstrip("+"), f"Turnover {_num(stats['turnover'], 1)}x a year"
+        ),
     ]
-    fills_at = "the next day's open" if info.get("execution") == "next_open" else "the same close the decision was based on"
+    fills_at = (
+        "the next day's open" if info.get("execution") == "next_open" else "the same close the decision was based on"
+    )
     notes = (
         f"Chosen from {_num(info.get('universe_size'), 0)} stocks, acting {info.get('rebalance')}. Decisions are made on the close and filled at {fills_at}, "
         f"with {10000 * (info.get('slippage') or 0):.0f} bp slippage and {10000 * (info.get('buy_cost') or 0):.0f} bp commission each way. "
@@ -295,13 +443,31 @@ def show_trader(trader_name: str):
 
     orders = get_orders_df(trader_name)
     names = Stock.query_data(columns=["entity_id", "code", "name"]).set_index("entity_id")
-    traded = orders.groupby("entity_id").size().sort_values(ascending=False) if not orders.empty else pd.Series(dtype=int)
-    options = [{"label": f"{names.loc[e, 'code']}  {names.loc[e, 'name']}  ({n} fills)" if e in names.index else e, "value": e} for e, n in traded.items()]
+    traded = (
+        orders.groupby("entity_id").size().sort_values(ascending=False) if not orders.empty else pd.Series(dtype=int)
+    )
+    options = [
+        {"label": f"{names.loc[e, 'code']}  {names.loc[e, 'name']}  ({n} fills)" if e in names.index else e, "value": e}
+        for e, n in traded.items()
+    ]
     rows = []
     for o in orders.sort_values("timestamp", ascending=False).head(25).itertuples():
         code = names.loc[o.entity_id, "code"] if o.entity_id in names.index else o.entity_id
-        rows.append([_date(o.timestamp), code, "Buy" if o.order_type == "order_long" else "Sell", _num(o.order_amount, 0), _num(o.order_price), _pct(o.profit_rate) if o.order_type != "order_long" else ""])
-    table = _table(["Filled", "Stock", "Side", "Shares", "Price", "Round trip"], rows) if rows else html.Div("No fills.", style={"color": INK_SECONDARY})
+        rows.append(
+            [
+                _date(o.timestamp),
+                code,
+                ORDER_LABELS.get(o.order_type, o.order_type),
+                _num(o.order_amount, 0),
+                _num(o.order_price),
+                _pct(o.profit_rate) if o.order_type in ("order_close_long", "order_close_short") else "",
+            ]
+        )
+    table = (
+        _table(["Filled", "Stock", "Side", "Shares", "Price", "Round trip"], rows)
+        if rows
+        else html.Div("No fills.", style={"color": INK_SECONDARY})
+    )
     return tiles, draw_account(trader_name), notes, options, (options[0]["value"] if options else None), table
 
 
@@ -376,11 +542,21 @@ def show_live(name: str):
     info = get_trader_info(name) or {}
     tiles = [
         _tile("Value", _num(summary["value"], 0), f"started with {_num(summary['input_money'], 0)}"),
-        _tile("Return since the start", _pct(summary["total_return"], 2), f"{summary['sessions']} session{'' if summary['sessions'] == 1 else 's'} from {_date(summary['start'])}"),
+        _tile(
+            "Return since the start",
+            _pct(summary["total_return"], 2),
+            f"{summary['sessions']} session{'' if summary['sessions'] == 1 else 's'} from {_date(summary['start'])}",
+        ),
         _tile("All stocks, equal weight", _pct(summary["universe_return"], 2), "the hurdle to clear"),
         _tile("OSEBX", _pct(summary["benchmark_return"], 2)),
-        _tile("Fills logged before the open", f"{summary['forward_fills']} of {summary['fills']}", "only these are evidence"),
-        _tile("Costs paid", _num(summary["costs_paid"], 0), f"dividends received {_num(summary['dividends_received'], 0)}"),
+        _tile(
+            "Fills logged before the open",
+            f"{summary['forward_fills']} of {summary['fills']}",
+            "only these are evidence",
+        ),
+        _tile(
+            "Costs paid", _num(summary["costs_paid"], 0), f"dividends received {_num(summary['dividends_received'], 0)}"
+        ),
     ]
     notes = (
         f"A paper account running the {summary['strategy']} strategy, stepped forward after each close; last session {_date(summary['last_session'])}. "
@@ -390,10 +566,22 @@ def show_live(name: str):
     )
 
     pending_rows = [[o["side"].capitalize(), o["code"], o["name"], _date(o["decided_on"])] for o in summary["pending"]]
-    pending = _table(["Side", "Stock", "Company", "Decided on the close of"], pending_rows) if pending_rows else html.Div("Nothing waiting.", style={"color": INK_SECONDARY})
+    pending = (
+        _table(["Side", "Stock", "Company", "Decided on the close of"], pending_rows)
+        if pending_rows
+        else html.Div("Nothing waiting.", style={"color": INK_SECONDARY})
+    )
 
     holding_rows = [
-        [h["code"], h["name"], _num(h["shares"], 0), _num(h["average_price"]), _num(h["last_price"]), _num(h["value"], 0), _pct(h["profit_rate"])]
+        [
+            h["code"],
+            h["name"],
+            _num(h["shares"], 0),
+            _num(h["average_price"]),
+            _num(h["last_price"]),
+            _num(h["value"], 0),
+            _pct(h["profit_rate"]),
+        ]
         for h in summary["holdings"]
     ]
     if holding_rows:
@@ -402,17 +590,30 @@ def show_live(name: str):
     else:
         holdings = html.Div(f"All in cash: {_num(summary['cash'], 0)}.", style={"color": INK_SECONDARY})
 
-    labels = {"order_long": "Buy", "order_close_long": "Sell", "dividend": "Dividend", "split": "Split"}
+    labels = ORDER_LABELS
     codes = {h["entity_id"]: h["code"] for h in summary["holdings"]}
     order_rows = []
     for o in summary["orders"].sort_values("id", ascending=False).head(40).itertuples():
-        is_trade = o.order_type in ("order_long", "order_close_long")
+        is_trade = o.order_type in TRADES
         logged = ("Before the open" if o.forward == 1 else "Late") if is_trade else ""
-        result = _pct(o.profit_rate) if o.order_type == "order_close_long" else (_num(o.profit, 0) if o.order_type == "dividend" else "")
+        result = (
+            _pct(o.profit_rate)
+            if o.order_type in ("order_close_long", "order_close_short")
+            else (_num(o.profit, 0) if o.order_type in ("dividend", "financing") else "")
+        )
         order_rows.append([_date(o.timestamp), labels.get(o.order_type, o.order_type), codes.get(o.entity_id, o.entity_id.split("_", 2)[2]),
                            _num(o.order_amount, 0), _num(o.order_price), _num(o.cost, 0) if is_trade else "", result, logged])  # fmt: skip
-    orders = _table(["Day", "What", "Stock", "Shares", "Price", "Commission", "Result", "Decision logged"], order_rows) if order_rows else html.Div("Nothing booked yet. The first fills come at the open after the first evening.", style={"color": INK_SECONDARY})
-    figure = draw_account(name) if summary["sessions"] > 1 else _empty_figure("The chart starts with the second session.")
+    orders = (
+        _table(["Day", "What", "Stock", "Shares", "Price", "Commission", "Result", "Decision logged"], order_rows)
+        if order_rows
+        else html.Div(
+            "Nothing booked yet. The first fills come at the open after the first evening.",
+            style={"color": INK_SECONDARY},
+        )
+    )
+    figure = (
+        draw_account(name) if summary["sessions"] > 1 else _empty_figure("The chart starts with the second session.")
+    )
     return tiles, notes, pending, holdings, figure, orders, []
 
 
@@ -440,7 +641,9 @@ def show_intraday(name: str):
         _tile(
             "Looks made today",
             f"{summary['coverage']['today_made']} of {summary['coverage']['today_due']}",
-            f"{summary['coverage']['share']:.0%} of all since the start" if summary["coverage"]["share"] is not None else "none due yet",
+            f"{summary['coverage']['share']:.0%} of all since the start"
+            if summary["coverage"]["share"] is not None
+            else "none due yet",
         ),
     ]
     as_of = f" as of the close of {_date(summary['watchlist_as_of'])}" if summary["watchlist_as_of"] is not None else ""
@@ -452,11 +655,26 @@ def show_intraday(name: str):
         "No real money is involved."
     )
 
-    pending_rows = [[o["side"].capitalize(), o["code"], o["name"], o["signal"], o["reason"], _time(o["decided_on"])] for o in summary["pending"]]
-    pending = _table(["Side", "Stock", "Company", "Signal", "Why", "Bar"], pending_rows) if pending_rows else html.Div("Nothing waiting.", style={"color": INK_SECONDARY})
+    pending_rows = [
+        [o["side"].capitalize(), o["code"], o["name"], o["signal"], o["reason"], _time(o["decided_on"])]
+        for o in summary["pending"]
+    ]
+    pending = (
+        _table(["Side", "Stock", "Company", "Signal", "Why", "Bar"], pending_rows)
+        if pending_rows
+        else html.Div("Nothing waiting.", style={"color": INK_SECONDARY})
+    )
 
     holding_rows = [
-        [h["code"], h["name"], _num(h["shares"], 0), _num(h["average_price"]), _num(h["last_price"]), _num(h["value"], 0), _pct(h["profit_rate"])]
+        [
+            h["code"],
+            h["name"],
+            _num(h["shares"], 0),
+            _num(h["average_price"]),
+            _num(h["last_price"]),
+            _num(h["value"], 0),
+            _pct(h["profit_rate"]),
+        ]
         for h in summary["holdings"]
     ]
     if holding_rows:
@@ -469,21 +687,55 @@ def show_intraday(name: str):
     if len(snapshots) > 1:
         # drawn against the look number, not the clock: nights and weekends would otherwise be most of the chart
         labels = [t.strftime("%d.%m %H:%M") for t in snapshots.index]
-        figure = style(go.Figure(go.Scatter(x=labels, y=snapshots["all_value"], mode="lines", line={"color": PRIMARY, "width": 2}, name=name)), title=f"{name}: account value at each look", height=360)
+        figure = style(
+            go.Figure(
+                go.Scatter(
+                    x=labels, y=snapshots["all_value"], mode="lines", line={"color": PRIMARY, "width": 2}, name=name
+                )
+            ),
+            title=f"{name}: account value at each look",
+            height=360,
+        )
         figure.update_xaxes(type="category", nticks=8)
     else:
         figure = _empty_figure("The chart starts with the second look.")
 
-    kinds = {"order_long": "Buy", "order_close_long": "Sell", "dividend": "Dividend", "split": "Split"}
+    kinds = ORDER_LABELS
     order_rows = []
     for o in summary["orders"].sort_values("id", ascending=False).head(40).itertuples():
-        is_trade = o.order_type in ("order_long", "order_close_long")
-        result = _pct(o.profit_rate) if o.order_type == "order_close_long" else (_num(o.profit, 0) if o.order_type == "dividend" else "")
-        order_rows.append([_time(o.timestamp), kinds.get(o.order_type, o.order_type), o.stock, _num(o.order_amount, 0), _num(o.order_price), _num(o.cost, 0) if is_trade else "", result, o.reason or ""])
-    orders = _table(["Bar", "What", "Stock", "Shares", "Price", "Commission", "Result", "Signal"], order_rows) if order_rows else html.Div("Nothing booked yet.", style={"color": INK_SECONDARY})
+        is_trade = o.order_type in TRADES
+        result = (
+            _pct(o.profit_rate)
+            if o.order_type in ("order_close_long", "order_close_short")
+            else (_num(o.profit, 0) if o.order_type in ("dividend", "financing") else "")
+        )
+        order_rows.append(
+            [
+                _time(o.timestamp),
+                kinds.get(o.order_type, o.order_type),
+                o.stock,
+                _num(o.order_amount, 0),
+                _num(o.order_price),
+                _num(o.cost, 0) if is_trade else "",
+                result,
+                o.reason or "",
+            ]
+        )
+    orders = (
+        _table(["Bar", "What", "Stock", "Shares", "Price", "Commission", "Result", "Signal"], order_rows)
+        if order_rows
+        else html.Div("Nothing booked yet.", style={"color": INK_SECONDARY})
+    )
 
-    signal_rows = [[_time(r.timestamp), r.code, r.stock, _num(r.price), r.reason, r.outcome] for r in summary["signals"].sort_values("id", ascending=False).head(40).itertuples()]
-    signal_table = _table(["Bar", "Signal", "Stock", "Price", "Why", "What was done"], signal_rows) if signal_rows else html.Div("The rules have raised nothing yet.", style={"color": INK_SECONDARY})
+    signal_rows = [
+        [_time(r.timestamp), r.code, r.stock, _num(r.price), r.reason, r.outcome]
+        for r in summary["signals"].sort_values("id", ascending=False).head(40).itertuples()
+    ]
+    signal_table = (
+        _table(["Bar", "Signal", "Stock", "Price", "Why", "What was done"], signal_rows)
+        if signal_rows
+        else html.Div("The rules have raised nothing yet.", style={"color": INK_SECONDARY})
+    )
     signals = html.Div([html.Div("Signals, newest first", style=LABEL), signal_table], style=CARD)
     return tiles, notes, pending, holdings, figure, orders, signals
 

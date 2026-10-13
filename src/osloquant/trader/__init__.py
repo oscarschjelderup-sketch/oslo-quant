@@ -16,6 +16,8 @@ class TradingSignalType(Enum):
 class OrderType(Enum):
     order_long = "order_long"
     order_close_long = "order_close_long"
+    order_short = "order_short"
+    order_close_short = "order_close_short"
 
 
 @dataclass

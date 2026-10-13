@@ -85,13 +85,16 @@ a:hover { color: var(--fg); }
 .status b { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; }
 .status p { margin: 3px 0 0; font-size: 12.5px; color: var(--fg-2); }
 .status.grazing { border-left-color: var(--accent); } .status.grazing b { color: var(--ink); }
-.status.benched, .status.behind, .status.dozing, .status.missing { border-left-color: var(--warn); background: rgba(240,166,58,.07); }
-.status.benched b, .status.behind b, .status.dozing b, .status.missing b { color: var(--warn); }
+.status.benched, .status.behind, .status.dozing, .status.missing, .status.rewritten { border-left-color: var(--warn); background: rgba(240,166,58,.07); }
+.status.benched b, .status.behind b, .status.dozing b, .status.missing b, .status.rewritten b { color: var(--warn); }
 .status.watching b, .status.flat b, .status.waiting b { color: var(--fg-2); }
 .holds { display: grid; gap: 6px; }
 .hold { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); font-size: 12.5px; }
 .hold .l1 { font-family: var(--mono); font-weight: 600; font-size: 13px; }
 .hold .l1 .side { color: var(--up); font-weight: 700; margin-right: 6px; }
+.hold.short .l1 .side { color: var(--down); }
+.lev { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--fg-2); }
+.lev.hot { color: var(--warn); border-color: rgba(240,166,58,.6); }
 .hold .l1 .co { color: var(--muted); font-weight: 400; font-family: var(--body); margin-left: 6px; font-size: 12px; }
 .hold .r1 { font-family: var(--mono); text-align: right; font-weight: 500; }
 .hold .l2, .hold .r2 { color: var(--muted); font-family: var(--mono); font-size: 11px; grid-column: 1 / -1; }
@@ -377,9 +380,10 @@ footer p { margin: 6px 0; }
   function statusClass(code) { return 'status ' + String(code || '').toLowerCase(); }
 
   function holdingRow(h, kind, now) {
+    const short = h.side === 'short';
     const l2 = 'entry ' + px(h.entry) + ' → mark ' + px(h.mark) + (h.stop ? ' · stop ' + px(h.stop) : '') + (h.target ? ' · target ' + px(h.target) : '');
     const r2 = (h.since ? 'held ' + heldFor(h.since, now) : '') + (h.shares ? ' · ' + group(h.shares) + ' sh' : '');
-    return '<div class="hold"><div class="l1"><span class="side">▲ LONG</span>' + esc(h.stock) + (h.name && h.name !== h.stock ? '<span class="co">' + esc(h.name) + '</span>' : '') + '</div>' +
+    return '<div class="hold' + (short ? ' short' : '') + '"><div class="l1"><span class="side">' + (short ? '▼ SHORT' : '▲ LONG') + '</span>' + esc(h.stock) + (h.name && h.name !== h.stock ? '<span class="co">' + esc(h.name) + '</span>' : '') + '</div>' +
       '<div class="r1">' + nok(h.value) + '</div>' +
       '<div class="l2">' + esc(l2) + '</div>' +
       '<div class="r2"><span class="' + tone(h.pnl) + '">' + arrow(h.pnl) + signedNok(h.pnl) + ' · ' + pct(h.pnl_pct, 1) + '</span>' + (r2 ? ' · ' + esc(r2.replace(/^ · /, '')) : '') + '</div></div>';
@@ -402,6 +406,7 @@ footer p { margin: 6px 0; }
       if (r.min_range_to_cost) parts.push('range ≥' + r.min_range_to_cost + '× the round trip');
       if (r.max_per_sector) parts.push(r.max_per_sector + ' per sector');
       if (r.exit_on_signal === false) parts.push('exits by stops and the close only');
+      if (r.max_leverage > 1) parts.push('margin up to ' + r.max_leverage + '× by signal strength', r.shorts ? 'shorts allowed' : 'long only', 'closed out under ' + Math.round((r.maintenance_margin || 0.05) * 100) + '% margin');
     }
     return parts.join(' · ');
   }
@@ -449,7 +454,8 @@ footer p { margin: 6px 0; }
     const vsBench = g.benchmark_pct != null ? 'vs OSEBX ' + pct(g.benchmark_pct) : '';
     return '<article class="panel goat ' + cls + '" id="goat-' + esc(g.id) + '">' +
       '<div class="head">' + goatSVG(i) + '<div><div class="name">' + esc(g.name) + '</div><div class="tag">' + esc(g.tagline) + '</div></div><div class="rank"><b>#' + (g.rank || '–') + '</b><span>' + esc(rankNote) + '</span></div></div>' +
-      '<div><div class="value"><small>NOK</small>' + nok(g.value) + '</div><div class="delta"><span class="' + tone(g.pnl) + '">' + arrow(g.pnl) + signedNok(g.pnl) + ' (' + pct(g.pnl_pct) + ')</span><span class="vs">' + esc(vsBench) + '</span></div></div>' +
+      '<div><div class="value"><small>NOK</small>' + nok(g.value) + '</div><div class="delta"><span class="' + tone(g.pnl) + '">' + arrow(g.pnl) + signedNok(g.pnl) + ' (' + pct(g.pnl_pct) + ')</span><span class="vs">' + esc(vsBench) + '</span>' +
+        ((g.rules || {}).max_leverage > 1 ? '<span class="lev' + ((g.leverage || 0) >= 3 ? ' hot' : '') + '" title="gross exposure over equity · up to ' + esc((g.rules || {}).max_leverage) + '× allowed">×' + ((g.leverage || 0)).toFixed(1) + ' of ' + esc((g.rules || {}).max_leverage) + '×</span>' : '') + '</div></div>' +
       '<div class="' + statusClass(g.status && g.status.code) + '"><b>' + esc(g.status && g.status.code) + '</b><p>' + esc(g.status && g.status.text) + '</p></div>' +
       '<div class="holds">' + (shown.length ? shown.map((h) => holdingRow(h, g.kind, now)).join('') : '<div class="hold cash"><div class="l1">cash only · NOK ' + nok(g.cash) + '</div></div>') +
         (holds.length > shown.length ? '<div class="more">+ ' + (holds.length - shown.length) + ' more names, NOK ' + nok(holds.slice(5).reduce((s, h) => s + (h.value || 0), 0)) + '</div>' : '') +
@@ -575,9 +581,10 @@ footer p { margin: 6px 0; }
     $('stream').innerHTML = items.map((it) => {
       const g = goatOf(it.goat); const cls = ACCENTS[g.accent] || 'g-gold';
       if (it.kind === 'fill') {
-        const sold = it.side === 'sell';
-        const pnl = sold && it.pnl != null ? '<span class="pnl ' + tone(it.pnl) + '">' + arrow(it.pnl) + signedNok(it.pnl) + ' (' + pct(it.pnl_pct, 1) + ')</span>' : '<span class="muted">NOK ' + nok(it.value) + '</span>';
-        return '<div class="item ' + cls + '"><div class="gd"></div><div><div class="l1"><span class="g">' + esc(g.name) + '</span><span class="pill ' + (sold ? 'sell' : 'buy') + '">' + esc(sold ? 'SOLD' : 'BOUGHT') + '</span>' + esc(it.stock) + ' <span class="muted">' + group(it.shares || 0) + ' @ ' + px(it.price) + '</span>' + pnl + '</div><div class="l2">' + esc(it.reason || (sold ? 'sold' : 'bought') + ' at the open' + (it.forward ? ' · logged before the price existed' : '')) + '</div></div><div class="t">' + esc(stamp(it.t)) + '</div></div>';
+        const closes = it.side === 'sell' || it.side === 'cover';
+        const label = { buy: 'BOUGHT', sell: 'SOLD', short: 'SHORTED', cover: 'COVERED' }[it.side] || 'FILLED';
+        const pnl = closes && it.pnl != null ? '<span class="pnl ' + tone(it.pnl) + '">' + arrow(it.pnl) + signedNok(it.pnl) + ' (' + pct(it.pnl_pct, 1) + ')</span>' : '<span class="muted">NOK ' + nok(it.value) + '</span>';
+        return '<div class="item ' + cls + '"><div class="gd"></div><div><div class="l1"><span class="g">' + esc(g.name) + '</span><span class="pill ' + (it.side === 'sell' || it.side === 'short' ? 'sell' : 'buy') + '">' + esc(label) + '</span>' + esc(it.stock) + ' <span class="muted">' + group(it.shares || 0) + ' @ ' + px(it.price) + '</span>' + pnl + '</div><div class="l2">' + esc(it.reason || label.toLowerCase() + ' at the open' + (it.forward ? ' · logged before the price existed' : '')) + '</div></div><div class="t">' + esc(stamp(it.t)) + '</div></div>';
       }
       const side = /BUY/.test(it.code) ? 'buy' : 'sell';
       const out = it.outcome || '';

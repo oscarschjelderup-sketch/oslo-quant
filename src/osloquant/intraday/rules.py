@@ -31,6 +31,15 @@ class Signal:
     bar: pd.Timestamp
     #: the close of that bar
     price: float
+    #: how emphatic the bar was, 0 (barely) to 1 (as clear as the rule can see): what a leveraged account sizes by
+    strength: float = 0.0
+
+
+def clip01(value: float) -> float:
+    """``value`` held to the range 0..1; NaN counts as 0."""
+    if value != value:
+        return 0.0
+    return float(min(max(value, 0.0), 1.0))
 
 
 class Rule:
@@ -50,8 +59,15 @@ class Rule:
         by bar start. Return a signal about the last one, or None."""
         raise NotImplementedError
 
-    def signal(self, code: str, reason: str, bars: pd.DataFrame) -> Signal:
-        return Signal(code=code, rule=self.code, reason=reason, bar=bars.index[-1], price=float(bars["close"].iloc[-1]))
+    def signal(self, code: str, reason: str, bars: pd.DataFrame, strength: float = 0.0) -> Signal:
+        return Signal(
+            code=code,
+            rule=self.code,
+            reason=reason,
+            bar=bars.index[-1],
+            price=float(bars["close"].iloc[-1]),
+            strength=clip01(strength),
+        )
 
     def describe(self) -> str:
         inner = ", ".join(f"{k}={v}" for k, v in self.params.items())
@@ -77,10 +93,16 @@ class MaCross(Rule):
         close = bars["close"].to_numpy()[-(self.slow + 1) :]
         fast_now, slow_now = close[-self.fast :].mean(), close[-self.slow :].mean()
         fast_before, slow_before = close[-self.fast - 1 : -1].mean(), close[:-1].mean()
+        # how fast the averages are pulling apart: a gap that opened by half a per cent on one bar is emphatic
+        strength = abs((fast_now - slow_now) - (fast_before - slow_before)) / slow_now / 0.005 if slow_now else 0.0
         if fast_before <= slow_before and fast_now > slow_now:
-            return self.signal(BUY, f"ma{self.fast} {fast_now:.2f} crossed above ma{self.slow} {slow_now:.2f}", bars)
+            return self.signal(
+                BUY, f"ma{self.fast} {fast_now:.2f} crossed above ma{self.slow} {slow_now:.2f}", bars, strength
+            )
         if fast_before >= slow_before and fast_now < slow_now:
-            return self.signal(SELL, f"ma{self.fast} {fast_now:.2f} crossed below ma{self.slow} {slow_now:.2f}", bars)
+            return self.signal(
+                SELL, f"ma{self.fast} {fast_now:.2f} crossed below ma{self.slow} {slow_now:.2f}", bars, strength
+            )
         return None
 
 
@@ -103,10 +125,22 @@ class Breakout(Rule):
         high, low, close = (bars[c].to_numpy()[-(n + 2) :] for c in ("high", "low", "close"))
         ceiling, floor = high[-n - 1 : -1].max(), low[-n - 1 : -1].min()
         ceiling_before, floor_before = high[-n - 2 : -2].max(), low[-n - 2 : -2].min()
+        # how far outside the range the close landed, against the range's own width: half a width is emphatic
+        width = max(ceiling - floor, 1e-9)
         if close[-1] > ceiling and close[-2] <= ceiling_before:
-            return self.signal(BUY, f"close {close[-1]:.2f} broke above the {n}-bar high {ceiling:.2f}", bars)
+            return self.signal(
+                BUY,
+                f"close {close[-1]:.2f} broke above the {n}-bar high {ceiling:.2f}",
+                bars,
+                (close[-1] - ceiling) / width / 0.5,
+            )
         if close[-1] < floor and close[-2] >= floor_before:
-            return self.signal(SELL, f"close {close[-1]:.2f} broke below the {n}-bar low {floor:.2f}", bars)
+            return self.signal(
+                SELL,
+                f"close {close[-1]:.2f} broke below the {n}-bar low {floor:.2f}",
+                bars,
+                (floor - close[-1]) / width / 0.5,
+            )
         return None
 
 
@@ -129,10 +163,16 @@ class MacdCross(Rule):
         diff = close.ewm(span=self.fast, adjust=False).mean() - close.ewm(span=self.slow, adjust=False).mean()
         dea = diff.ewm(span=self.n, adjust=False).mean()
         gap_now, gap_before = diff.iloc[-1] - dea.iloc[-1], diff.iloc[-2] - dea.iloc[-2]
+        # the gap that opened on the crossing bar, against the price: a fifth of a per cent is emphatic
+        strength = abs(gap_now) / close.iloc[-1] / 0.002 if close.iloc[-1] else 0.0
         if gap_before <= 0 < gap_now:
-            return self.signal(BUY, f"macd {diff.iloc[-1]:.3f} crossed above its signal {dea.iloc[-1]:.3f}", bars)
+            return self.signal(
+                BUY, f"macd {diff.iloc[-1]:.3f} crossed above its signal {dea.iloc[-1]:.3f}", bars, strength
+            )
         if gap_before >= 0 > gap_now:
-            return self.signal(SELL, f"macd {diff.iloc[-1]:.3f} crossed below its signal {dea.iloc[-1]:.3f}", bars)
+            return self.signal(
+                SELL, f"macd {diff.iloc[-1]:.3f} crossed below its signal {dea.iloc[-1]:.3f}", bars, strength
+            )
         return None
 
 
@@ -158,10 +198,11 @@ class Rsi(Rule):
         now, before = rsi.iloc[-1], rsi.iloc[-2]
         if np.isnan(now) or np.isnan(before):
             return None
+        # how deep the stretch was before it turned: twenty points past the line is emphatic
         if before < self.low <= now:
-            return self.signal(BUY, f"rsi {now:.0f} came back above {self.low:.0f}", bars)
+            return self.signal(BUY, f"rsi {now:.0f} came back above {self.low:.0f}", bars, (self.low - before) / 20)
         if before > self.high >= now:
-            return self.signal(SELL, f"rsi {now:.0f} fell back below {self.high:.0f}", bars)
+            return self.signal(SELL, f"rsi {now:.0f} fell back below {self.high:.0f}", bars, (before - self.high) / 20)
         return None
 
 
@@ -193,10 +234,22 @@ class OpeningRange(Rule):
         opening = day.iloc[: self.n]
         high, low = opening["high"].max(), opening["low"].min()
         now, before = day["close"].iloc[-1], day["close"].iloc[-2]
+        # how far past the range the close landed, against the range's own width: half a width is emphatic
+        width = max(high - low, 1e-9)
         if before <= high < now:
-            return self.signal(BUY, f"close {now:.2f} broke above the {self.minutes}-minute opening range high {high:.2f}", bars)
+            return self.signal(
+                BUY,
+                f"close {now:.2f} broke above the {self.minutes}-minute opening range high {high:.2f}",
+                bars,
+                (now - high) / width / 0.5,
+            )
         if before >= low > now:
-            return self.signal(SELL, f"close {now:.2f} broke below the {self.minutes}-minute opening range low {low:.2f}", bars)
+            return self.signal(
+                SELL,
+                f"close {now:.2f} broke below the {self.minutes}-minute opening range low {low:.2f}",
+                bars,
+                (low - now) / width / 0.5,
+            )
         return None
 
 

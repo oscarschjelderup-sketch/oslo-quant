@@ -7,7 +7,7 @@ import pandas as pd
 
 from osloquant.contract.api import decode_entity_id, get_data, get_kdata
 from osloquant.trader.schemas import AccountStats, Order, TraderInfo
-from osloquant.trader.sim_account import PROVIDER, TRADES
+from osloquant.trader.sim_account import CLOSES, PROVIDER, TRADES
 
 TRADING_DAYS = 252
 
@@ -63,7 +63,9 @@ def get_trader_names(mode: str | None = "backtest") -> list[str]:
 
 def get_account_df(trader_name: str) -> pd.DataFrame:
     """The account at each close, indexed by date."""
-    return get_data(AccountStats, provider=PROVIDER, filters=[AccountStats.trader_name == trader_name], index="timestamp")
+    return get_data(
+        AccountStats, provider=PROVIDER, filters=[AccountStats.trader_name == trader_name], index="timestamp"
+    )
 
 
 def get_orders_df(trader_name: str) -> pd.DataFrame:
@@ -77,7 +79,11 @@ def get_benchmark_series(trader_name: str, index: pd.DatetimeIndex) -> pd.Series
         return None
     try:
         decode_entity_id(info["benchmark"])
-        df = get_kdata(entity_id=info["benchmark"], columns=["timestamp", "close"], start_timestamp=index[0] - pd.Timedelta(days=10))
+        df = get_kdata(
+            entity_id=info["benchmark"],
+            columns=["timestamp", "close"],
+            start_timestamp=index[0] - pd.Timedelta(days=10),
+        )
     except (KeyError, ValueError, LookupError):
         return None
     if df.empty:
@@ -106,7 +112,7 @@ def get_trader_stats(trader_name: str, risk_free: float = 0.0) -> dict:
     orders = every_entry[every_entry["order_type"].isin(TRADES)] if not every_entry.empty else every_entry
     dividends = every_entry[every_entry["order_type"] == "dividend"] if not every_entry.empty else every_entry
     stats["dividends_received"] = float(dividends["profit"].sum()) if not dividends.empty else 0.0
-    sells = orders[orders["order_type"] == "order_close_long"] if not orders.empty else orders
+    sells = orders[orders["order_type"].isin(CLOSES)] if not orders.empty else orders
     stats["orders"] = int(len(orders))
     stats["round_trips"] = int(len(sells))
     stats["win_rate"] = float((sells["profit"] > 0).mean()) if len(sells) else np.nan
@@ -136,7 +142,11 @@ def get_trader_stats(trader_name: str, risk_free: float = 0.0) -> dict:
         bench = performance(benchmark)
         own = performance(same_days)
         daily = pd.concat([same_days.pct_change(), benchmark.pct_change()], axis=1, keys=["own", "bench"]).dropna()
-        beta = daily["own"].cov(daily["bench"]) / daily["bench"].var() if len(daily) > 2 and daily["bench"].var() > 0 else np.nan
+        beta = (
+            daily["own"].cov(daily["bench"]) / daily["bench"].var()
+            if len(daily) > 2 and daily["bench"].var() > 0
+            else np.nan
+        )
         stats.update(
             {
                 "benchmark": benchmark.name,

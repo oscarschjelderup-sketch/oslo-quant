@@ -288,6 +288,42 @@ the clock and stops within milliseconds. It repeats without a daily start time o
 hangs on "weekdays from 07:46" never starts on a day the laptop was asleep at 07:46, which is how the first
 trading day was missed.
 
+### Margin accounts: shorts and leverage
+
+An intraday account is a cash account unless its configuration says otherwise. With `max_leverage` above 1 it
+becomes a margin account: it may borrow to buy, and with `shorts: true` a bearish signal in a stock it does not
+hold opens a short instead of being ignored.
+
+```yaml
+  - name: lillebukk_v2
+    watchlist: all
+    signal: {rule: opening_range, minutes: 30}
+    day_trade: true
+    stop_loss: 0.02
+    shorts: true            # a SELL signal in a stock not held opens a short
+    max_leverage: 10        # gross exposure up to ten times equity
+    financing_rate: 0.06    # yearly, on borrowed cash, charged per calendar day held overnight
+    borrow_rate: 0.03       # yearly, on the value sold short
+    maintenance_margin: 0.05  # everything is closed when equity falls under 5 % of exposure
+```
+
+How much an entry gets is decided by the signal, not the account: every rule now says how emphatic the bar was
+(`Signal.strength`, 0 to 1: how far a breakout cleared its range, how fast two averages pulled apart, how deep
+the stretch was before an RSI turn), blended with how busy the bar was against the stock's normal volume. A
+faint signal gets one slot of exposure (equity over `max_positions`), an emphatic one up to `max_leverage`
+slots, and never more than the buying power left (`equity x max_leverage - exposure`). Commission is paid on
+the whole notional, so a ten-slot entry pays ten slots of commission; the stops work on the position's own
+move, so a 2 % stop on a ten-slot entry costs 20 % of equity. Rules do not change: BUY means bullish and SELL
+means bearish, and the account decides what that means for what it holds (close the long, cover the short,
+open the other side). A short's stops mirror the long's (a trailing stop follows the low since the entry),
+a short pays the dividends of what it borrowed, and `MARGIN` is the exit code of a forced close-out.
+`oq intraday replay --rule ... --shorts --max-leverage 10` tries a rule this way before an account is given it.
+
+What leverage does to a rule that loses after costs is multiply the loss; the replay says by how much before
+any play money is put behind it. Nothing here resembles a real margin account's rules at a broker: the rates
+and the maintenance level are settings, and shorting single Oslo stocks as a retail customer means CFDs or
+certificates with their own costs. This is the simulator's version of the idea.
+
 ### The day-trade bots
 
 Two accounts are day traders: `daytrade_orb` buys the break of the day's first half hour (the classic opening
@@ -621,7 +657,7 @@ src/osloquant/
   cli.py       the `oq` command
 examples/      runnable scripts: queries, a formal and a solo strategy, a selector, machine learning
 scripts/       the evening job and the intraday looks for Windows Task Scheduler
-tests/         243 tests on synthetic data; none touches the network
+tests/         265 tests on synthetic data; none touches the network
 ```
 
 ```bash
