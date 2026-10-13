@@ -239,6 +239,12 @@ def _iso(value) -> str | None:
     return pd.Timestamp(value).isoformat(timespec="seconds")
 
 
+def _utc(value) -> str | None:
+    """A wall-clock time the engines logged in UTC (``decided_at``), marked as such so the page does not read it as Oslo time."""
+    text = _iso(value)
+    return None if text is None else text + "Z"
+
+
 def _utc_now_iso() -> str:
     return pd.Timestamp.now(tz="UTC").tz_localize(None).isoformat(timespec="seconds") + "Z"
 
@@ -402,7 +408,7 @@ def _fill_items(goat_id: str, orders: pd.DataFrame, names: pd.DataFrame) -> list
         items.append(
             {
                 "t": _iso(row.timestamp),
-                "at": _iso(row.decided_at),
+                "at": _utc(row.decided_at),
                 "goat": goat_id,
                 "kind": "fill",
                 "side": _side(row.order_type),
@@ -430,7 +436,7 @@ def _signal_items(goat_id: str, signals: pd.DataFrame, names: pd.DataFrame) -> l
         items.append(
             {
                 "t": _iso(row.timestamp),
-                "at": _iso(row.decided_at),
+                "at": _utc(row.decided_at),
                 "goat": goat_id,
                 "kind": "signal",
                 "code": row.code,
@@ -682,7 +688,7 @@ def goat_document(
             p = summary["pending"][0]
             last_call = {
                 "t": _iso(p["decided_on"]),
-                "at": _iso(p["decided_at"]),
+                "at": _utc(p["decided_at"]),
                 "code": p["side"].upper(),
                 "rule": state.get("strategy"),
                 "stock": p["code"],

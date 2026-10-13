@@ -12,6 +12,8 @@ from osloquant.cli import app
 from osloquant.goats import (
     GoatConfig,
     GoatsConfig,
+    _fill_items,
+    _signal_items,
     add_troll_entry,
     compact_series,
     export,
@@ -338,3 +340,26 @@ def test_publishing_puts_the_files_on_a_single_commit_branch_and_keeps_the_rest(
     ).stdout.strip()
     assert parents == "1", "the branch never grows"
     assert not (repo / "goats.json").exists(), "the working tree is untouched"
+
+
+def test_decision_times_are_marked_utc_and_bar_times_stay_oslo():
+    names = pd.DataFrame({"code": ["EQNR"], "name": ["Equinor"]}, index=pd.Index(["stock_ol_EQNR"], name="entity_id"))
+    signals = pd.DataFrame(
+        {"entity_id": ["stock_ol_EQNR"], "timestamp": [pd.Timestamp("2026-10-13 09:45")], "decided_at": [pd.Timestamp("2026-10-13 08:01:07")],
+         "code": ["BUY"], "rule": ["breakout"], "reason": ["close above"], "price": [400.0], "outcome": ["ordered"]}
+    )  # fmt: skip
+    item = _signal_items("g", signals, names)[0]
+    assert item["t"] == "2026-10-13T09:45:00" and item["at"] == "2026-10-13T08:01:07Z" and item["stock"] == "EQNR"
+    orders = pd.DataFrame(
+        {"entity_id": ["stock_ol_EQNR"], "timestamp": [pd.Timestamp("2026-10-13 10:00")], "decided_at": [pd.Timestamp("2026-10-13 08:01:07")],
+         "order_type": ["order_long"], "order_price": [401.0], "order_amount": [50.0], "cost": [30.0], "profit": [float("nan")], "profit_rate": [float("nan")],
+         "reason": ["BUY breakout: close above"], "forward": [1.0]}
+    )  # fmt: skip
+    fill = _fill_items("g", orders, names)[0]
+    assert (
+        fill["at"].endswith("Z")
+        and fill["t"] == "2026-10-13T10:00:00"
+        and fill["pnl"] is None
+        and fill["value"] == 401.0 * 50
+        and fill["forward"] is True
+    )
