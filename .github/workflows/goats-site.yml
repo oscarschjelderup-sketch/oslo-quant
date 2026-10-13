@@ -1,0 +1,44 @@
+# Publishes the Trading Goats page to GitHub Pages whenever the page changes on main.
+#
+# The page itself is static. The numbers it shows come from the `goats` branch, which the laptop pushes with
+# `oq goats --publish` after every look and every evening run; the page fetches goats.json from there
+# (raw.githubusercontent.com) and the troll's log travels inside the same document. So this workflow runs only
+# when the page is edited, not when the numbers move.
+name: goats site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/goats-site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lay out the site
+        run: |
+          mkdir -p public
+          cp site/trading-goats.html public/index.html
+          cp site/trading-goats.html public/trading-goats.html
+          cp site/TROLL.md public/TROLL.md
+          cp site/README.md public/README.md
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4

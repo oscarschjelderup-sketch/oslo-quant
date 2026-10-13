@@ -1,5 +1,8 @@
 # Trading Goats page
 
+Live at https://oscarschjelderup-sketch.github.io/oslo-quant/ (GitHub Pages, deployed by `.github/workflows/goats-site.yml`)
+and as a claude.ai artifact.
+
 `trading-goats.html` is the page behind the Trading Goats artifact (three paper accounts as the three billy goats
 Gruff, a troll reviewing their books). It is published as a claude.ai Artifact with the `db` capability and reads
 these documents from the artifact's store:

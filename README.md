@@ -370,9 +370,10 @@ herd under its own name (accounts are never edited or restarted), and the goat's
 together, so a rewrite never resets the record. A goat's account must be `min_sessions_between_rewrites`
 sessions old (five by default) before it can be rewritten. The charter the troll works to is `site/TROLL.md`.
 
-The page is `site/trading-goats.html`. Opened as a claude.ai artifact it reads the artifact's store; opened from
-GitHub Pages it reads `goats.json` from the `goats` branch, which `python -m osloquant.tick` refreshes after
-every look and `scripts/run_live.ps1` after every evening run.
+The page is `site/trading-goats.html`, published at https://oscarschjelderup-sketch.github.io/oslo-quant/ by
+`.github/workflows/goats-site.yml` whenever it changes. Opened as a claude.ai artifact it reads the artifact's
+store; on GitHub Pages it reads `goats.json` from the `goats` branch, which `python -m osloquant.tick` refreshes
+after every look and `scripts/run_live.ps1` after every evening run.
 
 ### Is it running?
 
