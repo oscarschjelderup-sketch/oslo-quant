@@ -601,7 +601,7 @@ def show_live(name: str):
             if o.order_type in ("order_close_long", "order_close_short")
             else (_num(o.profit, 0) if o.order_type in ("dividend", "financing") else "")
         )
-        order_rows.append([_date(o.timestamp), labels.get(o.order_type, o.order_type), codes.get(o.entity_id, o.entity_id.split("_", 2)[2]),
+        order_rows.append([_date(o.timestamp), labels.get(o.order_type, o.order_type), codes.get(o.entity_id, o.entity_id.split("_", 2)[-1]),
                            _num(o.order_amount, 0), _num(o.order_price), _num(o.cost, 0) if is_trade else "", result, logged])  # fmt: skip
     orders = (
         _table(["Day", "What", "Stock", "Shares", "Price", "Commission", "Result", "Decision logged"], order_rows)

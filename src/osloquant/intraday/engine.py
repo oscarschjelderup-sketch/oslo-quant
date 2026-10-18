@@ -1211,7 +1211,8 @@ def account_summary(name: str, feed_delay: pd.Timedelta = pd.Timedelta(minutes=1
     def label(entity_id: str) -> tuple[str, str]:
         if entity_id in names.index:
             return names.loc[entity_id, "code"], names.loc[entity_id, "name"]
-        return entity_id.split("_", 2)[2], ""
+        parts = str(entity_id).split("_", 2)  # a financing row has no stock behind it
+        return (parts[2] if len(parts) == 3 else str(entity_id)), ""
 
     stats = get_data(AccountStats, provider=PROVIDER, filters=[AccountStats.trader_name == name], index="timestamp")
     orders = get_data(Order, provider=PROVIDER, filters=[Order.trader_name == name], order=Order.id.asc())

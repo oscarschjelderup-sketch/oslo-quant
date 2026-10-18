@@ -787,7 +787,7 @@ def _print_poll(result) -> None:
     from osloquant.intraday.engine import stock_names
 
     names = stock_names()
-    code = lambda e: names.loc[e, "code"] if e in names.index else e.split("_", 2)[2]  # noqa: E731
+    code = lambda e: names.loc[e, "code"] if e in names.index else e.split("_", 2)[-1]  # noqa: E731
     lag = f", newest bar {result.feed_lag.total_seconds() / 60:.0f} min old" if result.feed_lag is not None else ""
     console.print(f"[bold]{result.now:%Y-%m-%d %H:%M}[/bold] Oslo{lag}")
     if result.record_error:

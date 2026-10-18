@@ -3,6 +3,7 @@
 import json
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from osloquant.intraday import (
@@ -308,3 +309,8 @@ def test_a_polled_margin_account_stores_sides_exposure_and_leverage(market):
     assert snaps["exposure"].iloc[-1] == pytest.approx(summary["exposure"]) and snaps["leverage"].iloc[-1] > 1
     result = replay(market.accounts[0], market, days=3, end=at(DAY2, "16:46"))
     assert result.orders["order_type"].tolist()[:2] == ["order_short", "order_long"]
+    # held overnight: the first look of the next day charges financing, and the summary must still read
+    assert poll(market, now=at(DAY2 + pd.Timedelta(days=1), "09:31"), record=False).errors == {}
+    summary = account_summary("margin")
+    assert summary["financing_paid"] > 0 and "financing" in Order.query_data()["order_type"].tolist()
+    assert summary["orders"]["stock"].tolist()[-1] == "financing"

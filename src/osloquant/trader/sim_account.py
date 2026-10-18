@@ -146,7 +146,7 @@ class SimAccount:
         if charge <= 0:
             return 0.0
         self.cash -= charge
-        self._record_order("", timestamp, None, "financing", 0.0, days, cost=charge, profit=-charge)
+        self._record_order("financing", timestamp, None, "financing", 0.0, days, cost=charge, profit=-charge)
         return charge
 
     # -- trading ----------------------------------------------------------------------------------
@@ -165,7 +165,9 @@ class SimAccount:
             return 0.0
         # whichever binds: the percentage commission or the minimum one
         # a hair of rounding (5 000 x 6.4 is not quite 32 000) must not cost a share
-        amount = min(math.floor(budget / (fill * (1 + self.buy_cost)) + 1e-9), math.floor((budget - self.min_cost) / fill + 1e-9))
+        amount = min(
+            math.floor(budget / (fill * (1 + self.buy_cost)) + 1e-9), math.floor((budget - self.min_cost) / fill + 1e-9)
+        )
         if amount < 1:
             logger.debug("%s: no money to buy %s at %s", self.trader_name, entity_id, timestamp)
             return 0.0

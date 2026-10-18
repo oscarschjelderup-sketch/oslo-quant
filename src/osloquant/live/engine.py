@@ -130,7 +130,9 @@ def resolve_strategy(strategy: str) -> type:
     if ":" in strategy:
         module, _, name = strategy.partition(":")
         return getattr(importlib.import_module(module), name)
-    raise ValueError(f"unknown strategy {strategy!r}; use one of {', '.join(SAMPLE_TRADERS)} or 'package.module:ClassName'")
+    raise ValueError(
+        f"unknown strategy {strategy!r}; use one of {', '.join(SAMPLE_TRADERS)} or 'package.module:ClassName'"
+    )
 
 
 # -- the session clock ----------------------------------------------------------------------------
@@ -146,7 +148,9 @@ def last_completed_session(now: pd.Timestamp | None = None) -> pd.Timestamp | No
 
     now = pd.Timestamp.now(tz=MARKET_TIMEZONE) if now is None else now.tz_convert(MARKET_TIMEZONE)
     today = now.tz_localize(None).normalize()
-    newest = Stock1dKdata.query_data(columns=["timestamp"], end_timestamp=today, order=Stock1dKdata.timestamp.desc(), limit=1)
+    newest = Stock1dKdata.query_data(
+        columns=["timestamp"], end_timestamp=today, order=Stock1dKdata.timestamp.desc(), limit=1
+    )
     if newest.empty:
         return None
     # the weeks up to the newest stored bar show what a normal day looks like
@@ -225,7 +229,9 @@ def _signal_from_dict(data: dict) -> TradingSignal:
 # -- stepping -------------------------------------------------------------------------------------
 
 
-def step_account(account: AccountConfig, config: LiveConfig, session: pd.Timestamp, wall_clock: pd.Timestamp) -> StepResult:
+def step_account(
+    account: AccountConfig, config: LiveConfig, session: pd.Timestamp, wall_clock: pd.Timestamp
+) -> StepResult:
     """Bring one account up to ``session``. A new account starts there; one already at it is left alone."""
     from osloquant.domain import StockAction
 
@@ -234,7 +240,9 @@ def step_account(account: AccountConfig, config: LiveConfig, session: pd.Timesta
         return StepResult(account.name, "up to date")
     start = session if state is None else pd.Timestamp(state["start"])
 
-    actions = StockAction.query_data(start_timestamp=start, end_timestamp=session, columns=["entity_id", "timestamp", "dividend", "split"])
+    actions = StockAction.query_data(
+        start_timestamp=start, end_timestamp=session, columns=["entity_id", "timestamp", "dividend", "split"]
+    )
     trader = resolve_strategy(account.strategy)(
         start_timestamp=start,
         end_timestamp=session,
@@ -312,7 +320,13 @@ def run_live(record: bool = True, now: pd.Timestamp | None = None, config: LiveC
 
 
 def live_account_names() -> list[str]:
-    df = get_data(TraderInfo, provider=PROVIDER, filters=[TraderInfo.mode == "live"], columns=["trader_name"], order=TraderInfo.trader_name.asc())
+    df = get_data(
+        TraderInfo,
+        provider=PROVIDER,
+        filters=[TraderInfo.mode == "live"],
+        columns=["trader_name"],
+        order=TraderInfo.trader_name.asc(),
+    )
     return df["trader_name"].tolist()
 
 
@@ -332,7 +346,8 @@ def account_summary(name: str) -> dict:
     def label(entity_id: str) -> tuple[str, str]:
         if entity_id in names.index:
             return names.loc[entity_id, "code"], names.loc[entity_id, "name"]
-        return entity_id.split("_", 2)[2], ""
+        parts = str(entity_id).split("_", 2)  # a financing row has no stock behind it
+        return (parts[2] if len(parts) == 3 else str(entity_id)), ""
 
     holdings = []
     for h in sorted(state["account"]["holdings"], key=lambda h: -h["amount"] * h["last_price"]):
@@ -345,7 +360,16 @@ def account_summary(name: str) -> dict:
     for s in state["pending"]:
         code, company = label(s["entity_id"])
         side = "buy" if s["type"] == TradingSignalType.open_long.value else "sell"
-        pending.append({"entity_id": s["entity_id"], "code": code, "name": company, "side": side, "decided_on": pd.Timestamp(s["happen_timestamp"]), "decided_at": s["decided_at"]})
+        pending.append(
+            {
+                "entity_id": s["entity_id"],
+                "code": code,
+                "name": company,
+                "side": side,
+                "decided_on": pd.Timestamp(s["happen_timestamp"]),
+                "decided_at": s["decided_at"],
+            }
+        )
 
     orders = get_data(Order, provider=PROVIDER, filters=[Order.trader_name == name], order=Order.id.asc())
     trades = orders[orders["order_type"].isin(TRADES)] if not orders.empty else orders
@@ -363,12 +387,16 @@ def account_summary(name: str) -> dict:
         "cash": float(stats["cash"].iloc[-1]),
         "total_return": value / input_money - 1,
         "universe_return": float(universe.iloc[-1] / input_money - 1) if len(universe) else None,
-        "benchmark_return": float(benchmark.iloc[-1] / benchmark.iloc[0] - 1) if benchmark is not None and len(benchmark) else None,
+        "benchmark_return": float(benchmark.iloc[-1] / benchmark.iloc[0] - 1)
+        if benchmark is not None and len(benchmark)
+        else None,
         "holdings": holdings,
         "pending": pending,
         "fills": int(len(trades)),
         "forward_fills": int((trades["forward"] == 1).sum()) if not trades.empty else 0,
         "costs_paid": float(trades["cost"].sum()) if not trades.empty else 0.0,
-        "dividends_received": float(orders.loc[orders["order_type"] == "dividend", "profit"].sum()) if not orders.empty else 0.0,
+        "dividends_received": float(orders.loc[orders["order_type"] == "dividend", "profit"].sum())
+        if not orders.empty
+        else 0.0,
         "orders": orders,
     }
