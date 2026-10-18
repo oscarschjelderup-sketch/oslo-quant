@@ -733,8 +733,16 @@ def check_factor(
         factor_cls = context.factor_cls_registry[factor]
     else:
         raise typer.BadParameter(f"unknown factor; known: {', '.join(sorted(context.factor_cls_registry))}")
+    from osloquant.contract.api import get_coverage
+    from osloquant.domain import Stock1dAdjKdata
+
     settings = {"codes": _codes(codes)} if codes else {}
-    start = pd.Timestamp.now().normalize() - pd.DateOffset(years=6)
+    # six years back from the newest stored bar, not from today: the check is about the data there is
+    newest_bar = get_coverage(Stock1dAdjKdata)["last"]
+    if newest_bar is None:
+        console.print("No daily bars are stored. Run: oq record")
+        raise typer.Exit(1)
+    start = pd.Timestamp(newest_bar).normalize() - pd.DateOffset(years=6)
 
     with console.status("Looking for look-ahead ..."):
         found = lookahead_check(factor_cls, start=start, samples=samples, **settings)
@@ -749,7 +757,13 @@ def check_factor(
         console.print(found.head(10).to_string(index=False))
 
     with console.status("Checking the warm-up ..."):
-        newest = factor_cls(start_timestamp=start, **settings).factor_df.index.get_level_values("timestamp").max()
+        factor_df = factor_cls(start_timestamp=start, **settings).factor_df
+        if factor_df.empty:
+            console.print(
+                f"{factor} has no value in the six years of bars before {pd.Timestamp(newest_bar):%Y-%m-%d}: nothing to check."
+            )
+            raise typer.Exit(1)
+        newest = factor_df.index.get_level_values("timestamp").max()
         warm = warmup_check(factor_cls, newest, **settings)
     table = Table(title=f"{factor} on {newest:%Y-%m-%d}, with less history before it")
     for column in ("History", "Largest deviation", "In", "Not computable", "Verdicts changed"):
