@@ -60,7 +60,9 @@ def test_daily_prices_are_fresh_a_day_old_or_stale():
     days = daily_store()
     assert days[-1] == pd.Timestamp("2026-10-02")
 
-    assert check_daily_data(pd.Timestamp("2026-10-05 12:00")).status == OK  # Monday noon: Friday is the newest there can be
+    assert (
+        check_daily_data(pd.Timestamp("2026-10-05 12:00")).status == OK
+    )  # Monday noon: Friday is the newest there can be
     late = check_daily_data(pd.Timestamp("2026-10-05 19:00"))
     assert late.status == WARN and "Mon 05 Oct is missing" in late.detail and "oq live" in late.hint
     assert check_daily_data(pd.Timestamp("2026-10-07 19:00")).status == FAIL
@@ -68,7 +70,12 @@ def test_daily_prices_are_fresh_a_day_old_or_stale():
 
 def test_a_daily_account_that_fell_behind_or_was_stepped_late_is_flagged():
     days = daily_store()
-    config = LiveConfig(accounts=[AccountConfig("paper", "ma", max_positions=2)], commission_rate=0.001, commission_min=0, slippage=0.001)
+    config = LiveConfig(
+        accounts=[AccountConfig("paper", "ma", max_positions=2)],
+        commission_rate=0.001,
+        commission_min=0,
+        slippage=0.001,
+    )
     evening = lambda day, hour=18: (day + pd.Timedelta(hours=hour)).tz_localize("Europe/Oslo")  # noqa: E731
 
     run_live(record=False, now=evening(days[-22]), config=config)
@@ -93,7 +100,9 @@ def test_look_coverage_counts_the_looks_that_were_due_and_made():
     start = at(DAY1, "09:00")
 
     everything = look_coverage(pd.DatetimeIndex(poll_times(DAY1, DELAY) + due), start, at(DAY2, "17:00"), DELAY)
-    assert (everything["made"], everything["due"], everything["share"]) == (60, 60, 1.0) and everything["days_missed"] == []
+    assert (everything["made"], everything["due"], everything["share"]) == (60, 60, 1.0) and everything[
+        "days_missed"
+    ] == []
 
     # day 1 not watched at all; on day 2 the computer slept from 11:00 to 13:00 and one look came late but in time
     awake = [t for t in due if not at(DAY2, "11:00") <= t < at(DAY2, "13:00")]
@@ -114,7 +123,12 @@ def test_look_coverage_counts_the_looks_that_were_due_and_made():
 def intraday_market() -> IntradayConfig:
     store_stocks(["AAA"])
     store_intraday(A, make_bars(100.0))
-    return IntradayConfig(accounts=[IntradayAccountConfig(name="paper", signal={"rule": "ma_cross"}, watchlist=["AAA"])], commission_rate=0.0, commission_min=0.0, slippage=0.0)
+    return IntradayConfig(
+        accounts=[IntradayAccountConfig(name="paper", signal={"rule": "ma_cross"}, watchlist=["AAA"])],
+        commission_rate=0.0,
+        commission_min=0.0,
+        slippage=0.0,
+    )
 
 
 def test_an_intraday_account_that_missed_its_looks_is_flagged(monkeypatch):
@@ -140,7 +154,9 @@ def test_an_intraday_account_that_missed_its_looks_is_flagged(monkeypatch):
 
     monkeypatch.setattr(engine, "market_now", lambda: pd.Timestamp("2021-03-06 12:00"))  # a Saturday owes no looks
     (check,) = check_intraday_accounts(pd.Timestamp("2021-03-06 12:00"))
-    assert check.status == OK and "no look due today" in check.detail and "3 whole days missed" in check.detail  # Wednesday to Friday
+    assert (
+        check.status == OK and "no look due today" in check.detail and "3 whole days missed" in check.detail
+    )  # Wednesday to Friday
 
 
 def test_the_feed_lag_of_each_look_is_stored_and_a_slow_feed_is_flagged(monkeypatch):
@@ -155,9 +171,16 @@ def test_the_feed_lag_of_each_look_is_stored_and_a_slow_feed_is_flagged(monkeypa
     assert lags == [pytest.approx(1.0)] * 5
 
     # the same looks against a feed that has stopped an hour earlier
-    stale = IntradayConfig(accounts=[IntradayAccountConfig(name="slow", signal={"rule": "ma_cross"}, watchlist=["AAA"])], commission_rate=0.0, commission_min=0.0, slippage=0.0)
+    stale = IntradayConfig(
+        accounts=[IntradayAccountConfig(name="slow", signal={"rule": "ma_cross"}, watchlist=["AAA"])],
+        commission_rate=0.0,
+        commission_min=0.0,
+        slippage=0.0,
+    )
     bars_until = make_bars(100.0)
-    monkeypatch.setattr(engine, "load_bars", lambda ids, since, until=None: {A: bars_until[bars_until.index <= at(DAY2, "09:30")]})
+    monkeypatch.setattr(
+        engine, "load_bars", lambda ids, since, until=None: {A: bars_until[bars_until.index <= at(DAY2, "09:30")]}
+    )
     for when in polls(DAY2, "09:31", "10:31"):
         poll(stale, now=when, record=False)
     monkeypatch.setattr(engine, "market_now", lambda: at(DAY2, "10:35"))
@@ -185,7 +208,9 @@ def test_scheduled_tasks_are_read_from_windows(monkeypatch):
     assert intraday.status == WARN and "0x800710E0" in intraday.detail
 
     monkeypatch.setattr(health.subprocess, "run", lambda *a, **k: type("Done", (), {"stdout": ""})())
-    assert [c.status for c in health.check_tasks()] == [FAIL, FAIL] and "schedule_live.ps1" in health.check_tasks()[0].hint
+    assert [c.status for c in health.check_tasks()] == [FAIL, FAIL] and "schedule_live.ps1" in health.check_tasks()[
+        0
+    ].hint
 
     monkeypatch.setattr(health.sys, "platform", "linux")
     assert health.check_tasks() == []
@@ -196,9 +221,18 @@ def test_the_doctor_command(monkeypatch):
     fine = runner.invoke(app, ["doctor"])
     assert fine.exit_code == 0 and "Everything is running." in fine.output
 
-    monkeypatch.setattr(health, "run_checks", lambda: [Check("paper", FAIL, "0 of 11 looks made today", "register the task"), Check("x", WARN, "y")])
+    monkeypatch.setattr(
+        health,
+        "run_checks",
+        lambda: [Check("paper", FAIL, "0 of 11 looks made today", "register the task"), Check("x", WARN, "y")],
+    )
     broken = runner.invoke(app, ["doctor"])
-    assert broken.exit_code == 1 and "FAILED" in broken.output and "register the task" in broken.output and "Everything is running" not in broken.output
+    assert (
+        broken.exit_code == 1
+        and "FAILED" in broken.output
+        and "register the task" in broken.output
+        and "Everything is running" not in broken.output
+    )
 
 
 def test_the_values_are_not_touched_by_looking(monkeypatch):
@@ -211,3 +245,14 @@ def test_the_values_are_not_touched_by_looking(monkeypatch):
     run_checks(now=at(DAY2, "09:40"), tasks=False)
     pd.testing.assert_frame_equal(before, AccountStats.query_data())
     assert np.isfinite(before["all_value"]).all()
+
+
+def test_the_goats_page_check_compares_the_branch_with_the_newest_look():
+    from osloquant.health import goats_publish_status
+
+    look = pd.Timestamp("2026-10-15 10:46")
+    assert goats_publish_status(pd.Timestamp("2026-10-15 10:47"), look).status == "ok"
+    assert goats_publish_status(pd.Timestamp("2026-10-15 10:20"), look).status == "ok", "half an hour of slack"
+    late = goats_publish_status(pd.Timestamp("2026-10-15 07:20"), look)
+    assert late.status == "warn" and "3 h behind" in late.detail and "oq goats --publish" in late.hint
+    assert goats_publish_status(None, look).status == "warn" and goats_publish_status(None, None).status == "ok"

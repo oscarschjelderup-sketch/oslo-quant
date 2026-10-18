@@ -62,8 +62,18 @@ def check_daily_data(now: pd.Timestamp) -> Check:
     if behind == 0:
         return Check("Daily prices", OK, detail)
     if behind == 1:
-        return Check("Daily prices", WARN, f"{detail}; {expected:%a %d %b} is missing", "the evening job has not run since that close (or Oslo was closed that day): oq live")
-    return Check("Daily prices", FAIL, f"{detail}: {behind} sessions behind", "the evening job is not running: oq live, then oq doctor")
+        return Check(
+            "Daily prices",
+            WARN,
+            f"{detail}; {expected:%a %d %b} is missing",
+            "the evening job has not run since that close (or Oslo was closed that day): oq live",
+        )
+    return Check(
+        "Daily prices",
+        FAIL,
+        f"{detail}: {behind} sessions behind",
+        "the evening job is not running: oq live, then oq doctor",
+    )
 
 
 def check_daily_accounts(now: pd.Timestamp) -> list[Check]:
@@ -76,9 +86,18 @@ def check_daily_accounts(now: pd.Timestamp) -> list[Check]:
         late = summary["fills"] - summary["forward_fills"]
         detail = f"at {summary['last_session']:%a %d %b}, {summary['forward_fills']} of {summary['fills']} fills logged before the open"
         if session is not None and summary["last_session"] < session:
-            checks.append(Check(name, FAIL, f"{detail}; the store has {session:%a %d %b}", "the account did not step: oq live"))
+            checks.append(
+                Check(name, FAIL, f"{detail}; the store has {session:%a %d %b}", "the account did not step: oq live")
+            )
         elif late:
-            checks.append(Check(name, WARN, detail, f"{late} fills were booked late and are not evidence; keep the evening job running"))
+            checks.append(
+                Check(
+                    name,
+                    WARN,
+                    detail,
+                    f"{late} fills were booked late and are not evidence; keep the evening job running",
+                )
+            )
         else:
             checks.append(Check(name, OK, detail))
     return checks
@@ -99,7 +118,11 @@ def check_intraday_accounts(now: pd.Timestamp) -> list[Check]:
         summary = account_summary(name, feed_delay=feed_delay)
         coverage = summary["coverage"]
         made, due = coverage["today_made"], coverage["today_due"]
-        overall = f"{coverage['share']:.0%} of all looks since the start" if coverage["share"] is not None else "no look due yet"
+        overall = (
+            f"{coverage['share']:.0%} of all looks since the start"
+            if coverage["share"] is not None
+            else "no look due yet"
+        )
         missed_days = len(coverage["days_missed"])
         if missed_days:
             overall += f", {missed_days} whole day{'s' if missed_days > 1 else ''} missed"
@@ -109,14 +132,87 @@ def check_intraday_accounts(now: pd.Timestamp) -> list[Check]:
         detail = f"{made} of {due} looks made today; {overall}"
         lag = summary["feed_lag"]
         if made == 0 and due >= 4:
-            checks.append(Check(name, FAIL, detail, "the 15-minute task is not running: scripts/schedule_intraday.ps1, then oq doctor"))
+            checks.append(
+                Check(
+                    name,
+                    FAIL,
+                    detail,
+                    "the 15-minute task is not running: scripts/schedule_intraday.ps1, then oq doctor",
+                )
+            )
         elif made < due - 1:
-            checks.append(Check(name, WARN, detail, "looks are missed while the computer sleeps; a missed look is a missed signal"))
+            checks.append(
+                Check(
+                    name, WARN, detail, "looks are missed while the computer sleeps; a missed look is a missed signal"
+                )
+            )
         elif lag is not None and lag > 35 and worth_looking(now, feed_delay):
-            checks.append(Check(name, WARN, f"{detail}; the newest quote was {lag:.0f} minutes old", "Yahoo's feed is later than the 15 minutes assumed: raise feed_delay_minutes in intraday.yaml"))
+            checks.append(
+                Check(
+                    name,
+                    WARN,
+                    f"{detail}; the newest quote was {lag:.0f} minutes old",
+                    "Yahoo's feed is later than the 15 minutes assumed: raise feed_delay_minutes in intraday.yaml",
+                )
+            )
         else:
             checks.append(Check(name, OK, detail))
     return checks
+
+
+def goats_publish_status(
+    published: pd.Timestamp | None, newest_look: pd.Timestamp | None, slack: pd.Timedelta = pd.Timedelta(minutes=30)
+) -> Check:
+    """Whether the Trading Goats page is as fresh as the books: the goats branch against the newest look, both in UTC."""
+    if newest_look is None:
+        return Check("Goats page", OK, "no look to publish yet")
+    if published is None:
+        return Check("Goats page", WARN, "never published", "oq goats --publish, and read its error if it fails")
+    behind = newest_look - published
+    if behind > slack:
+        hours = behind.total_seconds() / 3600
+        return Check(
+            "Goats page",
+            WARN,
+            f"published {published:%a %d %b %H:%M} UTC, {hours:.0f} h behind the newest look",
+            "the publish after the look fails: run oq goats --publish by hand and read the error; the headless log has the traceback",
+        )
+    return Check("Goats page", OK, f"published {published:%a %d %b %H:%M} UTC, with the newest look")
+
+
+def check_goats_publish() -> list[Check]:
+    """The goats branch of the repository against the newest intraday look. Only when goats are configured."""
+    from pathlib import Path
+
+    from osloquant.contract.api import get_data
+    from osloquant.env import oq_env
+    from osloquant.trader.schemas import IntradaySnapshot
+    from osloquant.trader.sim_account import PROVIDER
+
+    if not (Path(oq_env["home"]) / "goats.yaml").exists():
+        return []
+    from osloquant.goats import BRANCH, repo_root
+
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", f"refs/heads/{BRANCH}"],
+            cwd=repo_root(),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout.strip()
+        published = pd.Timestamp(out).tz_convert("UTC").tz_localize(None) if out else None
+    except Exception as e:  # noqa: BLE001  - no git, no repo: the check says so instead of failing
+        return [Check("Goats page", WARN, f"the goats branch could not be read: {type(e).__name__}")]
+    snaps = get_data(
+        IntradaySnapshot, provider=PROVIDER, columns=["timestamp"], order=IntradaySnapshot.timestamp.desc(), limit=1
+    )
+    newest = (
+        None
+        if snaps.empty
+        else pd.Timestamp(snaps["timestamp"].iloc[0]).tz_localize(MARKET_TIMEZONE).tz_convert("UTC").tz_localize(None)
+    )
+    return [goats_publish_status(published, newest)]
 
 
 def check_tasks() -> list[Check]:
@@ -125,12 +221,14 @@ def check_tasks() -> list[Check]:
         return []
     script = (
         "Get-ScheduledTask -TaskName 'oslo-quant*' -ErrorAction SilentlyContinue | ForEach-Object { $i = $_ | Get-ScheduledTaskInfo; "
-        "[pscustomobject]@{ name = $_.TaskName; state = \"$($_.State)\"; result = [int64]$i.LastTaskResult; "
+        '[pscustomobject]@{ name = $_.TaskName; state = "$($_.State)"; result = [int64]$i.LastTaskResult; '
         "last = if ($i.LastRunTime) { $i.LastRunTime.ToString('s') } else { $null }; "
         "next = if ($i.NextRunTime) { $i.NextRunTime.ToString('s') } else { $null } } } | ConvertTo-Json -Compress"
     )
     try:
-        out = subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=30).stdout.strip()
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=30
+        ).stdout.strip()
         found = json.loads(out) if out else []
     except Exception as e:
         return [Check("Scheduled tasks", WARN, f"could not be read: {type(e).__name__}")]
@@ -141,9 +239,20 @@ def check_tasks() -> list[Check]:
         task = found.get(name)
         script_name = "schedule_live.ps1" if name.endswith("live") else "schedule_intraday.ps1"
         if task is None:
-            checks.append(Check(f"Task '{name}'", FAIL, "not registered", f"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/{script_name}"))
+            checks.append(
+                Check(
+                    f"Task '{name}'",
+                    FAIL,
+                    "not registered",
+                    f"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/{script_name}",
+                )
+            )
             continue
-        last = pd.Timestamp(task["last"]).strftime("%a %d %b %H:%M") if task["last"] and not task["last"].startswith("1999") else "never"
+        last = (
+            pd.Timestamp(task["last"]).strftime("%a %d %b %H:%M")
+            if task["last"] and not task["last"].startswith("1999")
+            else "never"
+        )
         upcoming = pd.Timestamp(task["next"]).strftime("%a %H:%M") if task["next"] else "nothing scheduled"
         detail = f"last run {last}, next {upcoming}"
         # 0: fine. 0x41301: running now. 0x41303: has not run yet.
@@ -152,7 +261,14 @@ def check_tasks() -> list[Check]:
         elif task["result"] in (0, 0x41301, 0x41303):
             checks.append(Check(f"Task '{name}'", OK, detail))
         else:
-            checks.append(Check(f"Task '{name}'", WARN, f"{detail}; the last run returned 0x{task['result'] & 0xFFFFFFFF:X}", "one failed run is normal after a wake from sleep; if it repeats, run the command by hand"))
+            checks.append(
+                Check(
+                    f"Task '{name}'",
+                    WARN,
+                    f"{detail}; the last run returned 0x{task['result'] & 0xFFFFFFFF:X}",
+                    "one failed run is normal after a wake from sleep; if it repeats, run the command by hand",
+                )
+            )
     return checks
 
 
@@ -160,7 +276,13 @@ def run_checks(now: pd.Timestamp | None = None, tasks: bool = True) -> list[Chec
     """Every check. One that cannot be made reports that instead of stopping the rest."""
     now = market_now() if now is None else now
     checks: list[Check] = []
-    for part in (lambda: [check_daily_data(now)], lambda: check_daily_accounts(now), lambda: check_intraday_accounts(now), *([check_tasks] if tasks else [])):
+    for part in (
+        lambda: [check_daily_data(now)],
+        lambda: check_daily_accounts(now),
+        lambda: check_intraday_accounts(now),
+        check_goats_publish,
+        *([check_tasks] if tasks else []),
+    ):
         try:
             checks += part()
         except Exception as e:
