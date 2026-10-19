@@ -437,6 +437,25 @@ nothing else may step these accounts. The Windows tasks are disabled with
 `scripts/schedule_live.ps1 -Remove` and `scripts/schedule_intraday.ps1 -Remove` (or Disable-ScheduledTask), and
 a laptop that wants to read or review pulls first and pushes only its configuration.
 
+### Signal watch: Investtech-style signals, with their odds
+
+`oq signals` is the alert layer: a daily scan of the universe for the signals technical-analysis services sell
+(a breakout above the 60-day high on volume, a new 52-week high, entry into a rising trend channel, and on the
+risk side a breakdown below the 60-day low, a death cross, a 10 % drawdown, a falling channel), each tagged with
+what that kind of signal has meant on this store's own history. `oq signals score --write` measures them
+(entry at the next open, excess return over the equal-weighted universe 10/20/60 sessions later, hit rate) and
+writes `resources/signal_odds.yaml`; `oq signals scan` lists today's signals; `oq signals digest --notify`
+adds the research book (`~/osloquant-home/researchbook.yaml`, see `resources/researchbook.example.yaml`: the
+companies you have a written case on, with target, bear and bull values, report dates and kill criteria),
+writes `~/osloquant-home/signals/<session>.md` and raises a Windows toast. `scripts/schedule_signals.ps1`
+registers the evening task (`run_signals.ps1`: `oq record`, then the digest); it never steps the paper accounts.
+
+What the scorecard says (2010-2026, 64 stocks, round trip ~0.5 %): no buy signal has an edge after costs over
+20 sessions (excess -0.5 to +0.4 %, hit rates 44-49 %); the best is the 60-day breakout on volume (+1.3 % over
+60 sessions, 17 alerts a month), and breakouts worked 2010-18 and not since. The sell side carries more
+information: a breakdown below the 60-day low is followed by -0.9 % excess over 60 sessions, a death cross by
+-0.5 %. So the signals are a timing and risk layer on a case, not a strategy, and the digest says so.
+
 ### Is it running?
 
 A job that silently does not run looks exactly like a quiet market. `oq doctor` tells the two apart:

@@ -200,15 +200,16 @@ def test_a_check_that_cannot_be_made_does_not_stop_the_others(monkeypatch):
 
 def test_scheduled_tasks_are_read_from_windows(monkeypatch):
     listing = '[{"name":"oslo-quant live","state":"Ready","result":0,"last":"2026-10-05T17:37:11","next":"2026-10-05T21:30:00"},' \
-              '{"name":"oslo-quant intraday","state":"Ready","result":2147946720,"last":"2026-10-05T19:08:16","next":"2026-10-06T07:46:00"}]'  # fmt: skip
+              '{"name":"oslo-quant intraday","state":"Ready","result":2147946720,"last":"2026-10-05T19:08:16","next":"2026-10-06T07:46:00"},'               '{"name":"oslo-quant signals","state":"Ready","result":0,"last":"2026-10-05T17:50:02","next":"2026-10-05T21:45:00"}]'  # fmt: skip
     monkeypatch.setattr(health.sys, "platform", "win32")
     monkeypatch.setattr(health.subprocess, "run", lambda *a, **k: type("Done", (), {"stdout": listing})())
-    live, intraday = health.check_tasks()
+    live, intraday, watch = health.check_tasks()
     assert live.status == OK and "last run Mon 05 Oct 17:37, next Mon 21:30" in live.detail
     assert intraday.status == WARN and "0x800710E0" in intraday.detail
+    assert watch.status == OK and "oslo-quant signals" in watch.name
 
     monkeypatch.setattr(health.subprocess, "run", lambda *a, **k: type("Done", (), {"stdout": ""})())
-    assert [c.status for c in health.check_tasks()] == [FAIL, FAIL] and "schedule_live.ps1" in health.check_tasks()[
+    assert [c.status for c in health.check_tasks()] == [FAIL, FAIL, FAIL] and "schedule_live.ps1" in health.check_tasks()[
         0
     ].hint
 

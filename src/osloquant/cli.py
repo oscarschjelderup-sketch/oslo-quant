@@ -1224,6 +1224,114 @@ def intraday_replay(
     )
 
 
+# ------------------------------------------------------------------------------------------------ signal watch
+signals_app = typer.Typer(
+    help="Signal watch: Investtech-style technical signals with their measured odds, and the research book.",
+    no_args_is_help=True,
+)
+app.add_typer(signals_app, name="signals")
+
+
+def _signals_table(alerts) -> None:
+    from rich.table import Table
+
+    if not alerts:
+        console.print("no signals on the newest session")
+        return
+    t = Table(title=f"Signals – session {alerts[0].session}")
+    for col in ("kind", "code", "name", "signal", "price", "detail", "odds 20/60d, hit"):
+        t.add_column(col)
+    for a in alerts:
+        odds = "–" if a.exc20 is None else f"{a.exc20 * 100:+.1f}% / {a.exc60 * 100:+.1f}%, {a.hit20 * 100:.0f}%"
+        colour = {"BUY": "green", "RISK": "red", "INFO": "cyan"}[a.kind]
+        t.add_row(f"[{colour}]{a.kind}[/{colour}]", a.code, a.name, a.signal, f"{a.price:.2f}", a.detail, odds)
+    console.print(t)
+
+
+def _signals_panel(codes=None):
+    import pandas as pd
+
+    from osloquant import signals as sg
+
+    return sg.load_panel(start=pd.Timestamp.now() - pd.Timedelta(days=600), codes=codes)
+
+
+@signals_app.command("scan")
+def signals_scan(
+    asof: str = typer.Option(None, help="Session to scan, e.g. 2026-10-13. The newest when omitted."),
+    codes: str = typer.Option(None, help="Comma-separated codes; the whole universe when omitted."),
+    as_json: bool = typer.Option(False, "--json", help="Print the alerts as JSON."),
+) -> None:
+    """The technical signals that fired on the newest session, each with its measured odds."""
+    _setup()
+    import json
+    from dataclasses import asdict
+
+    from osloquant import signals as sg
+
+    P = _signals_panel(_codes(codes))
+    alerts = sg.scan(P, asof=asof, names=sg.stock_names())
+    if as_json:
+        console.print_json(json.dumps([asdict(a) for a in alerts]))
+    else:
+        _signals_table(alerts)
+
+
+@signals_app.command("digest")
+def signals_digest(
+    notify: bool = typer.Option(False, "--notify", help="Show a Windows notification with the summary line."),
+    show: bool = typer.Option(True, "--show/--quiet", help="Print the digest."),
+) -> None:
+    """The research book against the newest prices plus today's alerts: written to ~/osloquant-home/signals/."""
+    _setup()
+    from rich.markdown import Markdown
+
+    from osloquant import signals as sg
+
+    P = _signals_panel()
+    if P["close"].empty:
+        console.print("[red]no daily bars in the store: oq record first[/red]")
+        raise typer.Exit(2)
+    names = sg.stock_names()
+    alerts = sg.scan(P, names=names)
+    book = sg.load_book()
+    text = sg.digest(P, alerts, book, names)
+    session = alerts[0].session if alerts else f"{P['close'].index[-1]:%Y-%m-%d}"
+    md, js = sg.write_digest(text, alerts, session)
+    if show:
+        console.print(Markdown(text))
+    console.print(f"written {md} and {js.name}")
+    if notify:
+        shown = sg.notify(f"Signal watch {session}", sg.summary_line(alerts, book, P))
+        console.print("notification shown" if shown else "[yellow]notification not shown[/yellow]")
+
+
+@signals_app.command("score")
+def signals_score(
+    start: str = typer.Option("2010-01-01", help="First session of the measurement."),
+    write: bool = typer.Option(False, "--write", help="Update the odds file the alerts read (resources/signal_odds.yaml)."),
+) -> None:
+    """Measure every signal on the store's history: events, forward excess returns and hit rates."""
+    _setup()
+    from rich.table import Table
+
+    from osloquant import signals as sg
+
+    P = sg.load_panel(start=start)
+    table = sg.scorecard(P)
+    t = Table(title=f"Signal scorecard {start} .. {P['close'].index[-1]:%Y-%m-%d}, {P['close'].shape[1]} stocks")
+    for col in ("signal", "kind", "events", "/month", "raw 20d", "exc 10d", "exc 20d", "exc 60d", "hit 20d", "t 20d"):
+        t.add_column(col, justify="right" if col not in ("signal", "kind") else "left")
+    for name, row in table.iterrows():
+        t.add_row(name, row["kind"], f"{row['events']:.0f}", f"{row['per_month']:.1f}", _pct(row["raw20"], 2), _pct(row["exc10"], 2),
+                  _pct(row["exc20"], 2), _pct(row["exc60"], 2), _pct(row["hit20"], 0), f"{row['t20']:.1f}")
+    console.print(t)
+    console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it.")
+    if write:
+        path = sg.write_odds(table, start, f"{P['close'].index[-1]:%Y-%m-%d}", P["close"].shape[1])
+        console.print(f"odds written to {path}")
+
+
 @app.command()
 def ui(
     host: str = typer.Option("127.0.0.1"),

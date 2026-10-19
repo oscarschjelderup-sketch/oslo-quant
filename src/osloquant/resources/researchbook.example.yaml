@@ -1,0 +1,19 @@
+# The research book: the companies you have written a case on. Copy to ~/osloquant-home/researchbook.yaml
+# (that file is yours and is not in the repository). `oq signals digest` reads it every evening and prints,
+# for each company, the price against your target and bear values, the trend channel, today's signals on it,
+# the dates that will test the case and the kill criteria you want to be reminded of.
+entries:
+  - code: EXAMPLE            # Yahoo code without .OL; the stock must be in the universe (oq record)
+    name: Example Company
+    rating: BUY
+    valuation_date: 2026-01-15
+    price_at_valuation: 100.0
+    dcf: 130.0
+    target: 135              # 12-month target price
+    bear: 80                 # bear-case value per share
+    bull: 170
+    events:
+      - {date: 2026-02-20, what: "Q4 report"}
+    kill:                    # reminders checked at the reports; not computed from prices
+      - "Gross margin below 40%"
+      - "Net debt above 2.5x EBITDA"

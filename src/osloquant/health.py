@@ -19,7 +19,7 @@ import pandas as pd
 
 OK, WARN, FAIL = "ok", "warn", "fail"
 MARKET_TIMEZONE = "Europe/Oslo"
-TASKS = ("oslo-quant live", "oslo-quant intraday")
+TASKS = ("oslo-quant live", "oslo-quant intraday", "oslo-quant signals")
 
 
 @dataclass
@@ -287,7 +287,7 @@ def check_tasks() -> list[Check]:
     checks = []
     for name in TASKS:
         task = found.get(name)
-        script_name = "schedule_live.ps1" if name.endswith("live") else "schedule_intraday.ps1"
+        script_name = f"schedule_{name.split()[-1]}.ps1"          # schedule_live / schedule_intraday / schedule_signals
         if task is None:
             checks.append(
                 Check(
