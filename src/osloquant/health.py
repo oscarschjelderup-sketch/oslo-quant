@@ -215,6 +215,56 @@ def check_goats_publish() -> list[Check]:
     return [goats_publish_status(published, newest)]
 
 
+def store_branch_status(
+    pushed: pd.Timestamp | None, now: pd.Timestamp, stale_after: pd.Timedelta = pd.Timedelta(hours=26)
+) -> Check:
+    """Whether the runner that owns the books has pushed them lately. ``pushed`` and ``now`` are UTC."""
+    if pushed is None:
+        return Check("Store branch", WARN, "no store branch", "oq store push from the machine that holds the books")
+    age = now - pushed
+    detail = f"last pushed {pushed:%a %d %b %H:%M} UTC"
+    if now.dayofweek < 5 and age > stale_after:
+        return Check(
+            "Store branch",
+            WARN,
+            f"{detail}, {age.total_seconds() / 3600:.0f} h ago on a weekday",
+            "the GitHub session has not run: look at the goats-session workflow, or run the books here and push",
+        )
+    return Check("Store branch", OK, detail)
+
+
+def check_store_branch() -> list[Check]:
+    """The store branch on origin: when the runner last pushed the books. Only when a goats.yaml says this home is part of that setup."""
+    from pathlib import Path
+
+    from osloquant.env import oq_env
+
+    if not (Path(oq_env["home"]) / "goats.yaml").exists():
+        return []
+    from osloquant.goats import repo_root
+    from osloquant.store import BRANCH
+
+    try:
+        repo = repo_root()
+        subprocess.run(
+            ["git", "fetch", "--quiet", "origin", f"+refs/heads/{BRANCH}:refs/remotes/origin/{BRANCH}"],
+            cwd=repo,
+            capture_output=True,
+            timeout=60,
+        )
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", f"refs/remotes/origin/{BRANCH}"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout.strip()
+        pushed = pd.Timestamp(out).tz_convert("UTC").tz_localize(None) if out else None
+    except Exception as e:  # noqa: BLE001
+        return [Check("Store branch", WARN, f"could not be read: {type(e).__name__}")]
+    return [store_branch_status(pushed, pd.Timestamp.now(tz="UTC").tz_localize(None))]
+
+
 def check_tasks() -> list[Check]:
     """The Windows scheduled tasks: registered, and what their last run returned."""
     if sys.platform != "win32":
@@ -257,7 +307,14 @@ def check_tasks() -> list[Check]:
         detail = f"last run {last}, next {upcoming}"
         # 0: fine. 0x41301: running now. 0x41303: has not run yet.
         if task["state"] == "Disabled":
-            checks.append(Check(f"Task '{name}'", FAIL, f"disabled; {detail}", "enable it in Task Scheduler"))
+            checks.append(
+                Check(
+                    f"Task '{name}'",
+                    WARN,
+                    f"disabled; {detail}",
+                    "fine while the accounts run on GitHub Actions (see 'Store branch'); Enable-ScheduledTask to run them here again",
+                )
+            )
         elif task["result"] in (0, 0x41301, 0x41303):
             checks.append(Check(f"Task '{name}'", OK, detail))
         else:
@@ -281,6 +338,7 @@ def run_checks(now: pd.Timestamp | None = None, tasks: bool = True) -> list[Chec
         lambda: check_daily_accounts(now),
         lambda: check_intraday_accounts(now),
         check_goats_publish,
+        check_store_branch,
         *([check_tasks] if tasks else []),
     ):
         try:

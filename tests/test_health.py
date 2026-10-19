@@ -256,3 +256,17 @@ def test_the_goats_page_check_compares_the_branch_with_the_newest_look():
     late = goats_publish_status(pd.Timestamp("2026-10-15 07:20"), look)
     assert late.status == "warn" and "3 h behind" in late.detail and "oq goats --publish" in late.hint
     assert goats_publish_status(None, look).status == "warn" and goats_publish_status(None, None).status == "ok"
+
+
+def test_the_store_branch_check_knows_a_runner_that_has_gone_quiet():
+    from osloquant.health import store_branch_status
+
+    monday_noon = pd.Timestamp("2026-10-19 12:00")
+    assert store_branch_status(pd.Timestamp("2026-10-19 11:50"), monday_noon).status == "ok"
+    assert store_branch_status(pd.Timestamp("2026-10-16 15:20"), monday_noon).status == "warn", (
+        "the books have not moved since Friday afternoon"
+    )
+    assert store_branch_status(pd.Timestamp("2026-10-16 15:20"), pd.Timestamp("2026-10-18 12:00")).status == "ok", (
+        "a weekend is quiet by design"
+    )
+    assert store_branch_status(None, monday_noon).status == "warn"
