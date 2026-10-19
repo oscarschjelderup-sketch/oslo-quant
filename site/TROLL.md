@@ -28,6 +28,8 @@ and read the files under `<dir>`: `goats/<id>.json` (value, P&L, holdings with s
   the toll, not to the market.
 - A margin goat shows its leverage (`leverage`, gross exposure over equity) and its financing. Say what the
   leverage did: a 2 % stop on a six-slot entry is 12 % of equity. Name shorts as shorts.
+- A day-trade goat holding anything at the first look of a day slept through the close; its engine sells at that
+  look. Count such nights: they are the shepherd's fault, and leverage makes them dear.
 - Never recommend a stock, never predict, never address readers as investors. The lines are about the goats.
 
 ## When it may rewrite

@@ -316,7 +316,9 @@ the whole notional, so a ten-slot entry pays ten slots of commission; the stops 
 move, so a 2 % stop on a ten-slot entry costs 20 % of equity. Rules do not change: BUY means bullish and SELL
 means bearish, and the account decides what that means for what it holds (close the long, cover the short,
 open the other side). A short's stops mirror the long's (a trailing stop follows the low since the entry),
-a short pays the dividends of what it borrowed, and `MARGIN` is the exit code of a forced close-out.
+a short pays the dividends of what it borrowed, and `MARGIN` is the exit code of a forced close-out. A
+`flat_at_close` account that wakes on a new day still holding (the computer slept through the close) closes
+everything at that first look; with leverage, a night nobody meant to hold is the most expensive kind.
 `oq intraday replay --rule ... --shorts --max-leverage 10` tries a rule this way before an account is given it.
 
 What leverage does to a rule that loses after costs is multiply the loss; the replay says by how much before

@@ -634,6 +634,13 @@ class IntradayAccount:
         # 3. the risk rules, on what is held and not already being closed
         selling = {o["entity_id"] for o in self.pending if o["action"].startswith("close")}
         closing_time = self.cfg.flat_at_close and now >= now.normalize() + LAST_BAR - 2 * INTERVAL
+        # a flat-at-close account that wakes on a new day still holding slept through the close: out, now
+        missed_close = (
+            self.cfg.flat_at_close
+            and self.last_poll is not None
+            and now.normalize() > self.last_poll.normalize()
+            and not closing_time
+        )
         # a margin account that has lost too much of its equity is closed out, whatever the rules say
         margin_call = (
             self.account.margin
@@ -654,6 +661,8 @@ class IntradayAccount:
                     "MARGIN",
                     f"equity {self.account.all_value:,.0f} is under {self.cfg.maintenance_margin:.0%} of the exposure {self.account.exposure:,.0f}",
                 )
+            elif missed_close:
+                exit_signal = ("CLOSE", "the close was slept through; nothing is held overnight")
             elif self.cfg.stop_loss and gain <= -self.cfg.stop_loss:
                 exit_signal = ("STOP", f"{price:.2f} is {price / bought - 1:+.1%} from the {entry} at {bought:.2f}")
             elif self.cfg.take_profit and gain >= self.cfg.take_profit:

@@ -314,3 +314,17 @@ def test_a_polled_margin_account_stores_sides_exposure_and_leverage(market):
     summary = account_summary("margin")
     assert summary["financing_paid"] > 0 and "financing" in Order.query_data()["order_type"].tolist()
     assert summary["orders"]["stock"].tolist()[-1] == "financing"
+
+
+def test_a_day_trader_that_slept_through_the_close_gets_out_at_the_first_look_of_the_next_day():
+    bars = {A: make_bars(100.0, flags={at(DAY1, "09:45"): 112})}
+    account = margin(day_trade=True, max_positions=3, max_leverage=3, stop_loss=0.05)
+    run(account, bars, polls(DAY1, "09:31", "12:01"))  # the laptop sleeps from noon
+    assert account.account.holdings[A].amount > 0, "held into the night, which a day trader never means to"
+    (first,) = run(account, bars, [at(DAY2, "09:31")])
+    assert [(s["code"], s["reason"], s["outcome"]) for s in first.signals] == [
+        ("CLOSE", "the close was slept through; nothing is held overnight", "ordered")
+    ]
+    (second,) = run(account, bars, [at(DAY2, "09:46")])
+    assert not account.account.holdings and second.fills[0]["action"] == "close_long"
+    assert run(account, bars, [at(DAY2, "10:01")])[0].signals == [], "once out, the rule is quiet"
