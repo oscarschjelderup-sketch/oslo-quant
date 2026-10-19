@@ -1281,12 +1281,15 @@ def signals_scan(
 def signals_digest(
     notify: bool = typer.Option(False, "--notify", help="Show a Windows notification with the summary line."),
     show: bool = typer.Option(True, "--show/--quiet", help="Print the digest."),
+    open_page: bool = typer.Option(False, "--open", help="Open the HTML page in the browser when the session is new."),
 ) -> None:
-    """The research book against the newest prices plus today's alerts: written to ~/osloquant-home/signals/."""
+    """The research book against the newest prices plus today's alerts: written to ~/osloquant-home/signals/
+    as Markdown, JSON and a self-contained HTML page."""
     _setup()
     from rich.markdown import Markdown
 
     from osloquant import signals as sg
+    from osloquant.signals_page import render_html
 
     P = _signals_panel()
     if P["close"].empty:
@@ -1297,10 +1300,16 @@ def signals_digest(
     book = sg.load_book()
     text = sg.digest(P, alerts, book, names)
     session = alerts[0].session if alerts else f"{P['close'].index[-1]:%Y-%m-%d}"
-    md, js = sg.write_digest(text, alerts, session)
+    seen = sg.previous_session() == session
+    page = render_html(P, alerts, book, session, odds=sg.load_odds())
+    md, js = sg.write_digest(text, alerts, session, page=page)
     if show:
         console.print(Markdown(text))
-    console.print(f"written {md} and {js.name}")
+    console.print(f"written {md}, {js.name} and latest.html")
+    if open_page and not seen:
+        import webbrowser
+
+        webbrowser.open((md.parent / "latest.html").as_uri())
     if notify:
         shown = sg.notify(f"Signal watch {session}", sg.summary_line(alerts, book, P))
         console.print("notification shown" if shown else "[yellow]notification not shown[/yellow]")

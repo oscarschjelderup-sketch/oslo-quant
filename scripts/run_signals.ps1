@@ -27,7 +27,7 @@ $output | Out-File -FilePath $log -Append -Encoding utf8
 "record exit code $code" | Out-File -FilePath $log -Append -Encoding utf8
 if ($code -ne 0) { exit 2 }
 
-$output = & $oq signals digest --notify 2>&1 | ForEach-Object { "$_" }
+$output = & $oq signals digest --notify --open --quiet 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "digest exit code $code" | Out-File -FilePath $log -Append -Encoding utf8

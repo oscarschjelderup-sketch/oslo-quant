@@ -402,13 +402,26 @@ def signals_dir() -> Path:
     return d
 
 
-def write_digest(text: str, alerts: list[Alert], session: str) -> tuple[Path, Path]:
+def previous_session() -> str | None:
+    """The session the last written digest covered, if any."""
+    js = home() / "signals" / "latest.json"
+    try:
+        return json.loads(js.read_text(encoding="utf-8")).get("session")
+    except (OSError, ValueError):
+        return None
+
+
+def write_digest(text: str, alerts: list[Alert], session: str, page: str | None = None) -> tuple[Path, Path]:
+    """Write <session>.md / latest.md, latest.json and, when ``page`` is given, <session>.html / latest.html."""
     d = signals_dir()
     md = d / f"{session}.md"
     md.write_text(text, encoding="utf-8")
     (d / "latest.md").write_text(text, encoding="utf-8")
     js = d / "latest.json"
     js.write_text(json.dumps({"session": session, "alerts": [asdict(a) for a in alerts]}, indent=1, ensure_ascii=False), encoding="utf-8")
+    if page is not None:
+        (d / f"{session}.html").write_text(page, encoding="utf-8")
+        (d / "latest.html").write_text(page, encoding="utf-8")
     return md, js
 
 

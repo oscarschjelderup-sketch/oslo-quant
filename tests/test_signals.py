@@ -110,6 +110,29 @@ def test_digest_and_summary_with_a_research_book(tmp_path):
     assert line.startswith("OUTLT 41.00") and "TP 54" in line and "OUTLT New 52-week high" in line
     md, js = signals.write_digest(text, alerts, f"{today:%Y-%m-%d}")
     assert md.exists() and js.exists() and (md.parent / "latest.md").read_text(encoding="utf-8") == text
+    assert signals.previous_session() == f"{today:%Y-%m-%d}"
+
+
+def test_html_page_draws_the_book_and_the_alerts(tmp_path):
+    from osloquant.signals_page import render_html
+
+    P = _panel({"OUTLT": np.linspace(33, 41, 150), "SATS": np.full(150, 40.0)})
+    today = P["close"].index[-1]
+    book = [{"code": "OUTLT", "name": "Outlet Group", "rating": "BUY", "target": 54, "bear": 30, "bull": 72, "dcf": 50.6,
+             "price_at_valuation": 40.2, "valuation_date": "2026-10-08", "events": [{"date": "2099-01-01", "what": "Q3 report"}],
+             "kill": ["gross margin below 49%"]},
+            {"code": "NOPE", "name": "Not stored"}]
+    alerts = [Alert("OUTLT", "Outlet Group", "New 52-week high", BUY, f"{today:%Y-%m-%d}", 41.0, "above the 250-day high", 0.0002, 0.0055, 0.47),
+              Alert("SATS", "SATS", "Death cross MA 20/60", RISK, f"{today:%Y-%m-%d}", 40.0, "MA20 vs MA60", -0.0054, -0.0042, 0.45)]
+    odds = {"measured": {"from": "2010", "to": "2026", "stocks": 63}, "signals": {"New 52-week high": {"kind": BUY, "per_month": 29.1, "raw20": 0.008, "exc20": 0.0002, "exc60": 0.0055, "hit20": 0.47, "t20": 0.2}}}
+    page = render_html(P, alerts, book, f"{today:%Y-%m-%d}", odds=odds, today=today)
+    assert page.startswith("<!doctype html>") and "<svg" in page
+    assert "Outlet Group" in page and "TP 54" in page and "+32%" in page            # upside to the target
+    assert "no bars in the store yet" in page and "Q3 report" in page
+    assert "Death cross MA 20/60" in page and "1 buy-type" in page and "1 risk" in page
+    assert "What these signals have meant" in page and "29.1" in page
+    md, js = signals.write_digest("x", alerts, f"{today:%Y-%m-%d}", page=page)
+    assert (md.parent / "latest.html").read_text(encoding="utf-8") == page
 
 
 def test_scorecard_counts_events_and_odds_file_round_trip(tmp_path):

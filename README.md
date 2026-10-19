@@ -447,7 +447,10 @@ what that kind of signal has meant on this store's own history. `oq signals scor
 writes `resources/signal_odds.yaml`; `oq signals scan` lists today's signals; `oq signals digest --notify`
 adds the research book (`~/osloquant-home/researchbook.yaml`, see `resources/researchbook.example.yaml`: the
 companies you have a written case on, with target, bear and bull values, report dates and kill criteria),
-writes `~/osloquant-home/signals/<session>.md` and raises a Windows toast. `scripts/schedule_signals.ps1`
+writes `~/osloquant-home/signals/<session>.md`, a self-contained `latest.html` page (the research book as
+cards with the price against bear, DCF, target and bull, a sparkline with the 60-day range, today's signals on
+the stock and the dates that test the case; the alerts in two columns; the odds table) and raises a Windows
+toast; `--open` opens the page when the session is new. `scripts/schedule_signals.ps1`
 registers the evening task (`run_signals.ps1`: `oq record`, then the digest); it never steps the paper accounts.
 
 What the scorecard says (2010-2026, 64 stocks, round trip ~0.5 %): no buy signal has an edge after costs over
