@@ -413,6 +413,30 @@ The page is `site/trading-goats.html`, published at https://oscarschjelderup-ske
 store; on GitHub Pages it reads `goats.json` from the `goats` branch, which `python -m osloquant.tick` refreshes
 after every look and `scripts/run_live.ps1` after every evening run.
 
+### Running the accounts on GitHub Actions
+
+A laptop sleeps; a paper account that is only looked at while the laptop is awake misses closes and stops, and
+with leverage those are the nights that cost. So the accounts can run on GitHub Actions instead, with the books
+on a branch:
+
+```bash
+oq store push                 # once, from the machine that holds the books: the live store goes to the `store` branch
+oq store pull                 # any machine: fetch the branch and merge the live accounts into this home
+oq store push --config-only   # a laptop's changes to live.yaml, intraday.yaml, goats.yaml, troll.json; never its books
+oq session next-tick          # what the day's loop does next: "tick 540", "evening 0" or "done 0"
+oq session step tick          # one look, then the goats page and the store are pushed (evening: the evening job)
+```
+
+The store is the trader database cut down to the live accounts (a few hundred kilobytes), the configuration
+files, the troll's log and the two job logs; price history is not carried, `oq record` fetches it and the
+workflow caches it between runs. `.github/workflows/goats-session.yml` runs the day as one job: kick-started
+before the open, it pulls the store, looks every quarter of an hour, makes the evening step after the close,
+pushes the page and the store after each, and queues its own successor before the six-hour job limit (the
+same loop the oil repository uses for its quotes). The `store` branch is the system of record: while it runs,
+nothing else may step these accounts. The Windows tasks are disabled with
+`scripts/schedule_live.ps1 -Remove` and `scripts/schedule_intraday.ps1 -Remove` (or Disable-ScheduledTask), and
+a laptop that wants to read or review pulls first and pushes only its configuration.
+
 ### Is it running?
 
 A job that silently does not run looks exactly like a quiet market. `oq doctor` tells the two apart:
@@ -652,6 +676,8 @@ src/osloquant/
   research/    the lab: strategies, the cost model, the tests for luck, the checks on factors
   health.py    the checks behind `oq doctor`
   goats.py     the Trading Goats export: three paper accounts as one JSON document
+  store.py     the live store on a branch: pack, push, pull, merge
+  session.py   the trading day as a loop for a runner: what to do next, and doing it
   tick.py      what the 15-minute scheduled task runs
   ml/          the machine-learning harness
   ui/          the Dash dashboard

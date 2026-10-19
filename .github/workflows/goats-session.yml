@@ -1,0 +1,112 @@
+# The trading day on a runner that does not sleep: a look at Oslo every quarter of an hour, the evening step
+# after the close, the goats page and the live store pushed after each.
+#
+# Why a loop and not a */15 cron: GitHub runs scheduled workflows on a best-effort basis (measured on the oil
+# repository: hours late, or not at all). One running job keeps a 15-minute rhythm; so:
+#
+#   * any trigger starts a run: the kick-start schedules before the open (several, because each may be late or
+#     dropped), the safety restarts during the day, a manual dispatch, or a hand-off from the previous run;
+#   * the run pulls the live store from the `store` branch, brings the price history up to date, then asks
+#     `oq session next-tick` what to do and when, sleeps until then and runs `oq session step`: a look
+#     (`oq intraday poll --if-open`) or the evening job (`oq live`), each followed by `oq goats --publish`
+#     (the page) and `oq store push` (the books);
+#   * five hours in it queues its successor with workflow_dispatch; the successor waits in the concurrency group
+#     and starts the moment this run ends, inside the six-hour job limit. The dispatch is retried at every tick;
+#   * `concurrency` with cancel-in-progress: false keeps exactly one loop alive: extra triggers wait, collapse
+#     into one pending run, and find nothing left to do when the loop ends.
+#
+# The store branch is the system of record. Nothing else may step these accounts while this runs: the Windows
+# tasks on the laptop are disabled, and a laptop pushes only its configuration (`oq store push --config-only`).
+name: goats session
+
+on:
+  schedule:
+    # UTC. Oslo is UTC+2 until 25 October 2026 and UTC+1 after; the open is 09:00 Oslo, the first look 09:31.
+    - cron: "32,47 6 * * 1-5"      # kick-starts before the open
+    - cron: "2,17 7 * * 1-5"
+    - cron: "47 9,11,13 * * 1-5"   # safety restarts in case a chain died during the day
+    - cron: "17 16 * * 1-5"        # evening safety: the evening step, if the chain never got there
+  workflow_dispatch:
+
+permissions:
+  contents: write     # push the store and goats branches
+  actions: write      # queue the successor run
+
+concurrency:
+  group: goats-session
+  cancel-in-progress: false
+
+jobs:
+  session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      OSLOQUANT_HOME: ${{ github.workspace }}/.home
+      GH_TOKEN: ${{ github.token }}
+      GIT_AUTHOR_NAME: goats runner
+      GIT_AUTHOR_EMAIL: goats@users.noreply.github.com
+      GIT_COMMITTER_NAME: goats runner
+      GIT_COMMITTER_EMAIL: goats@users.noreply.github.com
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen
+
+      - name: Price history from the last run (a new key every run; the newest is restored)
+        uses: actions/cache@v4
+        with:
+          path: .home/data/yahoo_*.db
+          key: market-${{ github.run_id }}
+          restore-keys: market-
+
+      - name: Pull the live store
+        run: uv run --frozen oq store pull
+
+      - name: Bring the price history up to date
+        run: uv run --frozen oq record
+
+      - name: Look every 15 minutes until the evening step is done
+        run: |
+          set +e                                    # one failed step must never end the day's loop
+          budget=$(( 345 * 60 ))                    # stop here, inside the 355-minute job limit
+          handoff_after=$(( 300 * 60 ))             # queue the successor from here on
+          started=$(date +%s); successor=0; evening_done=0
+
+          handoff() {                               # three quick attempts; the loop tries again at the next tick
+            for attempt in 1 2 3; do
+              gh workflow run goats-session.yml --repo "$GITHUB_REPOSITORY" --ref main && return 0
+              echo "::warning::hand-off attempt $attempt failed at $(date -u +%H:%M)"
+              sleep 20
+            done
+            return 1
+          }
+
+          while true; do
+            flag=""; [ "$evening_done" = 1 ] && flag="--evening-done"
+            read -r kind wait < <(uv run --frozen -q oq session next-tick $flag 2>/dev/null | tail -1)
+            case "$wait" in ''|*[!0-9]*) echo "::warning::next-tick said '$kind $wait'; retrying in 15 min"; kind=retry; wait=900 ;; esac
+            if [ "$kind" = "done" ]; then echo "$(date -u +%H:%M) nothing more today"; break; fi
+            elapsed=$(( $(date +%s) - started ))
+            if [ "$successor" = 0 ] && [ "$elapsed" -ge "$handoff_after" ]; then
+              if handoff; then successor=1; echo "$(date -u +%H:%M) successor queued; it takes over when this run ends"
+              else echo "::warning::hand-off failed; trying again at the next tick"; fi
+            fi
+            if [ "$wait" -ge $(( budget - elapsed )) ]; then
+              if [ "$successor" = 1 ]; then echo "job budget reached; the successor takes over"
+              else echo "::error::job budget reached without a successor; the next schedule restarts the loop"; fi
+              break
+            fi
+            [ "$wait" -gt 0 ] && sleep "$wait"
+            if [ "$kind" = "retry" ]; then continue; fi
+            echo "=== $(date -u +%H:%M) UTC: $kind"
+            uv run --frozen oq session step "$kind" || echo "::warning::$kind step returned $? at $(date -u +%H:%M)"
+            [ "$kind" = "evening" ] && evening_done=1
+          done
+
+      - name: Push the store once more (the books as this run leaves them)
+        if: always()
+        run: uv run --frozen oq store push || echo "::warning::final store push failed"

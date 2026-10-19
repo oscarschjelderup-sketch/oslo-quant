@@ -1,4 +1,4 @@
-"""The command line: ``oq record``, ``oq status``, ``oq check``, ``oq doctor``, ``oq lab``, ``oq check-factor``, ``oq query``, ``oq targets``, ``oq backtest``, ``oq live``, ``oq intraday``, ``oq goats``, ``oq ui``."""
+"""The command line: ``oq record``, ``oq status``, ``oq check``, ``oq doctor``, ``oq lab``, ``oq check-factor``, ``oq query``, ``oq targets``, ``oq backtest``, ``oq live``, ``oq intraday``, ``oq goats``, ``oq store``, ``oq session``, ``oq ui``."""
 
 from __future__ import annotations
 
@@ -576,6 +576,113 @@ def goats_rewrite(
     console.print(
         "The new account starts at the next look or the next evening run. The old one keeps running in the herd."
     )
+
+
+store_app = typer.Typer(
+    add_completion=False,
+    help="The live store on the 'store' branch: the paper accounts' books, configuration and the troll's log, carried between machines.",
+)
+app.add_typer(store_app, name="store")
+
+
+@store_app.command("pack")
+def store_pack(out: Path = typer.Argument(..., help="Directory to write the packed store to.")) -> None:
+    """Write the live store to a directory: the trader database cut down to the live accounts, the configs, the logs."""
+    _setup()
+    from osloquant.store import pack
+
+    manifest = pack(out)
+    console.print(
+        f"Packed {len(manifest['accounts'])} accounts and {len(manifest['files'])} files to {out}: {', '.join(manifest['accounts']) or 'no accounts'}"
+    )
+
+
+@store_app.command("push")
+def store_push(
+    config_only: bool = typer.Option(
+        False,
+        "--config-only",
+        help="Push only live.yaml, intraday.yaml, goats.yaml and troll.json: a laptop's changes, never its books.",
+    ),
+) -> None:
+    """Pack the store and put it on the 'store' branch of this repository's origin as one commit."""
+    _setup()
+    from osloquant.store import CONFIG_FILES, home, push
+
+    only = [f for f in CONFIG_FILES if (home() / f).exists()] if config_only else None
+    try:
+        commit = push(only=only)
+    except Exception as e:
+        console.print(f"[red]Push failed:[/red] {e}")
+        raise typer.Exit(2) from e
+    console.print(
+        f"Pushed {'the configuration' if config_only else 'the live store'} to the store branch ({commit[:10]})."
+    )
+
+
+@store_app.command("pull")
+def store_pull(
+    no_configs: bool = typer.Option(
+        False, "--no-configs", help="Leave this home's live.yaml, intraday.yaml, goats.yaml and troll.json as they are."
+    ),
+) -> None:
+    """Fetch the 'store' branch and merge the live accounts into this home. Backtests already here survive."""
+    _setup()
+    from osloquant.store import pull
+
+    try:
+        manifest = pull(configs=not no_configs)
+    except Exception as e:
+        console.print(f"[red]Pull failed:[/red] {e}")
+        raise typer.Exit(2) from e
+    if manifest is None:
+        console.print(
+            "[yellow]There is no store branch yet.[/yellow] Push one from the machine that holds the books: oq store push"
+        )
+        raise typer.Exit(1)
+    console.print(
+        f"Pulled {len(manifest.get('accounts', []))} accounts packed at {manifest.get('packed_at', '?')}: {', '.join(manifest.get('accounts', [])) or 'none'}"
+    )
+
+
+session_app = typer.Typer(
+    add_completion=False,
+    help="The trading day as a loop, for a runner that must not sleep: what to do next, and doing it.",
+)
+app.add_typer(session_app, name="session")
+
+
+@session_app.command("next-tick")
+def session_next_tick(
+    evening_done: bool = typer.Option(False, "--evening-done", help="The evening step has been made in this run."),
+) -> None:
+    """Print what the loop does next and in how many seconds: 'tick N', 'evening N' or 'done 0'."""
+    from osloquant.session import market_now, plan
+
+    feed_delay = pd.Timedelta(minutes=15)
+    try:
+        from osloquant.intraday.engine import config_path, load_config
+
+        if config_path().exists():
+            feed_delay = load_config().feed_delay
+    except Exception:  # noqa: BLE001  - the default delay is fine for the plan
+        pass
+    print(plan(market_now(), feed_delay=feed_delay, evening_done=evening_done))
+
+
+@session_app.command("step")
+def session_step(
+    kind: str = typer.Argument(..., help="tick (one look) or evening (the evening job)."),
+    no_publish: bool = typer.Option(False, "--no-publish", help="Do not publish the goats page."),
+    no_push: bool = typer.Option(False, "--no-push", help="Do not push the store branch."),
+) -> None:
+    """Make one step of the day and push the goats page and the store afterwards."""
+    _setup()
+    from osloquant.session import step
+
+    code = step(kind, publish=not no_publish, push=not no_push)
+    if code:
+        raise typer.Exit(code)
 
 
 @app.command()

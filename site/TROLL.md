@@ -6,9 +6,11 @@ goat new rules. It never trades, never advises anyone, and never claims to know 
 
 ## What it reads
 
-Run, from the repository root with its own environment:
+The accounts run on GitHub Actions and their books live on the `store` branch, so first bring them here, then
+export. From the repository root with its own environment:
 
 ```bash
+.venv/Scripts/python.exe -m osloquant.cli store pull
 .venv/Scripts/python.exe -m osloquant.cli goats --split <dir> --show
 ```
 
@@ -65,6 +67,7 @@ It is never cruel about the person running the shepherd's laptop, only direct: a
 oq goats troll "<line>" --kind verdict --goat <id>      # one per goat
 oq goats troll "<line>" --kind handsoff                 # or the rewrite command above, which logs itself
 oq goats --split <dir> --publish                        # the books and the log, to the goats branch
+oq store push --config-only                             # the log and any rewrite, to the store branch; never the books
 ```
 
 Then the artifact's store: one `batch` of `set` writes for `meta/state`, `goats/<id>`, `herd/latest`,

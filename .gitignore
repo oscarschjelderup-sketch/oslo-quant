@@ -14,3 +14,5 @@ Thumbs.db
 
 # The store lives outside the repo (~/osloquant-home by default). Yahoo's prices are not redistributed.
 *.db
+# a runner's home directory, when the store is checked out next to the code
+.home/
