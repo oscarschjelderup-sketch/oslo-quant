@@ -34,29 +34,39 @@ class Plan:
     kind: str
     #: seconds to wait before doing it
     wait: int
+    #: the look's scheduled time (Oslo), for the caller to hand back as ``after`` once it is made
+    when: pd.Timestamp | None = None
 
     def __str__(self) -> str:
-        return f"{self.kind} {self.wait}"
+        return f"{self.kind} {self.wait} {self.when.isoformat(timespec='minutes') if self.when is not None else '-'}"
 
 
 def market_now() -> pd.Timestamp:
     return pd.Timestamp.now(tz=MARKET_TIMEZONE).tz_localize(None)
 
 
-def plan(now: pd.Timestamp, feed_delay: pd.Timedelta = pd.Timedelta(minutes=15), evening_done: bool = False) -> Plan:
+def plan(
+    now: pd.Timestamp,
+    feed_delay: pd.Timedelta = pd.Timedelta(minutes=15),
+    evening_done: bool = False,
+    after: pd.Timestamp | None = None,
+) -> Plan:
     """What the loop does next at ``now`` (Oslo time): the next look, the evening step, or nothing more today.
 
-    Looks are due at the intraday engine's poll times. After the last one, the evening step is due at 17:05;
-    a run that starts later than that still makes the evening step once (``oq live`` changes nothing when the
-    accounts are already up to date), and is done after it. Weekends are done before they start.
+    Looks are due at the intraday engine's poll times; ``after`` is the last one made, so that a look a few
+    minutes overdue is made once and not again until the next is due. After the last look, the evening step is
+    due at 17:05; a run that starts later than that still makes the evening step once (``oq live`` changes
+    nothing when the accounts are already up to date), and is done after it. Weekends are done before they start.
     """
     from osloquant.intraday.engine import poll_times
 
     if now.dayofweek >= 5:
         return Plan("done", 0)
     for when in poll_times(now, feed_delay):
+        if after is not None and when <= after:
+            continue
         if when >= now - TICK_SLACK:
-            return Plan("tick", max(int((when - now).total_seconds()), 0))
+            return Plan("tick", max(int((when - now).total_seconds()), 0), when)
     if evening_done:
         return Plan("done", 0)
     evening = now.normalize() + pd.Timedelta(hours=EVENING.hour, minutes=EVENING.minute)

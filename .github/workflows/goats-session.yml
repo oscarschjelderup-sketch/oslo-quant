@@ -22,6 +22,10 @@ name: goats session
 on:
   schedule:
     # UTC. Oslo is UTC+2 until 25 October 2026 and UTC+1 after; the open is 09:00 Oslo, the first look 09:31.
+    # Measured on 20 October 2026: none of the four kick-starts in the hour before the open fired, nor the
+    # safety at 09:47; the first run came from the 11:47 schedule at 11:56. So the night gets kick-starts too
+    # (a run started then sleeps until the first look and hands over in time), as the oil repository learned.
+    - cron: "17 1,3,5 * * 1-5"     # night kick-starts
     - cron: "32,47 6 * * 1-5"      # kick-starts before the open
     - cron: "2,17 7 * * 1-5"
     - cron: "47 9,11,13 * * 1-5"   # safety restarts in case a chain died during the day
@@ -74,7 +78,7 @@ jobs:
           set +e                                    # one failed step must never end the day's loop
           budget=$(( 345 * 60 ))                    # stop here, inside the 355-minute job limit
           handoff_after=$(( 300 * 60 ))             # queue the successor from here on
-          started=$(date +%s); successor=0; evening_done=0
+          started=$(date +%s); successor=0; evening_done=0; last="-"
 
           handoff() {                               # three quick attempts; the loop tries again at the next tick
             for attempt in 1 2 3; do
@@ -87,8 +91,8 @@ jobs:
 
           while true; do
             flag=""; [ "$evening_done" = 1 ] && flag="--evening-done"
-            read -r kind wait < <(uv run --frozen -q oq session next-tick $flag 2>/dev/null | tail -1)
-            case "$wait" in ''|*[!0-9]*) echo "::warning::next-tick said '$kind $wait'; retrying in 15 min"; kind=retry; wait=900 ;; esac
+            read -r kind wait when < <(uv run --frozen -q oq session next-tick $flag --after "$last" 2>/dev/null | tail -1)
+            case "$wait" in ''|*[!0-9]*) echo "::warning::next-tick said '$kind $wait $when'; retrying in 15 min"; kind=retry; wait=900 ;; esac
             if [ "$kind" = "done" ]; then echo "$(date -u +%H:%M) nothing more today"; break; fi
             elapsed=$(( $(date +%s) - started ))
             if [ "$successor" = 0 ] && [ "$elapsed" -ge "$handoff_after" ]; then
@@ -102,9 +106,10 @@ jobs:
             fi
             [ "$wait" -gt 0 ] && sleep "$wait"
             if [ "$kind" = "retry" ]; then continue; fi
-            echo "=== $(date -u +%H:%M) UTC: $kind"
+            echo "=== $(date -u +%H:%M) UTC: $kind $when"
             uv run --frozen oq session step "$kind" || echo "::warning::$kind step returned $? at $(date -u +%H:%M)"
             [ "$kind" = "evening" ] && evening_done=1
+            [ "$kind" = "tick" ] && last="$when"
           done
 
       - name: Push the store once more (the books as this run leaves them)

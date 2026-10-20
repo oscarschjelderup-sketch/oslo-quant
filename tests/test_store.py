@@ -123,19 +123,31 @@ def test_push_and_pull_carry_the_store_through_a_branch(home, tmp_path):
 
 def test_the_plan_says_what_the_loop_does_next():
     delay = pd.Timedelta(minutes=15)
-    assert plan(pd.Timestamp("2026-10-19 08:00"), delay) == Plan("tick", 91 * 60)  # the first look is at 09:31
-    assert plan(pd.Timestamp("2026-10-19 10:32"), delay) == Plan("tick", 0)  # 10:31 is a minute gone: still made, now
+    assert plan(pd.Timestamp("2026-10-19 08:00"), delay) == Plan(
+        "tick", 91 * 60, pd.Timestamp("2026-10-19 09:31")
+    )  # the first look is at 09:31
+    assert plan(pd.Timestamp("2026-10-19 10:32"), delay) == Plan(
+        "tick", 0, pd.Timestamp("2026-10-19 10:31")
+    )  # 10:31 is a minute gone: still made, now
+    assert plan(pd.Timestamp("2026-10-19 10:32"), delay, after=pd.Timestamp("2026-10-19 10:31")) == Plan(
+        "tick", 14 * 60, pd.Timestamp("2026-10-19 10:46")
+    ), "made once: 10:46 is next"
+    assert (
+        str(plan(pd.Timestamp("2026-10-19 10:32"), delay)) == "tick 0 2026-10-19T10:31"
+        and str(Plan("done", 0)) == "done 0 -"
+    )
     assert plan(pd.Timestamp("2026-10-19 10:36"), delay) == Plan(
-        "tick", 10 * 60
+        "tick", 10 * 60, pd.Timestamp("2026-10-19 10:46")
     )  # five minutes gone: that bar is stale, 10:46 next
-    assert plan(pd.Timestamp("2026-10-19 10:30"), delay) == Plan("tick", 60)
-    assert plan(pd.Timestamp("2026-10-19 16:51"), delay) == Plan("evening", 14 * 60)  # the last look, 16:46, is past its slack
+    assert plan(pd.Timestamp("2026-10-19 10:30"), delay) == Plan("tick", 60, pd.Timestamp("2026-10-19 10:31"))
+    assert plan(pd.Timestamp("2026-10-19 16:51"), delay) == Plan(
+        "evening", 14 * 60
+    )  # the last look, 16:46, is past its slack
     assert plan(pd.Timestamp("2026-10-19 18:00"), delay) == Plan(
         "evening", 0
     )  # late start: the evening step is still made once
     assert plan(pd.Timestamp("2026-10-19 18:00"), delay, evening_done=True) == Plan("done", 0)
     assert plan(pd.Timestamp("2026-10-17 12:00"), delay) == Plan("done", 0)  # a Saturday
-    assert str(Plan("tick", 5)) == "tick 5"
 
 
 def test_the_manifest_is_json_the_page_and_people_can_read(home):

@@ -655,8 +655,13 @@ app.add_typer(session_app, name="session")
 @session_app.command("next-tick")
 def session_next_tick(
     evening_done: bool = typer.Option(False, "--evening-done", help="The evening step has been made in this run."),
+    after: str | None = typer.Option(
+        None,
+        "--after",
+        help="The scheduled time of the last look made, as next-tick printed it, so it is not made twice.",
+    ),
 ) -> None:
-    """Print what the loop does next and in how many seconds: 'tick N', 'evening N' or 'done 0'."""
+    """Print what the loop does next, in how many seconds, and the look's time: 'tick 540 2026-10-20T10:46', 'evening 0 -' or 'done 0 -'."""
     from osloquant.session import market_now, plan
 
     feed_delay = pd.Timedelta(minutes=15)
@@ -667,7 +672,8 @@ def session_next_tick(
             feed_delay = load_config().feed_delay
     except Exception:  # noqa: BLE001  - the default delay is fine for the plan
         pass
-    print(plan(market_now(), feed_delay=feed_delay, evening_done=evening_done))
+    last = pd.Timestamp(after) if after and after != "-" else None
+    print(plan(market_now(), feed_delay=feed_delay, evening_done=evening_done, after=last))
 
 
 @session_app.command("step")
@@ -1318,7 +1324,9 @@ def signals_digest(
 @signals_app.command("score")
 def signals_score(
     start: str = typer.Option("2010-01-01", help="First session of the measurement."),
-    write: bool = typer.Option(False, "--write", help="Update the odds file the alerts read (resources/signal_odds.yaml)."),
+    write: bool = typer.Option(
+        False, "--write", help="Update the odds file the alerts read (resources/signal_odds.yaml)."
+    ),
 ) -> None:
     """Measure every signal on the store's history: events, forward excess returns and hit rates."""
     _setup()
@@ -1332,8 +1340,18 @@ def signals_score(
     for col in ("signal", "kind", "events", "/month", "raw 20d", "exc 10d", "exc 20d", "exc 60d", "hit 20d", "t 20d"):
         t.add_column(col, justify="right" if col not in ("signal", "kind") else "left")
     for name, row in table.iterrows():
-        t.add_row(name, row["kind"], f"{row['events']:.0f}", f"{row['per_month']:.1f}", _pct(row["raw20"], 2), _pct(row["exc10"], 2),
-                  _pct(row["exc20"], 2), _pct(row["exc60"], 2), _pct(row["hit20"], 0), f"{row['t20']:.1f}")
+        t.add_row(
+            name,
+            row["kind"],
+            f"{row['events']:.0f}",
+            f"{row['per_month']:.1f}",
+            _pct(row["raw20"], 2),
+            _pct(row["exc10"], 2),
+            _pct(row["exc20"], 2),
+            _pct(row["exc60"], 2),
+            _pct(row["hit20"], 0),
+            f"{row['t20']:.1f}",
+        )
     console.print(t)
     console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it.")
     if write:
