@@ -9,7 +9,7 @@
 #   * the run pulls the live store from the `store` branch, brings the price history up to date, then asks
 #     `oq session next-tick` what to do and when, sleeps until then and runs `oq session step`: a look
 #     (`oq intraday poll --if-open`) or the evening job (`oq live`), each followed by `oq goats --publish`
-#     (the page) and `oq store push` (the books);
+#     (the page) and `oq store push --books-only` (the books; the runner never pushes the configuration);
 #   * five hours in it queues its successor with workflow_dispatch; the successor waits in the concurrency group
 #     and starts the moment this run ends, inside the six-hour job limit. The dispatch is retried at every tick;
 #   * `concurrency` with cancel-in-progress: false keeps exactly one loop alive: extra triggers wait, collapse
@@ -114,4 +114,4 @@ jobs:
 
       - name: Push the store once more (the books as this run leaves them)
         if: always()
-        run: uv run --frozen oq store push || echo "::warning::final store push failed"
+        run: uv run --frozen oq store push --books-only || echo "::warning::final store push failed"

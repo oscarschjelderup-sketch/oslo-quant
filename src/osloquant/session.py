@@ -9,7 +9,7 @@ next, sleeps until then, and runs ``oq session step``. The plan is pure and test
 - ``evening``: the evening job (``oq live``: record the day's bars, step the daily accounts), then the same pushes;
 - ``done``: nothing more today.
 
-Every step pushes the live store to the ``store`` branch, so the next run, on whatever machine, carries on from
+Every step reads the configuration from the ``store`` branch first and pushes only the books after it, so the next run, on whatever machine, carries on from
 there. A publish or push that fails is reported and does not undo the look.
 """
 
@@ -89,6 +89,12 @@ def step(kind: str, publish: bool = True, push: bool = True) -> int:
     push is printed and does not count against the step."""
     from osloquant import store
 
+    if push:
+        # a rewrite or a troll entry pushed from the laptop since this run started takes effect at this step
+        try:
+            store.pull(books=False, logs=False)
+        except Exception as e:  # noqa: BLE001  - the configuration this run already has will do
+            print(f"configuration pull failed: {type(e).__name__}: {e}", file=sys.stderr)
     if kind == "tick":
         code = _run_cli(["intraday", "poll", "--if-open"])
     elif kind == "evening":
@@ -101,7 +107,7 @@ def step(kind: str, publish: bool = True, push: bool = True) -> int:
             print(f"goats publish failed (exit {rc})", file=sys.stderr)
     if push:
         try:
-            commit = store.push()
+            commit = store.push(books_only=True)
             print(f"store pushed ({commit[:10]})")
         except Exception as e:  # noqa: BLE001  - the books are safe in the home; the next step pushes them
             print(f"store push failed: {type(e).__name__}: {e}", file=sys.stderr)

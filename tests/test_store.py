@@ -156,3 +156,59 @@ def test_the_manifest_is_json_the_page_and_people_can_read(home):
         manifest["accounts"] == []
         and json.loads((home / "packed" / "manifest.json").read_text(encoding="utf-8"))["schema"] == "store/1"
     )
+
+
+def test_the_troll_log_merges_and_never_shortens(tmp_path):
+    from osloquant.store import merge_troll
+
+    a = {"entries": [{"t": "2026-10-19T19:35:00Z", "kind": "verdict", "goat": "g", "text": "one"}]}
+    b = {"entries": [a["entries"][0], {"t": "2026-10-20T20:40:00Z", "kind": "handsoff", "text": "two"}]}
+    old, new = tmp_path / "old.json", tmp_path / "new.json"
+    old.write_text(json.dumps(a), encoding="utf-8")
+    new.write_text(json.dumps(b), encoding="utf-8")
+    assert merge_troll(new, old) == 2, "the older copy coming in takes nothing away"
+    assert [e["text"] for e in json.loads(new.read_text(encoding="utf-8"))["entries"]] == ["one", "two"]
+    assert (
+        merge_troll(old, new) == 2
+        and json.loads(old.read_text(encoding="utf-8"))["reviewed_at"] == "2026-10-20T20:40:00Z"
+    )
+    assert merge_troll(tmp_path / "none.json", new) == 2
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_the_runner_pushes_the_books_and_never_the_laptops_configuration(home, tmp_path):
+    polled_account(home)
+    remote, repo = tmp_path / "remote.git", tmp_path / "repo"
+    subprocess.run(["git", "init", "--bare", "--quiet", str(remote)], check=True)
+    subprocess.run(["git", "init", "--quiet", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "remote", "add", "origin", str(remote)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "t"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@t"], check=True)
+    (home / "troll.json").write_text(
+        json.dumps({"entries": [{"t": "2026-10-20T20:40:00Z", "kind": "verdict", "text": "the laptop's line"}]}),
+        encoding="utf-8",
+    )
+    push(repo=repo)  # the bootstrap: everything
+
+    # the runner's copy of troll.json is from the start of its run; the laptop has since written a new line
+    runner = tmp_path / "runner"
+    init_env(runner)
+    pull(repo=repo, home_dir=runner)
+    init_env(home)
+    entries = json.loads((home / "troll.json").read_text(encoding="utf-8"))["entries"]
+    (home / "troll.json").write_text(
+        json.dumps({"entries": [*entries, {"t": "2026-10-21T08:00:00Z", "kind": "note", "text": "new"}]}),
+        encoding="utf-8",
+    )
+    push(repo=repo, only=["troll.json"])  # the laptop's --config-only
+
+    init_env(runner)
+    push(repo=repo, books_only=True)  # the runner after a look
+    branch_log = subprocess.run(
+        ["git", "-C", str(repo), "show", "origin/store:troll.json"], capture_output=True, text=True, check=True
+    ).stdout
+    assert "new" in branch_log, "the runner's push left the laptop's troll entry alone"
+    (runner / "troll.json").unlink()
+    pull(repo=repo, home_dir=runner, books=False, logs=False)  # the runner reads the configuration before a step
+    assert "new" in (runner / "troll.json").read_text(encoding="utf-8")
+    init_env(home)

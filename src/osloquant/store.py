@@ -43,6 +43,11 @@ LIVE_TABLES = (
 CONFIG_FILES = ("live.yaml", "intraday.yaml", "goats.yaml", "troll.json")
 LOG_FILES = ("logs/live.log", "logs/intraday.log")
 MANIFEST = "manifest.json"
+#: what the runner owns and pushes: the books and the job logs. The configuration and the troll's log belong to
+#: the laptop, which pushes them with --config-only; the runner only ever reads them.
+BOOK_FILES = (PACKED_DB, *LOG_FILES, MANIFEST)
+#: the troll's log keeps at most this many entries when two copies are merged
+TROLL_KEEP = 60
 
 
 def home() -> Path:
@@ -139,15 +144,49 @@ def _merge_db(packed: Path, local: Path) -> list[str]:
     return names
 
 
-def unpack(src: Path, home_dir: Path | None = None, configs: bool = True, logs: bool = True) -> dict:
-    """Bring a packed store into a home directory. Returns the manifest (empty if the pack has none)."""
+def merge_troll(local: Path, incoming: Path) -> int:
+    """Merge two copies of the troll's log: every entry either holds, once, oldest first. Returns the entry count.
+
+    The log is only ever appended to, so a copy that lacks entries is behind, never ahead: a merge can never
+    lose a line, whichever copy is older.
+    """
+
+    def read(path: Path) -> dict:
+        try:
+            return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        except (OSError, ValueError):
+            return {}
+
+    mine, theirs = read(local), read(incoming)
+    seen, entries = set(), []
+    for entry in [*mine.get("entries", []), *theirs.get("entries", [])]:
+        key = (entry.get("t"), entry.get("kind"), entry.get("goat"), entry.get("text"))
+        if key not in seen:
+            seen.add(key)
+            entries.append(entry)
+    entries.sort(key=lambda e: e.get("t") or "")
+    entries = entries[-TROLL_KEEP:]
+    merged = {**theirs, **mine, "entries": entries, "reviewed_at": entries[-1]["t"] if entries else None}
+    local.parent.mkdir(parents=True, exist_ok=True)
+    local.write_text(json.dumps(merged, indent=1, ensure_ascii=False), encoding="utf-8")
+    return len(entries)
+
+
+def unpack(
+    src: Path, home_dir: Path | None = None, configs: bool = True, logs: bool = True, books: bool = True
+) -> dict:
+    """Bring a packed store into a home directory. Returns the manifest (empty if the pack has none).
+
+    ``books`` merges the accounts' rows into the home's trader database; ``configs`` copies the configuration
+    files over the home's and merges the troll's log (never shortening it); ``logs`` copies the job logs.
+    """
     from osloquant.contract.storage import dispose_engines
 
     home_dir = home() if home_dir is None else Path(home_dir)
     src = Path(src)
     manifest = json.loads((src / MANIFEST).read_text(encoding="utf-8")) if (src / MANIFEST).exists() else {}
     packed = src / PACKED_DB
-    if packed.exists():
+    if books and packed.exists():
         dispose_engines()  # the database file is about to change under any open connection
         local = home_dir / "data" / TRADER_DB
         local.parent.mkdir(parents=True, exist_ok=True)
@@ -158,36 +197,47 @@ def unpack(src: Path, home_dir: Path | None = None, configs: bool = True, logs: 
     wanted = (CONFIG_FILES if configs else ()) + (LOG_FILES if logs else ())
     for rel in wanted:
         source = src / rel
-        if source.exists():
-            target = home_dir / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+        if not source.exists():
+            continue
+        target = home_dir / rel
+        if rel == "troll.json":
+            merge_troll(target, source)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
     return manifest
 
 
 def push(
     only: list[str] | None = None,
+    books_only: bool = False,
     repo: Path | None = None,
     branch: str = BRANCH,
     home_dir: Path | None = None,
     message: str | None = None,
 ) -> str:
-    """Pack the store and put it on the branch. ``only`` limits the push to those files (for a laptop that may
-    change the configuration and the troll's log but must never overwrite the books). Returns the commit id."""
+    """Pack the store and put it on the branch as one commit; files already there and not pushed are kept.
+
+    ``only`` limits the push to those files: a laptop pushes its configuration and the troll's log this way and
+    never the books. ``books_only`` is the runner's push: the trader database, the job logs and the manifest,
+    never the configuration it only reads. With neither, everything goes (the first push of a store). Returns
+    the commit id.
+    """
     from osloquant.goats import publish_branch
 
     with tempfile.TemporaryDirectory() as tmp:
         manifest = pack(Path(tmp), home_dir=home_dir)
-        files = {rel: Path(tmp) / rel for rel in manifest["files"]}
-        if only is None:
-            files[MANIFEST] = Path(tmp) / MANIFEST
-        else:
-            missing = [rel for rel in only if rel not in files]
+        packed = {rel: Path(tmp) / rel for rel in [*manifest["files"], MANIFEST]}
+        if books_only:
+            files, what = {rel: path for rel, path in packed.items() if rel in BOOK_FILES}, "books"
+        elif only is not None:
+            missing = [rel for rel in only if rel not in packed or rel == MANIFEST]
             if missing:
                 raise FileNotFoundError(f"not in the store: {', '.join(missing)}")
-            files = {rel: files[rel] for rel in only}
+            files, what = {rel: packed[rel] for rel in only}, "configuration"
+        else:
+            files, what = packed, f"{len(manifest['accounts'])} accounts"
         stamp = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%MZ")
-        what = "configuration" if only is not None else f"{len(manifest['accounts'])} accounts"
         return publish_branch(files, repo=repo, branch=branch, message=message or f"store: {what} at {stamp}")
 
 
@@ -217,12 +267,13 @@ def pull(
     home_dir: Path | None = None,
     configs: bool = True,
     logs: bool = True,
+    books: bool = True,
 ) -> dict | None:
     """Fetch the branch and bring it into the home. Returns the manifest, or None when there is no branch yet."""
     folder = fetch(repo=repo, branch=branch)
     if folder is None:
         return None
     try:
-        return unpack(folder, home_dir=home_dir, configs=configs, logs=logs)
+        return unpack(folder, home_dir=home_dir, configs=configs, logs=logs, books=books)
     finally:
         shutil.rmtree(folder, ignore_errors=True)

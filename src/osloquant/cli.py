@@ -604,6 +604,11 @@ def store_push(
         "--config-only",
         help="Push only live.yaml, intraday.yaml, goats.yaml and troll.json: a laptop's changes, never its books.",
     ),
+    books_only: bool = typer.Option(
+        False,
+        "--books-only",
+        help="Push only the books and the job logs: what a runner owns. The branch keeps its configuration.",
+    ),
 ) -> None:
     """Pack the store and put it on the 'store' branch of this repository's origin as one commit."""
     _setup()
@@ -611,12 +616,12 @@ def store_push(
 
     only = [f for f in CONFIG_FILES if (home() / f).exists()] if config_only else None
     try:
-        commit = push(only=only)
+        commit = push(only=only, books_only=books_only)
     except Exception as e:
         console.print(f"[red]Push failed:[/red] {e}")
         raise typer.Exit(2) from e
     console.print(
-        f"Pushed {'the configuration' if config_only else 'the live store'} to the store branch ({commit[:10]})."
+        f"Pushed {'the configuration' if config_only else 'the books' if books_only else 'the live store'} to the store branch ({commit[:10]})."
     )
 
 
