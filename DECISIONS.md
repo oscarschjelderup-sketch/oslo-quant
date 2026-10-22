@@ -122,3 +122,24 @@ the cache on 22 Oct 2026: 13 matched, all correct on reading. No text is matched
 Each signal badge shows the average excess return after 20 and 60 sessions, the hit rate and the number of past
 signals behind them (`n`). Most hit rates are 45–48 %: the signals are close to a coin flip on this store's
 history, and the page says so instead of hiding it.
+
+## D12. The evening page is the dashboard's front page
+
+`oq signals digest` (run by the "oslo-quant signals" task) writes the front page as `signals/latest.html`, with
+the newest session's signals as "new", and the task opens it on a new session as before. Its links point at the
+running dashboard. The task first runs `oq dashboard --refresh-only`, so announcements and drivers are current. If
+the dashboard page fails for any reason, the classic signal page is written instead – the evening digest must never
+be lost to a dashboard bug.
+
+## D13. The Sunday summary
+
+`oq book weekly` (task "oslo-quant weekly", Sundays 18:00 local time) writes `weekly/<year>-W<week>.md/.html`:
+
+1. **Judgements that should have been made** – the front page's rules replayed at each session of the week with
+   the view and prices of that day; an item counts as answered only by a judgement or kill check *dated* on or after
+   it. Rows seeded from a written case keep the case's date, so they cannot answer later events.
+2. **Judgements logged** this week, and whether the log's chain verifies.
+3. **What changed** – the research book's week, sector medians, the five biggest moves each way, signal counts and
+   the signals on followed stocks, and the week's announcements for followed companies.
+
+It lists what was missed; it does not grade the judgements. The calibration page and the market do that.

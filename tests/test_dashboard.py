@@ -252,3 +252,55 @@ def test_no_tracked_file_holds_the_private_research_book():
         for line in text.splitlines():
             for fig in figures:
                 assert not all(re.search(rf"(?<![\w.]){re.escape(x)}(?![\w.])", line) for x in fig), f"case figures {fig} in {f}: {line[:80]}"
+
+
+# ------------------------------------------------------------------------------------------------ phase 3: the habit
+def test_evening_digest_writes_the_front_page_and_falls_back(monkeypatch, home):
+    from typer.testing import CliRunner
+
+    from osloquant import cli
+    from osloquant.dashboard import server as srv
+
+    snap = _snapshot()
+    monkeypatch.setattr(mk, "snapshot", lambda: snap)
+    monkeypatch.setattr(cli, "_signals_panel", lambda codes=None: snap.panel)
+    runner = CliRunner(env={"COLUMNS": "200"})
+    r = runner.invoke(cli.app, ["signals", "digest", "--quiet"])
+    assert r.exit_code == 0, r.output
+    latest = (sg.signals_dir() / "latest.html").read_text(encoding="utf-8")
+    assert "Dette krever en vurdering fra deg" in latest and "http://127.0.0.1:8060/" in latest
+
+    def broken(last_seen=None):
+        raise RuntimeError("no store")
+
+    monkeypatch.setattr(srv, "static_today_html", broken)
+    r = runner.invoke(cli.app, ["signals", "digest", "--quiet"])
+    assert r.exit_code == 0 and "classic page" in r.output
+    latest = (sg.signals_dir() / "latest.html").read_text(encoding="utf-8")
+    assert "<title>Signal watch" in latest                                    # the evening digest is still written
+
+
+def test_weekly_lists_a_missed_judgement_until_one_is_logged(monkeypatch, home):
+    from osloquant.dashboard import weekly
+
+    snap = _snapshot()
+    monkeypatch.setattr(mk, "snapshot", lambda: snap)
+    end = snap.asof
+    px = float(snap.panel["close"]["AAA"].iloc[-1])
+    p0 = round(px / 1.3, 2)                                                   # 30 % above the view's price all week
+    sg.book_path().write_text(
+        f"entries:\n  - code: AAA\n    name: Alpha\n    rating: BUY\n    valuation_date: 2025-09-01\n    price_at_valuation: {p0}\n"
+        f"    target: {round(px * 2, 2)}\n    bear: {round(p0 * 0.5, 2)}\n    bull: {round(px * 3, 2)}\n    kill:\n      - margin below 10%\n",
+        encoding="utf-8")
+    s = weekly.summary(end)
+    missed = [m for m in s["missed"] if m["code"] == "AAA" and m["kind"] == "re-assess"]
+    assert missed and missed[0]["date"] <= f"{end:%Y-%m-%d}"
+    assert "Judgements that should have been made" in weekly.to_markdown(s)
+    bk.write_judgement("AAA", "Alpha", {**GOOD, "target": round(px * 1.2, 2), "bear": None, "base": None, "bull": None,
+                                        "p_bear": None, "p_base": None, "p_bull": None, "kill": ["margin below 10%"]},
+                       px, f"{end:%Y-%m-%d}", mk.PRICE_SOURCE, today=f"{end:%Y-%m-%d}")
+    s = weekly.summary(end)
+    assert not [m for m in s["missed"] if m["code"] == "AAA" and m["kind"] == "re-assess"]
+    assert s["logged"] == []                                                  # logged today, not in that past week
+    md, html, _ = weekly.write(end)
+    assert md.parent == jg.home() / "weekly" and "Vurderinger som burde vært gjort" in html.read_text(encoding="utf-8")

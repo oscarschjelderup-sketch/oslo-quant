@@ -1312,7 +1312,15 @@ def signals_digest(
     text = sg.digest(P, alerts, book, names)
     session = alerts[0].session if alerts else f"{P['close'].index[-1]:%Y-%m-%d}"
     seen = sg.previous_session() == session
-    page = render_html(P, alerts, book, session, odds=sg.load_odds())
+    try:
+        # the dashboard's front page, with the signals of this session as "new"; the classic page if it fails
+        from osloquant.dashboard.server import static_today_html
+
+        before = P["close"].index[P["close"].index < pd.Timestamp(session)]
+        page = static_today_html(last_seen=f"{before[-1]:%Y-%m-%d}" if len(before) else None)
+    except Exception as e:  # noqa: BLE001 – the evening digest must be written whatever the dashboard does
+        console.print(f"[yellow]dashboard page failed ({type(e).__name__}: {e}); writing the classic page[/yellow]")
+        page = render_html(P, alerts, book, session, odds=sg.load_odds())
     md, js = sg.write_digest(text, alerts, session, page=page)
     if show:
         console.print(Markdown(text))
@@ -1489,6 +1497,31 @@ def book_monthly(record: bool = typer.Option(True, "--record/--no-record", help=
     console.print(f"written {out}")
     if not check.ok or problems:
         raise typer.Exit(1)
+
+
+@book_app.command("weekly")
+def book_weekly(
+    date: str | None = typer.Option(None, help="Any day of the week to summarise (default: this week)."),
+    open_page: bool = typer.Option(False, "--open", help="Open the HTML page in the browser."),
+    notify: bool = typer.Option(False, "--notify", help="Show a Windows notification with the count of missed judgements."),
+) -> None:
+    """The Sunday summary: what changed, judgements logged, and judgements that should have been logged."""
+    _setup()
+    import pandas as pd
+    from rich.markdown import Markdown
+
+    from osloquant import signals as sg
+    from osloquant.dashboard import weekly
+
+    md, html, s = weekly.write(pd.Timestamp(date) if date else None)
+    console.print(Markdown(md.read_text(encoding="utf-8")))
+    console.print(f"written {md} and {html.name}")
+    if open_page:
+        import webbrowser
+
+        webbrowser.open(html.as_uri())
+    if notify:
+        sg.notify(f"Week {s['monday']:%V}", f"{len(s['missed'])} judgement(s) that should have been made; {len(s['logged'])} logged.")
 
 
 @signals_app.command("publish")
