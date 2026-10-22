@@ -46,6 +46,7 @@ oq goats                 # three of the paper accounts as the document the Tradi
 oq lab                   # the documented strategies, tested for luck as well as for return
 oq check-factor GoldCrossFactor   # does a factor look into the future, or depend on its warm-up?
 oq ui                    # the dashboard at http://127.0.0.1:8050
+oq dashboard             # the decision dashboard at http://127.0.0.1:8060 (research book, signals, judgements)
 ```
 
 `oq record` can be run again at any time. It fetches only what is missing. Everything is stored as SQLite
@@ -478,6 +479,24 @@ still verifies as a chain) no longer matches an earlier head. Written to `~/oslo
 
 The public scorecard page (`site/signals.html`, written by `oq signals publish`) states the signal finding plainly,
 with the numbers: no technical buy signal pays after costs on this universe.
+
+### The decision dashboard
+
+`oq dashboard` serves a local page at http://127.0.0.1:8060 (Flask, bound to this machine only) that reads the
+store, the research book, the judgement log and cached feeds, and shows what needs a decision. Its front page lists
+what needs a judgement from you (a report passed with no kill check, a price at the target or a scenario value, a
+10 % move since the view, a risk signal on a followed stock), then the book against its targets, report dates,
+announcements and the signals new since the last visit with their measured odds. A sector page shows all 64 stocks
+with their drivers (Brent, NOK, salmon export price, rates; freight is licensed and said to be). Every stock page has
+a chart, key figures, signals, announcements and headlines (links only), the case with a reverse DCF read from its
+model, and a form that appends one judgement – date and price set by the server, rationale and a kill criterion
+required, nothing editable afterwards. A calibration page and a watchlist complete it.
+
+`oq dashboard --refresh` fetches the feeds first (Oslo Børs NewsWeb, Norges Bank, SSB, Yahoo, media RSS – see
+`docs/dashboard/data-sources.md`); the evening signal task does this and writes the front page as `latest.html`.
+`oq book weekly` is the Sunday summary – what changed, the judgements logged, and the ones the rules say should have
+been – registered as a Sunday task by `scripts/schedule_weekly.ps1`. The dashboard never trades and never steps a
+paper account. Design notes and sources: `DECISIONS.md`, `docs/dashboard/research.md`.
 
 ### Is it running?
 

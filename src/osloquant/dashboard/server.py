@@ -33,13 +33,14 @@ def _num(v):
         raise ValueError(f"'{v}' is not a number") from None
 
 
-def today_context(mark_seen: bool = True) -> dict:
+def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
+    """Everything the front page shows. Signals are those after ``last_seen`` (default: the last visit)."""
     snap = mk.snapshot()
     today = pd.Timestamp.now().normalize()
     cases = bk.cases()
     watch = bk.watchlist()
     state = td.load_state()
-    alerts, sessions = td.signals_since(snap, state.get("last_seen_session"))
+    alerts, sessions = td.signals_since(snap, last_seen or state.get("last_seen_session"))
     newest = [a for a in alerts if a.session == f"{snap.asof:%Y-%m-%d}"]
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
     ctx = dict(decisions=td.decisions(snap, cases, newest, today, watch), upcoming=td.upcoming(cases, today),
@@ -155,10 +156,14 @@ def create_app() -> Flask:
     return app
 
 
-def write_static_today(path: Path | None = None) -> Path:
-    """The front page as a static file (for the evening task); does not mark signals as seen."""
+def static_today_html(last_seen: str | None = None) -> str:
+    """The front page as a self-contained file (links point at the running dashboard); does not mark signals seen."""
+    return rd.today_page(today_context(mark_seen=False, last_seen=last_seen), static=True)
+
+
+def write_static_today(path: Path | None = None, last_seen: str | None = None) -> Path:
     path = path or (sg.signals_dir() / "latest.html")
-    path.write_text(rd.today_page(today_context(mark_seen=False), static=True), encoding="utf-8")
+    path.write_text(static_today_html(last_seen), encoding="utf-8")
     return path
 
 

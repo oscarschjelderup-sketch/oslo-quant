@@ -1,4 +1,5 @@
-# The signal watch: refresh the daily bars, scan the universe, write the digest and raise a toast.
+# The signal watch: refresh the daily bars and the dashboard's feeds, scan the universe, write the digest (the
+# dashboard's front page as latest.html) and raise a toast.
 #
 # Run by the Windows scheduled task that scripts\schedule_signals.ps1 registers, or by hand:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File "<repo>\scripts\run_signals.ps1"
@@ -27,6 +28,12 @@ $output | Out-File -FilePath $log -Append -Encoding utf8
 "record exit code $code" | Out-File -FilePath $log -Append -Encoding utf8
 if ($code -ne 0) { exit 2 }
 
+# announcements, rates, FX, salmon price, Brent and headlines for the dashboard; a failed feed keeps its old cache
+$output = & $oq dashboard --refresh-only 2>&1 | ForEach-Object { "$_" }
+$output | Out-File -FilePath $log -Append -Encoding utf8
+"feeds exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
+
+# latest.html is the dashboard's front page (oq dashboard serves the live version at http://127.0.0.1:8060)
 $output = & $oq signals digest --notify --open --quiet 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE
 $output | Out-File -FilePath $log -Append -Encoding utf8
