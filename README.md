@@ -459,6 +459,21 @@ What the scorecard says (2010-2026, 64 stocks, round trip ~0.5 %): no buy signal
 information: a breakdown below the 60-day low is followed by -0.9 % excess over 60 sessions, a death cross by
 -0.5 %. So the signals are a timing and risk layer on a case, not a strategy, and the digest says so.
 
+### The judgement log and the calibration report
+
+Every call on a company is written down when it is made and never edited: `oq book sync` logs each research-book
+entry whose view changed (date, price, rating, 12-month target, bear/base/bull values, scenario probabilities,
+kill criteria) as a new row of `~/osloquant-home/judgements.jsonl`; `oq book add` logs one by hand and
+`oq book kill` logs a kill-criterion check (breached or intact, and what was done). Each row carries the SHA-256
+of its content and of the row before it, so `oq book verify` finds any row changed, removed or reordered after the
+fact. `oq book calibrate` scores every call against what happened – total return from the call price (dividends
+included), excess over OSEBX, direction right or wrong, price against the target, inside the bear-bull band, a
+three-way Brier score of the scenarios once the horizon has passed, kill checks breached and acted on – and
+writes `~/osloquant-home/calibration.md`. Calls younger than their horizon are scored provisionally and marked so.
+
+The public scorecard page (`site/signals.html`, written by `oq signals publish`) states the signal finding plainly,
+with the numbers: no technical buy signal pays after costs on this universe.
+
 ### Is it running?
 
 A job that silently does not run looks exactly like a quiet market. `oq doctor` tells the two apart:

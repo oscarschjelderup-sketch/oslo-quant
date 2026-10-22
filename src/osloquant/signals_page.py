@@ -218,3 +218,38 @@ def render_html(P: dict[str, pd.DataFrame], alerts: list[Alert], book: list[dict
 <div class="foot">Buy signals are timing on a case you have written, not a reason on their own: on this universe no buy signal has had an edge after costs over 20 sessions. The risk signals carry more information. Written by <code>oq signals digest</code> (oslo-quant); paper and research only, no real money.</div>
 </div></body></html>
 """
+
+
+def public_page(odds: dict) -> str:
+    """The public scorecard: what each kind of technical signal has meant on Oslo Børs, and the plain conclusion.
+
+    No research book, no target prices, no daily alerts: a statement of evidence that can be published."""
+    sig = odds.get("signals", {})
+    m = odds.get("measured", {})
+    buys = {k: v for k, v in sig.items() if v.get("kind") == BUY}
+    best = max(buys.items(), key=lambda kv: kv[1].get("exc20") or -1) if buys else None
+    paying = [k for k, v in buys.items() if (v.get("exc20") or 0) > ROUND_TRIP_COST]
+    if best:
+        b = best[1]
+        verdict = (f"No buy signal pays after costs. The best of them, “{html.escape(best[0])}”, beat the equal-weighted market by "
+                   f"{_pct(b.get('exc20'))} over the next 20 sessions on average – less than the ~{ROUND_TRIP_COST * 100:.1f}% a round trip costs – "
+                   f"and was right {_pct(b.get('hit20'), 0, False)} of the time." if not paying else
+                   f"{len(paying)} buy signal(s) beat a {ROUND_TRIP_COST * 100:.1f}% round trip over 20 sessions: {', '.join(paying)}.")
+    else:
+        verdict = "No signals measured yet."
+    risk = {k: v for k, v in sig.items() if v.get("kind") == RISK}
+    worst = min(risk.items(), key=lambda kv: kv[1].get("exc60") or 0) if risk else None
+    risk_line = (f"The risk side carries more information: after “{html.escape(worst[0])}” the stock trailed the market by "
+                 f"{_pct(worst[1].get('exc60'))} over the next 60 sessions on average." if worst else "")
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signal scorecard</title><style>{CSS}</style></head>
+<body><div class="wrap">
+<h1>Do technical buy signals work on Oslo Børs?</h1>
+<div class="sub">Measured {m.get('from', '?')} to {m.get('to', '?')} on {m.get('stocks', '?')} stocks listed today. Entry at the next day's open; excess return = the stock minus the equal-weighted average of all of them over the same days.</div>
+<div class="card"><h3>The answer</h3><p style="font-size:17px;margin:8px 0">{verdict}</p><p class="muted" style="font-size:14px">{risk_line}</p>
+<p class="muted">So the signals are not a strategy. In this project they are used only as timing and risk alerts on companies with a written fundamental case, and every alert shows the odds below.</p></div>
+{odds_table(odds)}
+<div class="foot">Caveats: the universe is today's listed companies (survivorship bias flatters every result); costs assume a Nordnet Mini round trip of ~{ROUND_TRIP_COST * 100:.1f}%; the t-statistics treat overlapping windows as independent and so overstate significance. Reproduce with <code>oq signals score</code> in <a href="https://github.com/oscarschjelderup-sketch/oslo-quant">oslo-quant</a>. Research and paper trading only; nothing here is advice.</div>
+</div></body></html>
+"""
