@@ -1518,5 +1518,32 @@ def ui(
     main(host=host, port=port, debug=debug)
 
 
+@app.command()
+def dashboard(
+    port: int = typer.Option(8060),
+    refresh: bool = typer.Option(False, "--refresh", help="Fetch announcements, rates, FX, salmon, Brent and headlines first."),
+    refresh_only: bool = typer.Option(False, "--refresh-only", help="Fetch the feeds and exit (for scheduled tasks)."),
+    static: Path | None = typer.Option(None, "--static", help="Write the front page to this file and exit (does not mark signals seen)."),
+    no_browser: bool = typer.Option(False, "--no-browser"),
+) -> None:
+    """The Oslo Børs decision dashboard at http://127.0.0.1:8060 – reads the store, the research book and the
+    judgement log; writes only appended judgements and watchlist entries. Never trades, never steps an account."""
+    from osloquant.dashboard import feeds, market
+
+    if refresh or refresh_only:
+        out = feeds.refresh(sorted(market.snapshot().names))
+        for name, status in out.items():
+            console.print(f"  {name:<14} {'[green]ok[/]' if status == 'ok' else '[red]' + status + '[/]'}")
+        if refresh_only:
+            return
+    from osloquant.dashboard import server
+
+    if static is not None:
+        console.print(f"Front page written to {server.write_static_today(static)}")
+        return
+    console.print(f"Dashboard at http://127.0.0.1:{port}  (Ctrl+C to stop)")
+    server.main(port=port, open_browser=not no_browser)
+
+
 if __name__ == "__main__":
     app()

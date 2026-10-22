@@ -108,3 +108,17 @@ the reverse-DCF block (read from the private model) shows what the price implies
 - Every feed value carries its source, the observation date and when it was fetched.
 - Bear/base/bull values, probabilities and model values are the case's own estimates and are labelled EST.
 - Signal odds are the store's own measured history (`oq signals score`), shown with the sample behind them.
+
+## D10. Which headlines belong to a company
+
+A headline is shown on a stock page when it names the company: whole words, case-sensitive, with a short alias
+list where the press does not use the listed name (`NEWS_KEYS` in `dashboard/feeds.py`, e.g. "Norwegian" for
+Norwegian Air Shuttle, "Lerøy" for Lerøy Seafood). The longer names of other companies are removed first, so
+"Aker BP" is not news about Aker and "Odfjell Drilling" is not news about Odfjell. Checked on the 107 headlines in
+the cache on 22 Oct 2026: 13 matched, all correct on reading. No text is matched beyond the headline itself.
+
+## D11. Signal odds show their sample
+
+Each signal badge shows the average excess return after 20 and 60 sessions, the hit rate and the number of past
+signals behind them (`n`). Most hit rates are 45–48 %: the signals are close to a coin flip on this store's
+history, and the page says so instead of hiding it.
