@@ -1364,6 +1364,118 @@ def signals_score(
         console.print(f"odds written to {path}")
 
 
+# ------------------------------------------------------------------------------------------------ judgement log
+book_app = typer.Typer(
+    help="The judgement log: every call written down when made, never edited, scored later (calibration).",
+    no_args_is_help=True,
+)
+app.add_typer(book_app, name="book")
+
+
+def _float(value: str | None) -> float | None:
+    return None if value in (None, "") else float(value)
+
+
+@book_app.command("sync")
+def book_sync() -> None:
+    """Log every research-book entry (researchbook.yaml) whose view differs from its newest logged judgement."""
+    _setup()
+    from osloquant import judgements as jg
+    from osloquant import signals as sg
+
+    written = jg.sync_book(sg.load_book())
+    for r in written:
+        console.print(f"logged #{r['seq']} {r['code']} {r['rating']} TP {r['target']} at {r['price']} ({r['date']})")
+    check = jg.verify()
+    console.print(f"{len(written)} new judgement(s); log {check.rows} rows, head {check.head[:16]}")
+
+
+@book_app.command("add")
+def book_add(
+    code: str = typer.Option(..., help="Stock code, e.g. SATS."),
+    date: str = typer.Option(..., help="Date of the call, YYYY-MM-DD."),
+    price: float = typer.Option(..., help="Share price the call was made at."),
+    rating: str = typer.Option(..., help="BUY, HOLD or SELL."),
+    target: float = typer.Option(..., help="12-month target price."),
+    bear: str = typer.Option(None), base: str = typer.Option(None), bull: str = typer.Option(None),
+    p_bear: str = typer.Option(None), p_base: str = typer.Option(None), p_bull: str = typer.Option(None),
+    horizon: int = typer.Option(12, help="Horizon in months."),
+    kill: list[str] = typer.Option(None, help="A kill criterion; repeat the option for several."),
+    thesis: str = typer.Option(None, help="The thesis in one sentence."),
+) -> None:
+    """Log one judgement by hand. A changed view is a new row; nothing earlier is edited."""
+    _setup()
+    from osloquant import judgements as jg
+
+    row = jg.append("judgement", dict(code=code, date=date, price=price, rating=rating.upper(), target=target,
+                                      horizon_months=horizon, bear=_float(bear), base=_float(base), bull=_float(bull),
+                                      p_bear=_float(p_bear), p_base=_float(p_base), p_bull=_float(p_bull),
+                                      kill=kill or None, thesis=thesis))
+    console.print(f"logged #{row['seq']}, head {row['hash'][:16]}")
+
+
+@book_app.command("kill")
+def book_kill(
+    code: str = typer.Option(...), date: str = typer.Option(..., help="Date of the check (usually a report date)."),
+    criterion: str = typer.Option(..., help="The kill criterion checked."),
+    breached: bool = typer.Option(..., "--breached/--intact"),
+    action: str = typer.Option(..., help="What you did: held, reviewed, cut, sold, new judgement ..."),
+) -> None:
+    """Log a kill-criterion check: was it breached, and what did you do."""
+    _setup()
+    from osloquant import judgements as jg
+
+    row = jg.append("kill_check", dict(code=code, date=date, criterion=criterion, breached=breached, action=action))
+    console.print(f"logged #{row['seq']}, head {row['hash'][:16]}")
+
+
+@book_app.command("verify")
+def book_verify() -> None:
+    """Check that no logged row was changed, removed or reordered."""
+    _setup()
+    from osloquant import judgements as jg
+
+    check = jg.verify()
+    if check.ok:
+        console.print(f"[green]ok[/green] {check.rows} rows, head {check.head}")
+    else:
+        for problem in check.problems:
+            console.print(f"[red]{problem}[/red]")
+        raise typer.Exit(1)
+
+
+@book_app.command("calibrate")
+def book_calibrate(write: bool = typer.Option(True, "--write/--no-write", help="Write ~/osloquant-home/calibration.md.")) -> None:
+    """Score every logged judgement against what happened."""
+    _setup()
+    from rich.markdown import Markdown
+
+    from osloquant import judgements as jg
+
+    check = jg.verify()
+    table, summary = jg.calibration()
+    text = jg.report_markdown(table, summary, check)
+    console.print(Markdown(text))
+    if write:
+        out = jg.home() / "calibration.md"
+        out.write_text(text, encoding="utf-8")
+        console.print(f"written {out}")
+
+
+@signals_app.command("publish")
+def signals_publish(
+    out: Path = typer.Option(None, help="Where to write the public page (default: site/signals.html in the repo)."),
+) -> None:
+    """Write the public scorecard page: what each signal kind has meant, with the plain conclusion. No research book."""
+    _setup()
+    from osloquant import signals as sg
+    from osloquant.signals_page import public_page
+
+    target = out or (Path(__file__).resolve().parents[2] / "site" / "signals.html")
+    target.write_text(public_page(sg.load_odds()), encoding="utf-8")
+    console.print(f"written {target}")
+
+
 @app.command()
 def ui(
     host: str = typer.Option("127.0.0.1"),
