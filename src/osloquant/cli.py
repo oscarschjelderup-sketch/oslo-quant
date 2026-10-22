@@ -1462,6 +1462,35 @@ def book_calibrate(write: bool = typer.Option(True, "--write/--no-write", help="
         console.print(f"written {out}")
 
 
+@book_app.command("monthly")
+def book_monthly(record: bool = typer.Option(True, "--record/--no-record", help="Append the log head to judgements-heads.txt.")) -> None:
+    """The monthly routine's numbers: status of every research-book case, kill criteria due, calibration, log head."""
+    _setup()
+    import pandas as pd
+    from rich.markdown import Markdown
+
+    from osloquant import judgements as jg
+    from osloquant import signals as sg
+
+    check = jg.verify()
+    problems = jg.heads_consistent(check)
+    rows = jg.read_log()
+    first = min((pd.Timestamp(j["date"]) for j in jg.judgements(rows)), default=pd.Timestamp.now()) - pd.Timedelta(days=10)
+    prices = jg.load_prices(start=first)
+    table, summary = jg.calibration(rows, prices=prices)
+    today = pd.Timestamp.now().normalize()
+    text = jg.monthly_markdown(sg.load_book(), prices, table, summary, check, problems, today)
+    out = jg.home() / "monthly" / f"{today:%Y-%m}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    if record and check.ok and not problems:
+        jg.record_head(check)
+    console.print(Markdown(text))
+    console.print(f"written {out}")
+    if not check.ok or problems:
+        raise typer.Exit(1)
+
+
 @signals_app.command("publish")
 def signals_publish(
     out: Path = typer.Option(None, help="Where to write the public page (default: site/signals.html in the repo)."),

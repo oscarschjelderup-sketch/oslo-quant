@@ -215,19 +215,22 @@ def score(j: dict, prices: Prices, asof: pd.Timestamp, kills: list[dict]) -> dic
     out = {"seq": j["seq"], "code": code, "date": j["date"], "rating": j["rating"], "price": j["price"], "target": j["target"],
            "bear": j.get("bear"), "bull": j.get("bull"), "horizon_end": f"{horizon_end:%Y-%m-%d}", "scored_to": f"{end:%Y-%m-%d}",
            "final": final, "days": int((end - start).days)}
-    raw = prices.price_on(prices.raw, code, end) or prices.price_on(prices.adjusted, code, end)
-    if raw is None or end <= start:
+    adj_s, adj_e = prices.price_on(prices.adjusted, code, start), prices.price_on(prices.adjusted, code, end)
+    raw_s, raw_e = prices.price_on(prices.raw, code, start), prices.price_on(prices.raw, code, end)
+    if adj_s is None or adj_e is None or end <= start:
         out["status"] = "no prices yet"
         return out
-    out["price_now"] = raw[1]
-    # total return from the price the call was made at: the quoted price change, times the dividend factor the
-    # adjusted series adds over the same days (adjusted return / quoted return)
-    div_factor = 1.0
-    adj_r = _ret(prices.adjusted, start, end, code) if code in prices.adjusted.columns else None
-    raw_r = _ret(prices.raw, start, end, code) if code in prices.raw.columns else None
-    if adj_r is not None and raw_r is not None and raw_r > -1:
-        div_factor = (1 + adj_r) / (1 + raw_r)
-    out["tsr"] = raw[1] / j["price"] * div_factor - 1
+    # the quoted (raw) series is recorded only on request and may lag the adjusted one: use it only on the same date
+    same_s = raw_s is not None and raw_s[0] == adj_s[0]
+    same_e = raw_e is not None and raw_e[0] == adj_e[0]
+    base_close = raw_s[1] if same_s else adj_s[1]
+    # total return from the call price: the adjusted series carries the dividends; the call price may differ from
+    # that day's close
+    out["tsr"] = adj_e[1] / adj_s[1] * base_close / j["price"] - 1
+    factor = raw_s[1] / adj_s[1] if same_s else 1.0
+    out["price_now"] = raw_e[1] if same_e else adj_e[1] * factor     # quoted price (approximate when the raw series lags)
+    out["price_date"] = f"{adj_e[0]:%Y-%m-%d}"
+    raw = (adj_e[0], out["price_now"])
     idx = _ret(prices.index, start, end) if len(prices.index) else None
     out["osebx"] = idx
     before = prices.adjusted[prices.adjusted.index <= start]
@@ -329,4 +332,73 @@ def report_markdown(table: pd.DataFrame, summary: dict, check: Verification | No
     out.append("")
     out.append("_Provisional rows are scored on the price so far; only final rows (12-month horizon reached) count as evidence. "
                "Direction for BUY/SELL is the sign of the excess return over OSEBX; HOLD is right within ±10 %._")
+    return "\n".join(out) + "\n"
+
+
+# ------------------------------------------------------------------------------------------------ monthly routine
+HEADS_FILE = "judgements-heads.txt"
+
+
+def record_head(check: Verification, when: datetime | None = None) -> Path:
+    """Append the log's head hash with a timestamp: a copy kept apart from the log, so a rewritten log shows."""
+    p = home() / HEADS_FILE
+    with p.open("a", encoding="utf-8", newline="\n") as f:
+        f.write(f"{(when or datetime.now(UTC)).strftime('%Y-%m-%dT%H:%M:%SZ')} rows={check.rows} head={check.head}\n")
+    return p
+
+
+def heads_consistent(check: Verification) -> list[str]:
+    """Every recorded head must still be the hash of the row it pointed at (the log only grows)."""
+    p = home() / HEADS_FILE
+    if not p.exists():
+        return []
+    rows = read_log()
+    problems = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        parts = dict(x.split("=", 1) for x in line.split()[1:])
+        n, head = int(parts["rows"]), parts["head"]
+        if n == 0:
+            continue
+        if n > len(rows) or rows[n - 1].get("hash") != head:
+            problems.append(f"recorded head at row {n} ({line.split()[0]}) no longer matches the log")
+    return problems
+
+
+def monthly_markdown(book: list[dict], prices: Prices, table: pd.DataFrame, summary: dict, check: Verification,
+                     head_problems: list[str], today: pd.Timestamp) -> str:
+    out = [f"# Monthly routine – {today:%B %Y}", "",
+           f"Judgement log: {check.rows} rows, chain {'verifies' if check.ok else 'BROKEN'}; recorded heads "
+           f"{'consistent' if not head_problems else 'INCONSISTENT: ' + '; '.join(head_problems)}.", ""]
+    out.append("## Status of every case in the research book")
+    out.append("| Code | Rating | TP | Price | to TP | to bear | to bull | Since call | Next event | Kill checks logged |")
+    out.append("|---|---|---|---|---|---|---|---|---|---|")
+    latest = latest_by_code()
+    kills = [r for r in read_log() if r["kind"] == "kill_check"]
+    for e in book:
+        code = e["code"]
+        got = prices.price_on(prices.raw, code, today) or prices.price_on(prices.adjusted, code, today)
+        if not got:
+            out.append(f"| {code} | {e.get('rating', '')} | {e.get('target', '')} | – | – | – | – | – | – | – |")
+            continue
+        px = got[1]
+        j = latest.get(code)
+        since = px / j["price"] - 1 if j else None
+        upcoming = [ev for ev in e.get("events", []) if pd.Timestamp(ev["date"]) >= today]
+        nxt = f"{pd.Timestamp(upcoming[0]['date']):%d %b} {upcoming[0]['what'][:40]}" if upcoming else "–"
+        k = sum(1 for r in kills if r["code"] == code)
+        tp, bear, bull = e.get("target"), e.get("bear"), e.get("bull")
+        out.append(f"| {code} | {e.get('rating', '')} | {tp} | {px:.2f} | {_p(tp / px - 1) if tp else '–'} | "
+                   f"{_p(bear / px - 1) if bear else '–'} | {_p(bull / px - 1) if bull else '–'} | {_p(since)} | {nxt} | {k} |")
+    out.append("")
+    out.append("## Kill criteria to check this month")
+    for e in book:
+        due = [ev for ev in e.get("events", []) if today - pd.Timedelta(days=31) <= pd.Timestamp(ev["date"]) <= today]
+        if due:
+            out.append(f"- **{e['code']}** had {', '.join(ev['what'][:50] for ev in due)}: check each criterion and log it with "
+                       f"`oq book kill` (breached or intact, and what you did):")
+            out += [f"  - {k}" for k in e.get("kill", [])]
+    if out[-1] == "## Kill criteria to check this month":
+        out.append("- no report fell in the last month")
+    out.append("")
+    out.append(report_markdown(table, summary, None).split("\n", 2)[2])
     return "\n".join(out) + "\n"

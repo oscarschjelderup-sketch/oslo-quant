@@ -105,3 +105,16 @@ def test_public_page_states_the_verdict():
     page = public_page(odds)
     assert "No buy signal pays after costs" in page and "+0.3%" in page or "+0.4%" in page
     assert "Breakdown below 60d low" in page and "-0.9%" in page and "survivorship" in page
+
+
+def test_recorded_heads_catch_a_rewritten_log(home):
+    jg.append("judgement", _call(), now=T0)
+    check = jg.verify()
+    jg.record_head(check)
+    assert jg.heads_consistent(check) == []
+    # rewrite the whole log consistently (a new chain) – verify() passes, the recorded head does not
+    path = jg.log_path()
+    path.unlink()
+    jg.append("judgement", _call(target=150.0, bull=180.0), now=T0)
+    assert jg.verify().ok
+    assert jg.heads_consistent(jg.verify()) and "no longer matches" in jg.heads_consistent(jg.verify())[0]

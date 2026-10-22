@@ -471,6 +471,11 @@ included), excess over OSEBX, direction right or wrong, price against the target
 three-way Brier score of the scenarios once the horizon has passed, kill checks breached and acted on – and
 writes `~/osloquant-home/calibration.md`. Calls younger than their horizon are scored provisionally and marked so.
 
+`oq book monthly` is the monthly routine's numbers: the status of every research-book case against its target,
+bear and bull, the kill criteria due after the month's reports, the calibration report, and the log's head hash
+appended to `~/osloquant-home/judgements-heads.txt` – a record kept apart from the log, so a rewritten log (one that
+still verifies as a chain) no longer matches an earlier head. Written to `~/osloquant-home/monthly/YYYY-MM.md`.
+
 The public scorecard page (`site/signals.html`, written by `oq signals publish`) states the signal finding plainly,
 with the numbers: no technical buy signal pays after costs on this universe.
 
