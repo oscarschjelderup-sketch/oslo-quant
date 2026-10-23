@@ -5,6 +5,16 @@ measured:
   entry: next open
   excess: vs equal-weighted universe
   round_trip_cost: 0.005
+  bracket:
+    entry: next open
+    target: entry x (1 + cost) + R
+    stop: entry - R
+    R: 2 x ATR(20) on the signal day
+    decided_by: first daily close at or beyond a level
+    round_trip_cost: 0.005
+    horizons:
+    - 20
+    - 60
 signals:
   Breakout 60d high + volume:
     events: 3463.0
@@ -22,6 +32,19 @@ signals:
     hit60: 0.5032
     t60: 3.8997
     kind: BUY
+    bracket:
+      h20:
+        target: 0.414
+        stop: 0.3826
+        neither: 0.2034
+        mean_R: -0.0201
+        events: 3437
+      h60:
+        target: 0.5284
+        stop: 0.4624
+        neither: 0.0093
+        mean_R: 0.0184
+        events: 3348
   Breakout 20d high + volume:
     events: 5490.0
     per_month: 27.3458
@@ -38,6 +61,19 @@ signals:
     hit60: 0.497
     t60: 4.0513
     kind: BUY
+    bracket:
+      h20:
+        target: 0.4196
+        stop: 0.3727
+        neither: 0.2077
+        mean_R: -0.001
+        events: 5436
+      h60:
+        target: 0.5317
+        stop: 0.4583
+        neither: 0.01
+        mean_R: 0.0286
+        events: 5274
   New 52-week high:
     events: 5850.0
     per_month: 29.139
@@ -54,6 +90,19 @@ signals:
     hit60: 0.4906
     t60: 2.5099
     kind: BUY
+    bracket:
+      h20:
+        target: 0.3917
+        stop: 0.3979
+        neither: 0.2105
+        mean_R: -0.0675
+        events: 5801
+      h60:
+        target: 0.5056
+        stop: 0.4847
+        neither: 0.0097
+        mean_R: -0.0363
+        events: 5669
   Rising channel entry:
     events: 6026.0
     per_month: 30.0157
@@ -70,6 +119,19 @@ signals:
     hit60: 0.4947
     t60: 3.8258
     kind: BUY
+    bracket:
+      h20:
+        target: 0.419
+        stop: 0.3461
+        neither: 0.2349
+        mean_R: 0.0326
+        events: 5955
+      h60:
+        target: 0.5459
+        stop: 0.4349
+        neither: 0.0192
+        mean_R: 0.0681
+        events: 5831
   Golden cross MA 20/60:
     events: 1916.0
     per_month: 9.5436
@@ -86,6 +148,19 @@ signals:
     hit60: 0.4737
     t60: -0.4301
     kind: INFO
+    bracket:
+      h20:
+        target: 0.4101
+        stop: 0.3603
+        neither: 0.2297
+        mean_R: 0.0024
+        events: 1907
+      h60:
+        target: 0.524
+        stop: 0.4593
+        neither: 0.0167
+        mean_R: 0.0206
+        events: 1857
   Breakdown below 60d low:
     events: 5080.0
     per_month: 25.3036
@@ -102,6 +177,19 @@ signals:
     hit60: 0.4539
     t60: -2.7092
     kind: RISK
+    bracket:
+      h20:
+        target: 0.395
+        stop: 0.3582
+        neither: 0.2467
+        mean_R: 0.0135
+        events: 4997
+      h60:
+        target: 0.5271
+        stop: 0.4463
+        neither: 0.0266
+        mean_R: 0.0458
+        events: 4927
   Death cross MA 20/60:
     events: 1934.0
     per_month: 9.6333
@@ -118,6 +206,19 @@ signals:
     hit60: 0.4682
     t60: -1.0629
     kind: RISK
+    bracket:
+      h20:
+        target: 0.3546
+        stop: 0.3593
+        neither: 0.2862
+        mean_R: -0.0518
+        events: 1901
+      h60:
+        target: 0.4947
+        stop: 0.4813
+        neither: 0.0241
+        mean_R: -0.0283
+        events: 1870
   Drawdown 10% from 60d high:
     events: 5970.0
     per_month: 29.7367
@@ -134,6 +235,19 @@ signals:
     hit60: 0.4637
     t60: 0.3887
     kind: RISK
+    bracket:
+      h20:
+        target: 0.3765
+        stop: 0.3433
+        neither: 0.2802
+        mean_R: -0.0081
+        events: 5867
+      h60:
+        target: 0.5159
+        stop: 0.4569
+        neither: 0.0271
+        mean_R: 0.021
+        events: 5747
   Falling channel entry:
     events: 3309.0
     per_month: 16.4822
@@ -150,3 +264,16 @@ signals:
     hit60: 0.4575
     t60: -3.8639
     kind: RISK
+    bracket:
+      h20:
+        target: 0.4
+        stop: 0.3411
+        neither: 0.2589
+        mean_R: 0.015
+        events: 3275
+      h60:
+        target: 0.5229
+        stop: 0.4441
+        neither: 0.033
+        mean_R: 0.0417
+        events: 3213

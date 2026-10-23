@@ -304,3 +304,26 @@ def test_weekly_lists_a_missed_judgement_until_one_is_logged(monkeypatch, home):
     assert s["logged"] == []                                                  # logged today, not in that past week
     md, html, _ = weekly.write(end)
     assert md.parent == jg.home() / "weekly" and "Vurderinger som burde vært gjort" in html.read_text(encoding="utf-8")
+
+
+# ------------------------------------------------------------------------------------------------ outcome odds (part 1)
+def test_stock_page_shows_outcome_odds_with_the_reality_check(app, monkeypatch):
+    from osloquant.dashboard import odds
+
+    client, snap = app
+    monkeypatch.setattr(odds, "long_closes", lambda: snap.panel["close"])
+    odds._case_odds_cached.cache_clear()
+    page = client.get("/stock/AAA").get_data(as_text=True)
+    assert "Utfallsodds" in page and "realitetssjekk, ikke en prognose" in page
+    assert "Break-even" in page and "stedfortreder" in page                 # no kill level yet: the bear value stands in
+    assert "Simulering" in page and "Historiske tilfeller" in page and "Tilfeller" in page
+
+
+def test_the_kill_level_is_stored_and_must_sit_on_the_right_side(app):
+    client, snap = app
+    px = float(snap.panel["close"]["BBB"].iloc[-1])
+    bad = client.post("/stock/BBB/judge", data={**GOOD, "kill_level": f"{px * 1.1:.2f}"})
+    assert bad.status_code == 400 and "kill level must be below the price" in bad.get_data(as_text=True)
+    assert client.post("/stock/BBB/judge", data={**GOOD, "kill_level": f"{px * 0.8:.2f}"}).status_code == 303
+    (row,) = jg.read_log()
+    assert row["kill_level"] == pytest.approx(round(px * 0.8, 2))

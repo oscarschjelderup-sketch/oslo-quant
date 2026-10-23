@@ -40,6 +40,12 @@ button.go { margin-top:12px; padding:9px 18px; border:0; border-radius:8px; back
 .err { background:var(--risk-bg); color:var(--risk); padding:8px 12px; border-radius:8px; margin:8px 0; }
 .ok { background:var(--buy-bg); color:var(--buy); padding:8px 12px; border-radius:8px; margin:8px 0; }
 .news li { margin:4px 0; } .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:14px; }
+.warn { background:#fff4d6; color:#7a5200; padding:8px 12px; border-radius:8px; margin:8px 0; font-size:13.5px; }
+@media (prefers-color-scheme: dark) { .warn { background:#3a2f12; color:#f2d48a; } }
+table.odds td, table.odds th { text-align:right; font-variant-numeric:tabular-nums; } table.odds td:first-child, table.odds th:first-child { text-align:left; }
+table.odds th.grp { text-align:center; border-bottom:1px solid var(--line); }
+.t { color:var(--buy); font-weight:700; } .k { color:var(--risk); font-weight:700; }
+.bracket { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
 """
 
 NAV = [("/", "I dag"), ("/sectors", "Sektorer"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning")]
@@ -168,7 +174,8 @@ def stock_page(code: str, ctx: dict) -> str:
             ("Trend", sg.trend_words(st)), ("YTD", pct(ctx.get("ytd")))]
     keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v)}</li>" for k, v in keys) + '</ul><div class="src">Computed from the store\'s daily bars (delayed).</div>'
     sig = "".join(f'<div class="alert"><b>{E(a.kind)}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {"buy" if (a.exc60 or 0) > 0 else "risk"} odds">'
-                  f'{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span><span class="d">{E(a.detail)}</span></div>' for a in ctx["alerts"]) or '<p class="empty">no signal in the last 10 sessions</p>'
+                  f'{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span><span class="d">{E(a.detail)}{bracket_line(a.signal)}</span></div>'
+                  for a in ctx["alerts"]) or '<p class="empty">no signal in the last 10 sessions</p>'
     news = ctx.get("news")
     nhtml = ("<ul class='news'>" + "".join(f'<li>{when(n["time"])} – <a href="{E(n.get("url") or n.get("link", ""))}" target="_blank" rel="noopener">{E(n["title"])}</a> <span class="src">{E(n.get("kind", ""))}</span></li>' for n in news["items"])
              + f"</ul><div class='src'>{E(news['source'])}</div>") if news and news["items"] else (
@@ -179,14 +186,82 @@ def stock_page(code: str, ctx: dict) -> str:
              f'<div class="card"><h3>Børsmeldinger og nyheter</h3>{nhtml}</div>']
     if c:
         parts.append(case_block(c, st["price"], ctx.get("rdcf")))
+        parts.append(odds_block(ctx.get("odds"), c.view or {}))
     parts.append(judge_form(code, name, st["price"], ctx["price_label"], ctx.get("form", {}), c))
     return page(f"{code}", "", "\n".join(parts))
+
+
+REALITY = ('<div class="warn"><b>En realitetssjekk, ikke en prognose.</b> Tallene sier hvor ofte kurser som denne har nådd ett av '
+           'nivåene først i historikken. Rapporter, renter og nyheter kan gjøre ting historikken aldri har gjort.</div>')
+
+
+def _int(n) -> str:
+    return f"{int(n):,}".replace(",", "\u202f")
+
+
+def _p(x) -> str:
+    return "–" if x is None or x != x else f"{x * 100:.0f} %"
+
+
+def odds_block(o, view: dict) -> str:
+    """Target first / kill level first / neither, by simulation and by historical cases (dashboard/odds.py)."""
+    if o is None:
+        return ""
+    stand_in = (' <span class="src">(kill-nivået er bear-verdien som stedfortreder – sett et eget kill-nivå i neste vurdering)</span>'
+                if "bear" in o.kill_source else "")
+    head = f'<h3>Utfallsodds: kursmål {o.target:g} først, kill-nivå {o.kill:g} først, eller ingen av dem{stand_in}</h3>'
+    if o.note:
+        return f'<div class="card">{head}{REALITY}<p class="empty">{E(o.note)}</p></div>'
+    rows = []
+    for lab in o.simulation:
+        s, u, w = o.simulation[lab], o.universe[lab], o.own[lab]
+        cell = lambda x: (f'<td class="t">{_p(x.target)}</td><td class="k">{_p(x.kill)}</td><td>{_p(x.neither)}</td>')  # noqa: E731
+        rows.append(f'<tr><td>{E(lab)}</td>{cell(s)}{cell(u)}<td>{_int(u.n)}</td>{cell(w)}<td>{_int(w.n) if w.n else E(w.note or "–")}</td></tr>')
+    s0 = next(iter(o.simulation.values()))
+    u0 = o.universe[list(o.universe)[-1]]
+    w0 = o.own[list(o.own)[-1]]
+    table = ('<table class="odds"><thead><tr><th></th><th class="grp" colspan="3">Simulering, egne avkastninger</th>'
+             '<th class="grp" colspan="4">Historiske tilfeller, alle 64 aksjer</th><th class="grp" colspan="4">Aksjens egen historikk</th></tr>'
+             '<tr><th>Horisont</th>' + '<th>Mål først</th><th>Kill først</th><th>Ingen</th>' * 1
+             + '<th>Mål først</th><th>Kill først</th><th>Ingen</th><th>Tilfeller</th>' * 2 + '</tr></thead><tbody>' + "".join(rows) + '</tbody></table>')
+    from osloquant.dashboard.odds import breakeven
+
+    r, be = breakeven(o.price, o.target, o.kill)
+    s12 = list(o.simulation.values())[-1]
+    decided = s12.target + s12.kill
+    share = s12.target / decided if decided else float("nan")
+    gap = share - be
+    lean = ("nær myntkast" if abs(gap) < 0.05 else ("heller mot målet" if gap > 0 else "heller mot kill-nivået") if abs(gap) < 0.15
+            else ("klart mot målet" if gap > 0 else "klart mot kill-nivået"))
+    verdict = (f'<p style="margin:8px 0"><b>Break-even:</b> målet ligger {pct(o.target / o.price - 1, 0)} unna og kill-nivået {pct(o.kill / o.price - 1, 0)} '
+               f'(R = {r:.2f}), så målet må nås først i {_p(be)} av tilfellene som når et nivå. Simuleringen over 12 mnd (EST): {_p(share)} – {lean}.'
+               + (f' «Ingen» er {_p(s12.neither)}: da avgjør kursen ved horisonten, ikke nivåene.' if s12.neither > 0.4 else '') + '</p>')
+    mine = ""
+    if all(view.get(k) is not None for k in ("p_bear", "p_base", "p_bull")):
+        mine = (f'<div class="src" style="margin-top:6px">Ditt syn: bear {_p(view["p_bear"])} / base {_p(view["p_base"])} / bull {_p(view["p_bull"])} – '
+                'sannsynligheter for verdier ved horisonten, ikke for hvilket nivå som nås først. Ikke samme spørsmål, men et stort avvik er verdt en ny titt.</div>')
+    foot = (f'<div class="src">Kurs {o.price:.2f} ({o.asof:%d %b %Y}, Yahoo Finance daglig sluttkurs via oslo-quant, forsinket; justerte kurser, utbytte reinvestert). Kill-nivå {o.kill:g}: {E(o.kill_source)}. '
+            f'Simulering: 10 000 baner av {E(o.code)}s egne daglige avkastninger siden {E(s0.extra.get("since", "?"))}, trukket i blokker på 20 handelsdager, fast frø; '
+            f'utvalgets egen årlige drift {pct(s0.extra.get("drift"))} er med; volatilitet i utvalget {pct(s0.extra.get("vol"), 0, False)}, nå {pct(o.sigma, 0, False)}. '
+            f'Historiske tilfeller: hver månedsstart siden 2010 på de 64 aksjene, nivåene lagt like langt unna målt i aksjens egen volatilitet den gang '
+            f'({u0.extra.get("stocks", 0)} aksjer; vinduene overlapper, så 12 mnd-kolonnen tilsvarer omtrent {_int(u0.extra.get("independent", 0))} uavhengige tilfeller'
+            + f'; egen historikk ca. {w0.extra.get("independent", 0)}). Et nivå teller når en daglig sluttkurs når det. Bare dagens 64 aksjer: selskaper som forsvant fra børsen mangler.</div>')
+    return f'<div class="card">{head}{REALITY}{table}{verdict}{mine}{foot}</div>'
+
+
+def bracket_line(signal: str) -> str:
+    b = ((_odds().get("signals") or {}).get(signal) or {}).get("bracket") or {}
+    h = b.get("h20")
+    if not h or not h.get("events"):
+        return ""
+    return (f'<span class="bracket">Kjøpt på signalet: mål først {_p(h["target"])} · stopp først {_p(h["stop"])} · ingen {_p(h["neither"])} '
+            f'innen 20 dager, snitt {h["mean_R"]:+.2f} R etter 0,5 % kostnad (mål og stopp 2 × ATR, {_int(h["events"])} tilfeller)</span>')
 
 
 def _n(a) -> str:
     """The number of past signals behind the odds, from the measured odds file."""
     ev = ((_odds().get("signals") or {}).get(a.signal) or {}).get("events")
-    return f" · n {int(ev):,}".replace(",", " ") if ev else ""
+    return f" · n {_int(ev)}" if ev else ""
 
 
 @lru_cache(maxsize=1)
@@ -260,7 +335,8 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 <input type="hidden" name="name" value="{E(name)}">
 <div class="row4"><div><label>Mitt syn</label><select name="rating"><option value="">–</option><option{sel("BUY")}>BUY</option><option{sel("HOLD")}>HOLD</option><option{sel("SELL")}>SELL</option></select></div>
 <div><label>Kursmål (12 mnd)</label><input name="target" inputmode="decimal" value="{val("target")}"></div>
-<div><label>Horisont (mnd)</label><input name="horizon" inputmode="numeric" value="{val("horizon", 12)}"></div><div></div></div>
+<div><label>Horisont (mnd)</label><input name="horizon" inputmode="numeric" value="{val("horizon", 12)}"></div>
+<div><label>Kill-nivå (kurs)</label><input name="kill_level" inputmode="decimal" placeholder="kursen der caset er brutt" value="{val("kill_level", v.get("kill_level") or "")}"></div></div>
 <div class="row3"><div><label>Bear (verdi)</label><input name="bear" inputmode="decimal" value="{val("bear")}"></div>
 <div><label>Base (verdi)</label><input name="base" inputmode="decimal" value="{val("base")}"></div>
 <div><label>Bull (verdi)</label><input name="bull" inputmode="decimal" value="{val("bull")}"></div></div>
@@ -306,7 +382,35 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
     body.append(f'<h2>Kill-kriterier</h2><div class="card"><p>{len(kills)} checks logged, {kb} breached, '
                 f'{sum(bool(k["breached"]) and str(k.get("action", "")).lower() not in ("held", "none", "nothing", "ignored") for k in kills)} acted on.</p>'
                 '<div class="src">Log a check with oq book kill --code X --date YYYY-MM-DD --criterion "..." --breached/--intact --action "..."</div></div>')
+    body.append(signal_brackets_block())
     return page("Kalibrering", "/calibration", "\n".join(body))
+
+
+def signal_brackets_block() -> str:
+    """Every signal as a trade: target first, stop first or neither, after the round trip (resources/signal_odds.yaml)."""
+    doc = _odds()
+    m = (doc.get("measured") or {})
+    b = m.get("bracket")
+    if not b:
+        return '<h2>Signalenes utfallsodds</h2><div class="card"><p class="empty">not measured yet: oq signals brackets --write</p></div>'
+    rows = []
+    for name, s in (doc.get("signals") or {}).items():
+        br = s.get("bracket") or {}
+        cells = ""
+        for h in b.get("horizons", []):
+            x = br.get(f"h{h}") or {}
+            cells += (f'<td class="t">{_p(x.get("target"))}</td><td class="k">{_p(x.get("stop"))}</td><td>{_p(x.get("neither"))}</td>'
+                      f'<td class="{cls(x.get("mean_R"))}">{"–" if x.get("mean_R") is None else format(x["mean_R"], "+.2f")} R</td>')
+        n = (br.get(f"h{b['horizons'][0]}") or {}).get("events")
+        rows.append(f'<tr><td>{E(name)}</td><td>{E(s.get("kind", ""))}</td>{cells}<td>{_int(n) if n else "–"}</td></tr>')
+    hdr = "".join(f'<th class="grp" colspan="4">{h} dager</th>' for h in b["horizons"])
+    sub = "<th>Mål først</th><th>Stopp først</th><th>Ingen</th><th>Snitt</th>" * len(b["horizons"])
+    return (f'<h2>Signalenes utfallsodds</h2><div class="card">{REALITY}<table class="odds"><thead><tr><th></th><th></th>{hdr}<th></th></tr>'
+            f'<tr><th>Signal</th><th>Type</th>{sub}<th>Tilfeller</th></tr></thead><tbody>{"".join(rows)}</tbody></table>'
+            f'<div class="src">Hvert signal som om det ble kjøpt: inngang på neste åpning, mål = inngang × (1 + {b["round_trip_cost"] * 100:.1f} %) + R, '
+            f'stopp = inngang − R, R = {E(b["R"])}. Første daglige sluttkurs ved eller forbi et nivå avgjør; «Snitt» er gjennomsnittlig resultat i R etter '
+            f'kostnaden (mål = +1 R). Målt {E(str(m.get("from")))} til {E(str(m.get("to")))} på {m.get("stocks")} aksjer, i kroner (ikke mot indeksen). '
+            'Risikosignaler er tatt med som kjøp for å vise hva det koster å kjøpe på dem.</div></div>')
 
 
 # ------------------------------------------------------------------------------------------------ Overvåkning

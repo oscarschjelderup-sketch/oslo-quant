@@ -157,12 +157,21 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
     if problems:
         raise ValueError("; ".join(problems))
     today = today or datetime.now().strftime("%Y-%m-%d")
+    kl = form.get("kill_level")
+    if kl not in (None, ""):
+        kl = float(kl)
+        if form["rating"] == "BUY" and not kl < price:
+            raise ValueError(f"for a BUY the kill level must be below the price {price:.2f}")
+        if form["rating"] == "SELL" and not kl > price:
+            raise ValueError(f"for a SELL the kill level must be above the price {price:.2f}")
+    else:
+        kl = None
     kill = [k.strip() for k in form["kill"] if k.strip()]
     fields = dict(code=code, name=name, date=today, price=round(float(price), 4), rating=form["rating"], target=float(form["target"]),
                   horizon_months=int(form.get("horizon") or 12),
                   bear=form.get("bear"), base=form.get("base"), bull=form.get("bull"),
                   p_bear=form.get("p_bear"), p_base=form.get("p_base"), p_bull=form.get("p_bull"),
-                  kill=kill, thesis=form["rationale"].strip(), price_date=price_date, price_source=price_source,
+                  kill=kill, kill_level=kl, thesis=form["rationale"].strip(), price_date=price_date, price_source=price_source,
                   source="dashboard")
     row = jg.append("judgement", fields)
     book = sg.load_book()
