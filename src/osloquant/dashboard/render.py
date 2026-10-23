@@ -191,7 +191,7 @@ def stock_page(code: str, ctx: dict) -> str:
         parts.append(case_block(c, st["price"], ctx.get("rdcf")))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
-    parts.append(judge_form(code, name, st["price"], ctx["price_label"], ctx.get("form", {}), c))
+    parts.append(judge_form(code, name, st["price"], ctx["price_label"], ctx.get("form", {}), c, ctx.get("sizing")))
     return page(f"{code}", "", "\n".join(parts))
 
 
@@ -432,6 +432,15 @@ def when(t: str) -> str:
         return E(t)
 
 
+def _position(r: dict) -> str:
+    if not r.get("position_shares") and r.get("kill_level") is None:
+        return ""
+    kl = f'kill-nivå {r["kill_level"]:g}' if r.get("kill_level") is not None else ""
+    pos = (f'; papirposisjon {_int(r["position_shares"])} aksjer = NOK {_int(r["position_value"])}, tap ved kill-nivået NOK {_int(r["loss_at_kill"])} '
+           f'(bindende: {E(r.get("sizing", {}).get("binding", "?"))})' if r.get("position_shares") else "")
+    return f'<div class="src">{kl}{pos}</div>'
+
+
 def _rationale(r: dict) -> str:
     """The full rationale (folded when long); rows seeded from a written case point to the case instead."""
     t = r.get("thesis") or ""
@@ -449,7 +458,7 @@ def case_block(c, px: float, rd: dict | None) -> str:
         if r["kind"] == "judgement":
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:g}</td><td>{r["target"]:g}</td>'
                         f'<td>{r.get("bear", "–")} / {r.get("base", "–")} / {r.get("bull", "–")}</td><td>{r.get("p_bear", "–")} / {r.get("p_base", "–")} / {r.get("p_bull", "–")}</td>'
-                        f'<td>{_rationale(r)}</td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+                        f'<td>{_rationale(r)}{_position(r)}</td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
         elif r["kind"] == "kill_check":
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">kill check: {E(r["criterion"])} – '
                         f'<b>{"BREACHED" if r["breached"] else "intact"}</b>, action: {E(r["action"])}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
@@ -477,7 +486,7 @@ def case_block(c, px: float, rd: dict | None) -> str:
             f'<div class="card"><h3>Vurderingshistorikk (append-only)</h3>{hist}</div>')
 
 
-def judge_form(code: str, name: str, px: float, label: str, f: dict, c) -> str:
+def judge_form(code: str, name: str, px: float, label: str, f: dict, c, sz: dict | None = None) -> str:
     v = (c.view if c else None) or {}
     val = lambda k, d="": E(str(f.get(k, d) if f.get(k, d) is not None else ""))  # noqa: E731
     sel = lambda opt: " selected" if (f.get("rating") or v.get("rating")) == opt else ""  # noqa: E731
@@ -498,7 +507,47 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 <div><label>Sannsynlighet bull</label><input name="p_bull" inputmode="decimal" placeholder="0.25" value="{val("p_bull")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
 <label>Kill-kriterier (påkrevd, ett per linje)</label><textarea name="kill" required>{E(f.get("kill_text", kill_default))}</textarea>
+{sizing_box(px, sz, val("position_shares"))}
 <button class="go" type="submit">Logg vurderingen</button></form></div>"""
+
+
+def sizing_box(px: float, sz: dict | None, current: str = "") -> str:
+    """Position size from the paper sum and the max loss in dashboard.yaml, the kill level being the stop (sizing.py).
+    The numbers update as the kill level and the position are typed; the server checks them again on submit."""
+    if not sz:
+        return ('<div class="src" style="margin-top:10px">Posisjonsstørrelse: ingen grenser satt. Legg inn <code>sizing</code> '
+                '(paper_capital, max_loss, max_position) i ~/osloquant-home/dashboard.yaml for størrelse og sperre.</div>')
+    cfg = sz["cfg"]
+    attrs = (f'data-price="{px}" data-cost="{sz["cost"]}" data-cap="{cfg["paper_capital"]}" data-maxloss="{cfg["max_loss"]}" '
+             f'data-maxpos="{cfg.get("max_position", 1)}" data-free="{sz["free"]}" data-total="{cfg.get("max_total_loss") or ""}" data-openloss="{sz["open_loss"]}"')
+    return f"""<div class="sizing" {attrs} style="margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px">
+<b>Posisjonsstørrelse (papir, bare for BUY)</b>
+<div class="row3"><div><label>Posisjon (antall aksjer)</label><input name="position_shares" inputmode="numeric" placeholder="tom = største tillatte" value="{current}"></div>
+<div style="grid-column:span 2"><div id="sz-out" style="margin-top:26px;font-size:13.5px">Skriv inn et kill-nivå under kursen.</div></div></div>
+<div class="src">Papirsum NOK {_int(cfg["paper_capital"])}, maks tap NOK {_int(cfg["max_loss"])} per vurdering, maks {float(cfg.get("max_position", 1)) * 100:.0f} % i én aksje
+{f', maks NOK {_int(cfg["max_total_loss"])} for alle åpne BUY-vurderinger' if cfg.get("max_total_loss") else ''} (dashboard.yaml). Fritt nå: NOK {_int(sz["free"])}.
+Tapet ved kill-nivået er et gulv, ikke et tak: en rapport eller et gap kan åpne kursen under det. Tap per aksje = kurs − kill-nivå + {sz["cost"] * 100:.1f} % tur-retur.</div></div>
+<script>
+(function(){{
+  var box=document.querySelector('.sizing'); if(!box) return;
+  var f=box.closest('form'), out=document.getElementById('sz-out'), d=box.dataset;
+  function num(s){{ s=(s||'').replace(/\\s/g,'').replace(',','.'); return s===''?NaN:parseFloat(s); }}
+  function fmt(x){{ return Math.round(x).toLocaleString('nb-NO'); }}
+  function upd(){{
+    var r=f.rating.value, px=+d.price, k=num(f.kill_level.value);
+    if(r!=='BUY'){{ out.textContent='Ingen posisjon for '+(r||'et syn uten retning')+'.'; return; }}
+    if(!(k<px)){{ out.textContent='Kill-nivået må ligge under kursen '+px.toFixed(2)+'.'; return; }}
+    var lps=px-k+(+d.cost)*px, lim={{'maks tap':Math.floor(+d.maxloss/lps),'maks andel':Math.floor(+d.cap*(+d.maxpos)/px),'fri papirsum':Math.floor(+d.free/px)}};
+    if(d.total) lim['samlet tap']=Math.floor(Math.max(+d.total-(+d.openloss),0)/lps);
+    var bind=Object.keys(lim).reduce(function(a,b){{return lim[a]<=lim[b]?a:b;}}), max=Math.max(lim[bind],0);
+    var n=num(f.position_shares.value); if(isNaN(n)) n=max;
+    var loss=n*lps, over=n>max;
+    out.innerHTML='Største tillatte: <b>'+fmt(max)+' aksjer</b> (bindende: '+bind+'). '+fmt(n)+' aksjer = NOK '+fmt(n*px)+' ('+(100*n*px/(+d.cap)).toFixed(1)+' % av papirsummen); '+
+      'tap hvis kill-nivået nås: <b style="color:'+(over?'var(--risk)':'inherit')+'">NOK '+fmt(loss)+'</b>'+(over?' – over grensen, blir avvist.':'.');
+  }}
+  ['input','change'].forEach(function(e){{ f.addEventListener(e,upd); }}); upd();
+}})();
+</script>"""
 
 
 # ------------------------------------------------------------------------------------------------ Kalibrering

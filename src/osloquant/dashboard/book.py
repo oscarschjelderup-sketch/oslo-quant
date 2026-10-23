@@ -166,13 +166,29 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
             raise ValueError(f"for a SELL the kill level must be above the price {price:.2f}")
     else:
         kl = None
+    from osloquant.dashboard import sizing
+
+    pos = {}
+    cfg = sizing.config()
+    if cfg and form["rating"] == "BUY":
+        if kl is None:
+            raise ValueError("a BUY needs a kill level: it is the stop the position size is measured against")
+        raw = form.get("position_shares")
+        s = sizing.size(price, kl, cfg, code)
+        shares = s.shares if raw in (None, "") else int(float(raw))
+        s, problems = sizing.check(shares, price, kl, cfg, code)
+        if problems:
+            raise ValueError("; ".join(problems))
+        pos = dict(position_shares=shares, position_value=round(shares * price, 2), loss_at_kill=round(shares * s.loss_per_share, 2),
+                   sizing={"paper_capital": float(cfg["paper_capital"]), "max_loss": float(cfg["max_loss"]),
+                           "max_position": cfg.get("max_position"), "binding": s.binding, "limits": s.limits, "round_trip_cost": sizing.COST})
     kill = [k.strip() for k in form["kill"] if k.strip()]
     fields = dict(code=code, name=name, date=today, price=round(float(price), 4), rating=form["rating"], target=float(form["target"]),
                   horizon_months=int(form.get("horizon") or 12),
                   bear=form.get("bear"), base=form.get("base"), bull=form.get("bull"),
                   p_bear=form.get("p_bear"), p_base=form.get("p_base"), p_bull=form.get("p_bull"),
                   kill=kill, kill_level=kl, thesis=form["rationale"].strip(), price_date=price_date, price_source=price_source,
-                  source="dashboard")
+                  source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()
     if code not in [e["code"] for e in book]:
