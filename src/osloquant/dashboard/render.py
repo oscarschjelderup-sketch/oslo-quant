@@ -230,7 +230,7 @@ def insider_block(code: str, ins: dict | None) -> str:
         return ""
     items = ins.get("items") or []
     rows = "".join(f'<tr><td>{pd.Timestamp(i["time"]).tz_convert("Europe/Oslo"):%d %b %Y}</td><td><span class="chip {"buy" if i["side"] == "buy" else "risk" if i["side"] == "sell" else ""}">'
-                   f'{E(SIDE_NO.get(i["side"], i["side"]))}</span></td><td style="white-space:normal"><a href="{E(i["url"])}" target="_blank" rel="noopener">'
+                   f'{E(SIDE_NO.get(i["side"], i["side"]))}</span></td><td style="white-space:normal;text-align:left"><a href="{E(i["url"])}" target="_blank" rel="noopener">'
                    f'{E(i["title"][:110])}</a> <span class="src">«{E(i.get("why", ""))}»</span></td></tr>' for i in items)
     itab = (f'<table><tbody>{rows}</tbody></table>' if rows else '<p class="empty">no primary-insider notifications in the cache</p>')
     s = ins.get("shorts")
