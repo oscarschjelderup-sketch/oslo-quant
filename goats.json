@@ -1,0 +1,5179 @@
+{
+ "meta": {
+  "schema": "goats/1",
+  "generated_at": "2026-10-23T19:57:38Z",
+  "oslo_now": "2026-10-23T21:57:38",
+  "market": {
+   "open": false,
+   "label": "closed",
+   "closes_at": null,
+   "next_open": "2026-10-26T09:00:00"
+  },
+  "troll": {
+   "next_review": "2026-10-26T18:55:00",
+   "cadence": "every weekday at 18:55 Oslo, after the evening job",
+   "rewrites": 4
+  },
+  "started": "2026-10-02T00:00:00",
+  "day": 16,
+  "goats": 3,
+  "osebx": {
+   "last": 2101.1201171875,
+   "date": "2026-10-23T00:00:00",
+   "change_pct": 0.007412620335828901
+  },
+  "totals": {
+   "pnl": -28723.098544068664,
+   "fees": 18201.649360502382,
+   "dividends": 0,
+   "fills": 85,
+   "forward_fills": 85,
+   "decisions": 668
+  },
+  "costs": {
+   "commission_rate": 0.0015,
+   "commission_min": 29.0,
+   "slippage": 0.001,
+   "broker": "Nordnet Mini price list, October 2026"
+  },
+  "feed": {
+   "source": "Yahoo Finance",
+   "delay_minutes": 15.0,
+   "lag_minutes": 31.01029338333333,
+   "newest_daily_session": "2026-10-23T00:00:00",
+   "expected_session": "2026-10-23T00:00:00"
+  }
+ },
+ "goats": [
+  {
+   "id": "lillebukk",
+   "name": "Lillebukk",
+   "tagline": "the scalper",
+   "account": "lillebukk_v3",
+   "accent": "gold",
+   "story": "The smallest. Trips over the bridge at the open, grabs what breaks out of the first half hour across all 63 names, and is back on the near bank before the close. Never sleeps on the far side.",
+   "lineage": [
+    {
+     "account": "daytrade_orb",
+     "from": "2026-10-06T09:31:05",
+     "to": "2026-10-13T21:46:49",
+     "value": 99496.53,
+     "why": "The shepherd asked for it: the little goat may now short a breakdown of the opening range and size its entries by how hard the bar broke out, up to ten slots. Same 2 percent stop, same flat-at-close rule, same filters.",
+     "changes": {
+      "shorts": true,
+      "max_leverage": 10
+     }
+    },
+    {
+     "account": "lillebukk_v2",
+     "from": "2026-10-14T09:31:03",
+     "to": "2026-10-19T21:38:09",
+     "value": 89241.52,
+     "why": "Thirty days of replay: the opening range is break-even before costs long-only and loses 29 percent before costs with shorts, and ten slots turned that into minus 58. Three round trips in the new book, all lost, and three positions carried over a weekend at eight times equity while the laptop slept. Shorts off, two slots at most.",
+     "changes": {
+      "shorts": false,
+      "max_leverage": 2
+     }
+    }
+   ],
+   "missing": false,
+   "kind": "intraday",
+   "start": "2026-10-06T09:31:05",
+   "last_seen": "2026-10-23T16:46:00",
+   "sessions": 22,
+   "input_money": 100000.0,
+   "value": 83594.55634214467,
+   "cash": 83594.55634214467,
+   "pnl": -16405.44365785533,
+   "pnl_pct": -0.16405443657855323,
+   "benchmark_pct": 0.00537359630727785,
+   "universe_pct": null,
+   "status": {
+    "code": "FLAT",
+    "text": "nothing held overnight \u00b7 back on the bridge at 09:00"
+   },
+   "holdings": [],
+   "pending": [],
+   "rules": {
+    "kind": "intraday",
+    "signal": "opening_range(minutes=30)",
+    "slots": 3,
+    "execution": "open of the bar starting when the order is sent",
+    "watchlist": "all",
+    "stop_loss": 0.02,
+    "take_profit": null,
+    "trailing_stop": null,
+    "flat_at_close": true,
+    "day_trade": true,
+    "exit_on_signal": false,
+    "entry_window": [
+     "09:30",
+     "14:30"
+    ],
+    "max_entries_per_day": 3,
+    "min_relative_volume": 1.5,
+    "min_range_to_cost": 4,
+    "max_per_sector": 1,
+    "cooldown_bars": 0,
+    "shorts": false,
+    "max_leverage": 2,
+    "financing_rate": 0.06,
+    "borrow_rate": 0.03,
+    "maintenance_margin": 0.05
+   },
+   "today": {
+    "entries": 3,
+    "cap": 3,
+    "signals": 58,
+    "fills": 6,
+    "looks_made": 30,
+    "looks_due": 30,
+    "looks_share": 1.0,
+    "days_missed": 0
+   },
+   "last_call": {
+    "t": "2026-10-23T16:15:00",
+    "at": "2026-10-23T14:46:00Z",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ARCH",
+    "price": 18.1200008392334,
+    "reason": "close 18.12 broke above the 30-minute opening range high 18.00",
+    "outcome": "skipped: too close to the close"
+   },
+   "fees": 13273.599627383921,
+   "financing": 150.15036708820492,
+   "exposure": 0.0,
+   "leverage": 0.0,
+   "dividends": 0,
+   "fills": 46,
+   "forward_fills": 46,
+   "round_trips": 20,
+   "win_rate": 0.2,
+   "decisions": 556,
+   "feed_lag": 31.01029338333333,
+   "equity": [
+    [
+     "2026-10-06T09:31:05",
+     100000.0
+    ],
+    [
+     "2026-10-06T10:31:39",
+     100000.0
+    ],
+    [
+     "2026-10-06T11:02:08",
+     99972.72
+    ],
+    [
+     "2026-10-06T11:16:04",
+     99918.88
+    ],
+    [
+     "2026-10-06T11:31:44",
+     100003.23
+    ],
+    [
+     "2026-10-06T11:46:24",
+     99779.98
+    ],
+    [
+     "2026-10-06T12:01:04",
+     99591.03
+    ],
+    [
+     "2026-10-06T12:16:03",
+     99418.68
+    ],
+    [
+     "2026-10-06T12:31:03",
+     99292.58
+    ],
+    [
+     "2026-10-06T12:46:03",
+     99296.23
+    ],
+    [
+     "2026-10-06T13:37:18",
+     99600.13
+    ],
+    [
+     "2026-10-06T13:46:03",
+     99604.93
+    ],
+    [
+     "2026-10-06T14:01:03",
+     99449.18
+    ],
+    [
+     "2026-10-06T14:16:03",
+     99594.18
+    ],
+    [
+     "2026-10-06T14:31:04",
+     99682.18
+    ],
+    [
+     "2026-10-06T14:46:03",
+     99559.73
+    ],
+    [
+     "2026-10-06T15:01:04",
+     99646.38
+    ],
+    [
+     "2026-10-06T15:16:03",
+     99516.83
+    ],
+    [
+     "2026-10-06T15:31:03",
+     99503.88
+    ],
+    [
+     "2026-10-06T15:46:03",
+     99268.58
+    ],
+    [
+     "2026-10-06T16:01:03",
+     98768.56
+    ],
+    [
+     "2026-10-06T16:16:05",
+     98687.2
+    ],
+    [
+     "2026-10-06T16:31:03",
+     98687.2
+    ],
+    [
+     "2026-10-06T16:46:04",
+     98687.2
+    ],
+    [
+     "2026-10-07T10:29:18",
+     98687.2
+    ],
+    [
+     "2026-10-07T10:31:02",
+     98687.2
+    ],
+    [
+     "2026-10-07T10:46:17",
+     98687.2
+    ],
+    [
+     "2026-10-07T11:02:42",
+     98687.2
+    ],
+    [
+     "2026-10-07T11:16:06",
+     98687.2
+    ],
+    [
+     "2026-10-07T11:31:04",
+     98645.74
+    ],
+    [
+     "2026-10-07T11:46:04",
+     98545.79
+    ],
+    [
+     "2026-10-07T12:01:07",
+     98521.79
+    ],
+    [
+     "2026-10-07T12:16:06",
+     98216.59
+    ],
+    [
+     "2026-10-07T12:31:04",
+     98497.39
+    ],
+    [
+     "2026-10-07T13:26:36",
+     98256.59
+    ],
+    [
+     "2026-10-07T13:31:04",
+     98176.19
+    ],
+    [
+     "2026-10-07T13:46:02",
+     98167.79
+    ],
+    [
+     "2026-10-07T14:01:03",
+     98612.19
+    ],
+    [
+     "2026-10-07T14:18:33",
+     98562.79
+    ],
+    [
+     "2026-10-07T14:31:07",
+     98502.59
+    ],
+    [
+     "2026-10-07T14:46:04",
+     98401.99
+    ],
+    [
+     "2026-10-08T09:31:27",
+     98319.59
+    ],
+    [
+     "2026-10-08T09:46:02",
+     98540.19
+    ],
+    [
+     "2026-10-08T10:33:43",
+     99107.39
+    ],
+    [
+     "2026-10-08T10:46:17",
+     99106.99
+    ],
+    [
+     "2026-10-08T11:01:07",
+     99046.39
+    ],
+    [
+     "2026-10-08T11:16:03",
+     99053.39
+    ],
+    [
+     "2026-10-08T11:31:03",
+     98974.39
+    ],
+    [
+     "2026-10-08T11:46:03",
+     98970.59
+    ],
+    [
+     "2026-10-08T12:01:03",
+     99191.99
+    ],
+    [
+     "2026-10-08T14:42:04",
+     99583.59
+    ],
+    [
+     "2026-10-08T14:46:03",
+     99832.79
+    ],
+    [
+     "2026-10-08T15:01:04",
+     99852.59
+    ],
+    [
+     "2026-10-08T15:16:04",
+     99859.59
+    ],
+    [
+     "2026-10-08T15:31:04",
+     99773.19
+    ],
+    [
+     "2026-10-08T15:46:06",
+     99747.79
+    ],
+    [
+     "2026-10-08T16:01:04",
+     99923.22
+    ],
+    [
+     "2026-10-08T16:16:03",
+     99836.57
+    ],
+    [
+     "2026-10-13T09:31:23",
+     99836.57
+    ],
+    [
+     "2026-10-13T09:46:08",
+     99836.57
+    ],
+    [
+     "2026-10-13T10:01:06",
+     99836.57
+    ],
+    [
+     "2026-10-13T10:16:06",
+     99671.47
+    ],
+    [
+     "2026-10-13T10:31:02",
+     99752.63
+    ],
+    [
+     "2026-10-13T10:46:04",
+     99440.43
+    ],
+    [
+     "2026-10-13T11:01:03",
+     99516.18
+    ],
+    [
+     "2026-10-13T11:16:03",
+     99496.53
+    ],
+    [
+     "2026-10-14T09:31:03",
+     99497.0
+    ],
+    [
+     "2026-10-14T09:46:03",
+     99497.0
+    ],
+    [
+     "2026-10-14T10:01:04",
+     99497.0
+    ],
+    [
+     "2026-10-14T10:16:03",
+     99021.45
+    ],
+    [
+     "2026-10-14T10:31:03",
+     99056.26
+    ],
+    [
+     "2026-10-14T10:46:21",
+     98669.02
+    ],
+    [
+     "2026-10-14T11:01:02",
+     102636.43
+    ],
+    [
+     "2026-10-14T11:16:03",
+     100276.06
+    ],
+    [
+     "2026-10-14T11:31:03",
+     99676.06
+    ],
+    [
+     "2026-10-14T11:46:03",
+     99859.1
+    ],
+    [
+     "2026-10-14T12:01:03",
+     99797.61
+    ],
+    [
+     "2026-10-14T12:16:03",
+     98484.59
+    ],
+    [
+     "2026-10-14T12:31:03",
+     98667.63
+    ],
+    [
+     "2026-10-14T12:46:03",
+     99980.65
+    ],
+    [
+     "2026-10-14T13:01:02",
+     99431.54
+    ],
+    [
+     "2026-10-14T13:16:02",
+     98505.74
+    ],
+    [
+     "2026-10-14T13:31:03",
+     99493.03
+    ],
+    [
+     "2026-10-14T13:46:02",
+     99309.99
+    ],
+    [
+     "2026-10-14T14:01:02",
+     98790.58
+    ],
+    [
+     "2026-10-14T14:16:02",
+     97305.11
+    ],
+    [
+     "2026-10-14T14:31:02",
+     96664.17
+    ],
+    [
+     "2026-10-14T14:46:02",
+     98801.17
+    ],
+    [
+     "2026-10-14T15:01:02",
+     99726.93
+    ],
+    [
+     "2026-10-14T15:16:03",
+     98485.98
+    ],
+    [
+     "2026-10-14T15:31:02",
+     97549.63
+    ],
+    [
+     "2026-10-14T15:46:02",
+     96645.02
+    ],
+    [
+     "2026-10-14T16:01:03",
+     91787.7
+    ],
+    [
+     "2026-10-15T09:31:03",
+     91464.33
+    ],
+    [
+     "2026-10-15T09:46:03",
+     91464.33
+    ],
+    [
+     "2026-10-15T10:01:03",
+     91464.33
+    ],
+    [
+     "2026-10-15T10:22:22",
+     90727.23
+    ],
+    [
+     "2026-10-15T10:31:03",
+     89640.59
+    ],
+    [
+     "2026-10-15T10:46:03",
+     89310.34
+    ],
+    [
+     "2026-10-15T11:01:02",
+     86620.3
+    ],
+    [
+     "2026-10-15T11:16:26",
+     85821.33
+    ],
+    [
+     "2026-10-15T11:31:03",
+     84506.14
+    ],
+    [
+     "2026-10-15T11:46:03",
+     85236.59
+    ],
+    [
+     "2026-10-15T12:01:05",
+     84482.56
+    ],
+    [
+     "2026-10-15T12:16:04",
+     84083.26
+    ],
+    [
+     "2026-10-15T12:31:02",
+     83801.4
+    ],
+    [
+     "2026-10-15T12:46:03",
+     85004.02
+    ],
+    [
+     "2026-10-15T15:22:14",
+     84580.79
+    ],
+    [
+     "2026-10-19T16:32:38",
+     87452.71
+    ],
+    [
+     "2026-10-19T16:46:17",
+     89241.52
+    ],
+    [
+     "2026-10-20T14:01:51",
+     89242.0
+    ],
+    [
+     "2026-10-20T14:02:51",
+     89242.0
+    ],
+    [
+     "2026-10-20T14:03:57",
+     89242.0
+    ],
+    [
+     "2026-10-20T14:04:59",
+     89242.0
+    ],
+    [
+     "2026-10-20T14:16:54",
+     89097.63
+    ],
+    [
+     "2026-10-20T14:17:52",
+     89097.63
+    ],
+    [
+     "2026-10-20T14:18:59",
+     89097.63
+    ],
+    [
+     "2026-10-20T14:19:55",
+     89097.63
+    ],
+    [
+     "2026-10-20T14:31:55",
+     89208.13
+    ],
+    [
+     "2026-10-20T14:32:50",
+     89208.13
+    ],
+    [
+     "2026-10-20T14:33:59",
+     89208.13
+    ],
+    [
+     "2026-10-20T14:34:57",
+     89208.13
+    ],
+    [
+     "2026-10-20T14:45:59",
+     89140.13
+    ],
+    [
+     "2026-10-20T14:46:59",
+     89140.13
+    ],
+    [
+     "2026-10-20T14:47:51",
+     89140.13
+    ],
+    [
+     "2026-10-20T14:48:55",
+     89140.13
+    ],
+    [
+     "2026-10-20T14:49:56",
+     89140.13
+    ],
+    [
+     "2026-10-20T15:01:49",
+     88851.14
+    ],
+    [
+     "2026-10-20T15:02:50",
+     88851.14
+    ],
+    [
+     "2026-10-20T15:03:58",
+     88851.14
+    ],
+    [
+     "2026-10-20T15:04:54",
+     88851.14
+    ],
+    [
+     "2026-10-20T15:15:59",
+     88944.64
+    ],
+    [
+     "2026-10-20T15:16:59",
+     88944.64
+    ],
+    [
+     "2026-10-20T15:17:55",
+     88944.64
+    ],
+    [
+     "2026-10-20T15:18:55",
+     88944.64
+    ],
+    [
+     "2026-10-20T15:19:54",
+     88841.18
+    ],
+    [
+     "2026-10-20T15:30:59",
+     88857.07
+    ],
+    [
+     "2026-10-20T15:31:59",
+     88857.07
+    ],
+    [
+     "2026-10-20T15:32:50",
+     88857.07
+    ],
+    [
+     "2026-10-20T15:33:48",
+     88857.07
+    ],
+    [
+     "2026-10-20T15:34:55",
+     88857.07
+    ],
+    [
+     "2026-10-20T15:46:48",
+     89041.08
+    ],
+    [
+     "2026-10-20T15:47:52",
+     89041.08
+    ],
+    [
+     "2026-10-20T15:48:54",
+     89041.08
+    ],
+    [
+     "2026-10-20T15:49:50",
+     89041.08
+    ],
+    [
+     "2026-10-20T16:00:59",
+     88353.56
+    ],
+    [
+     "2026-10-20T16:01:45",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:02:38",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:03:48",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:04:49",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:15:59",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:16:42",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:17:55",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:18:45",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:19:47",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:30:59",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:31:59",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:32:53",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:33:49",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:34:44",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:46:53",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:47:53",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:48:54",
+     88271.94
+    ],
+    [
+     "2026-10-20T16:49:49",
+     88271.94
+    ],
+    [
+     "2026-10-21T09:30:59",
+     88271.94
+    ],
+    [
+     "2026-10-21T09:45:59",
+     88271.94
+    ],
+    [
+     "2026-10-21T10:00:59",
+     88271.94
+    ],
+    [
+     "2026-10-21T10:15:59",
+     88271.94
+    ],
+    [
+     "2026-10-21T10:31:00",
+     87867.28
+    ],
+    [
+     "2026-10-21T10:45:59",
+     87715.68
+    ],
+    [
+     "2026-10-21T11:01:00",
+     87658.2
+    ],
+    [
+     "2026-10-21T11:16:00",
+     87791.13
+    ],
+    [
+     "2026-10-21T11:31:00",
+     88000.01
+    ],
+    [
+     "2026-10-21T11:45:59",
+     88060.64
+    ],
+    [
+     "2026-10-21T12:01:00",
+     88289.58
+    ],
+    [
+     "2026-10-21T12:15:59",
+     88185.14
+    ],
+    [
+     "2026-10-21T12:30:59",
+     87634.46
+    ],
+    [
+     "2026-10-21T12:45:59",
+     87595.86
+    ],
+    [
+     "2026-10-21T13:01:00",
+     87584.08
+    ],
+    [
+     "2026-10-21T13:16:00",
+     87653.14
+    ],
+    [
+     "2026-10-21T13:31:01",
+     87526.8
+    ],
+    [
+     "2026-10-21T13:45:59",
+     87390.34
+    ],
+    [
+     "2026-10-21T13:46:50",
+     87390.34
+    ],
+    [
+     "2026-10-21T14:01:00",
+     87683.46
+    ],
+    [
+     "2026-10-21T14:16:00",
+     87670.9
+    ],
+    [
+     "2026-10-21T14:31:00",
+     87632.16
+    ],
+    [
+     "2026-10-21T14:46:00",
+     87701.22
+    ],
+    [
+     "2026-10-21T15:01:00",
+     87692.8
+    ],
+    [
+     "2026-10-21T15:16:01",
+     88073.2
+    ],
+    [
+     "2026-10-21T15:31:00",
+     88469.06
+    ],
+    [
+     "2026-10-21T15:46:01",
+     88290.82
+    ],
+    [
+     "2026-10-21T16:01:00",
+     88048.26
+    ],
+    [
+     "2026-10-21T16:16:01",
+     88029.96
+    ],
+    [
+     "2026-10-21T16:31:00",
+     88029.96
+    ],
+    [
+     "2026-10-21T16:46:00",
+     88029.96
+    ],
+    [
+     "2026-10-22T09:31:00",
+     88029.96
+    ],
+    [
+     "2026-10-22T09:46:00",
+     88029.96
+    ],
+    [
+     "2026-10-22T10:01:00",
+     88029.96
+    ],
+    [
+     "2026-10-22T10:16:00",
+     88029.96
+    ],
+    [
+     "2026-10-22T10:31:00",
+     88038.67
+    ],
+    [
+     "2026-10-22T10:46:00",
+     87726.39
+    ],
+    [
+     "2026-10-22T11:01:00",
+     87568.17
+    ],
+    [
+     "2026-10-22T11:16:00",
+     87741.89
+    ],
+    [
+     "2026-10-22T11:31:00",
+     87376.86
+    ],
+    [
+     "2026-10-22T11:46:00",
+     87563.54
+    ],
+    [
+     "2026-10-22T12:01:00",
+     87607.49
+    ],
+    [
+     "2026-10-22T12:16:00",
+     87589.91
+    ],
+    [
+     "2026-10-22T12:31:00",
+     87537.17
+    ],
+    [
+     "2026-10-22T12:46:00",
+     87554.75
+    ],
+    [
+     "2026-10-22T13:01:00",
+     87554.75
+    ],
+    [
+     "2026-10-22T13:16:00",
+     87882.53
+    ],
+    [
+     "2026-10-22T13:31:02",
+     87413.07
+    ],
+    [
+     "2026-10-22T13:46:50",
+     87448.23
+    ],
+    [
+     "2026-10-22T14:01:00",
+     87619.87
+    ],
+    [
+     "2026-10-22T14:16:00",
+     87531.97
+    ],
+    [
+     "2026-10-22T14:31:00",
+     87355.98
+    ],
+    [
+     "2026-10-22T14:46:00",
+     87585.55
+    ],
+    [
+     "2026-10-22T15:01:00",
+     86915.69
+    ],
+    [
+     "2026-10-22T15:16:00",
+     87050.21
+    ],
+    [
+     "2026-10-22T15:31:00",
+     87337.05
+    ],
+    [
+     "2026-10-22T15:46:00",
+     87030.61
+    ],
+    [
+     "2026-10-22T16:01:00",
+     86295.83
+    ],
+    [
+     "2026-10-22T16:15:59",
+     86193.39
+    ],
+    [
+     "2026-10-22T16:31:00",
+     86193.39
+    ],
+    [
+     "2026-10-22T16:46:00",
+     86193.39
+    ],
+    [
+     "2026-10-23T09:31:00",
+     86193.39
+    ],
+    [
+     "2026-10-23T09:46:00",
+     86193.39
+    ],
+    [
+     "2026-10-23T10:01:01",
+     86193.39
+    ],
+    [
+     "2026-10-23T10:16:00",
+     86041.35
+    ],
+    [
+     "2026-10-23T10:31:00",
+     86294.3
+    ],
+    [
+     "2026-10-23T10:46:01",
+     85558.7
+    ],
+    [
+     "2026-10-23T11:01:00",
+     85118.1
+    ],
+    [
+     "2026-10-23T11:16:00",
+     84834.9
+    ],
+    [
+     "2026-10-23T11:31:00",
+     83793.9
+    ],
+    [
+     "2026-10-23T11:46:00",
+     83161.86
+    ],
+    [
+     "2026-10-23T12:01:00",
+     82828.6
+    ],
+    [
+     "2026-10-23T12:16:01",
+     82844.6
+    ],
+    [
+     "2026-10-23T12:31:00",
+     82884.6
+    ],
+    [
+     "2026-10-23T12:46:00",
+     82940.6
+    ],
+    [
+     "2026-10-23T13:01:00",
+     83052.6
+    ],
+    [
+     "2026-10-23T13:16:00",
+     83076.6
+    ],
+    [
+     "2026-10-23T13:31:02",
+     83060.6
+    ],
+    [
+     "2026-10-23T13:46:51",
+     83076.6
+    ],
+    [
+     "2026-10-23T14:01:00",
+     83012.6
+    ],
+    [
+     "2026-10-23T14:16:00",
+     83068.6
+    ],
+    [
+     "2026-10-23T14:31:00",
+     83140.6
+    ],
+    [
+     "2026-10-23T14:46:00",
+     83084.6
+    ],
+    [
+     "2026-10-23T15:01:00",
+     83036.6
+    ],
+    [
+     "2026-10-23T15:16:00",
+     83004.6
+    ],
+    [
+     "2026-10-23T15:31:00",
+     83004.6
+    ],
+    [
+     "2026-10-23T15:46:00",
+     83132.6
+    ],
+    [
+     "2026-10-23T16:01:00",
+     83594.56
+    ],
+    [
+     "2026-10-23T16:16:00",
+     83594.56
+    ],
+    [
+     "2026-10-23T16:31:00",
+     83594.56
+    ],
+    [
+     "2026-10-23T16:46:00",
+     83594.56
+    ]
+   ],
+   "trades": [
+    {
+     "t": "2026-10-14T10:00:00",
+     "at": "2026-10-14T08:16:03Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "ODL",
+     "price": 106.7065984725952,
+     "shares": 2544.0,
+     "value": 271461.5865142822,
+     "cost": 407.1923797714233,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 106.40 broke above the 30-minute opening range high 106.20",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T10:00:00",
+     "at": "2026-10-14T08:31:03Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "NEL",
+     "price": 2.1628349618911744,
+     "shares": 111940.0,
+     "value": 242107.74563409807,
+     "cost": 363.1616184511471,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL opening_range: close 2.15 broke below the 30-minute opening range low 2.17",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T15:45:00",
+     "at": "2026-10-14T14:01:03Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "ODL",
+     "price": 105.69420304870606,
+     "shares": 2544.0,
+     "value": 268886.0525559082,
+     "cost": 403.32907883386235,
+     "pnl": -3386.055416979303,
+     "pnl_pct": -0.01245474169837956,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T15:45:00",
+     "at": "2026-10-14T14:01:03Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "cover",
+     "code": "CLOSE",
+     "stock": "NEL",
+     "price": 2.192190057277679,
+     "shares": 111940.0,
+     "value": 245393.7550116634,
+     "cost": 368.0906325174951,
+     "pnl": -4017.2616285339755,
+     "pnl_pct": -0.01661779371352517,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T15:45:00",
+     "at": "2026-10-15T07:31:03Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "DNO",
+     "price": 21.378599618911743,
+     "shares": 9152.0,
+     "value": 195656.94371228028,
+     "cost": 293.4854155684204,
+     "pnl": -612.2773332788493,
+     "pnl_pct": -0.003124250720685397,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-15T10:00:00",
+     "at": "2026-10-15T08:22:22Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "BWLPG",
+     "price": 239.03880305480953,
+     "shares": 822.0,
+     "value": 196489.89611105344,
+     "cost": 294.73484416658016,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 239.00 broke above the 30-minute opening range high 238.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-15T10:00:00",
+     "at": "2026-10-15T08:22:22Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "OKEA",
+     "price": 46.153800762176516,
+     "shares": 6605.0,
+     "value": 304845.85403417586,
+     "cost": 457.26878105126383,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL opening_range: close 46.30 broke below the 30-minute opening range low 46.65",
+     "forward": true
+    },
+    {
+     "t": "2026-10-15T10:00:00",
+     "at": "2026-10-15T08:22:22Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "NAS",
+     "price": 11.04603484725952,
+     "shares": 18887.0,
+     "value": 208626.46016019056,
+     "cost": 312.93969024028587,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 11.09 broke above the 30-minute opening range high 11.03",
+     "forward": true
+    },
+    {
+     "t": "2026-10-20T14:00:00",
+     "at": "2026-10-20T12:16:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "EQNR",
+     "price": 439.53910610961907,
+     "shares": 85.0,
+     "value": 37360.824019317624,
+     "cost": 56.041236028976435,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 439.70 broke above the 30-minute opening range high 439.40",
+     "forward": true
+    },
+    {
+     "t": "2026-10-20T15:00:00",
+     "at": "2026-10-20T13:19:07Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "BAKKA",
+     "price": 459.85939389038083,
+     "shares": 109.0,
+     "value": 50124.67393405151,
+     "cost": 75.18701090107727,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 460.00 broke above the 30-minute opening range high 458.20",
+     "forward": true
+    },
+    {
+     "t": "2026-10-20T15:45:00",
+     "at": "2026-10-20T14:00:59Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "EQNR",
+     "price": 431.86768780517576,
+     "shares": 85.0,
+     "value": 36708.75346343994,
+     "cost": 55.063130195159914,
+     "pnl": -763.1749221018181,
+     "pnl_pct": -0.020396548906318812,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-20T15:45:00",
+     "at": "2026-10-20T14:01:30Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "BAKKA",
+     "price": 459.3401878051758,
+     "shares": 109.0,
+     "value": 50068.08047076416,
+     "cost": 75.10212070614624,
+     "pnl": -206.88259489458142,
+     "pnl_pct": -0.004121178644726558,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T10:00:00",
+     "at": "2026-10-21T08:31:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "ELK",
+     "price": 31.59155946540832,
+     "shares": 1516.0,
+     "value": 47892.804149559015,
+     "cost": 71.83920622433853,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 31.66 broke above the 30-minute opening range high 31.56",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T10:00:00",
+     "at": "2026-10-21T08:31:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "SCATC",
+     "price": 100.30019694519042,
+     "shares": 438.0,
+     "value": 43931.48626199341,
+     "cost": 65.89722939299011,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 100.20 broke above the 30-minute opening range high 99.90",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T10:30:00",
+     "at": "2026-10-21T09:01:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "KID",
+     "price": 137.3371969451904,
+     "shares": 366.0,
+     "value": 50265.41408193969,
+     "cost": 75.39812112290954,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 137.40 broke above the 30-minute opening range high 136.60",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T15:45:00",
+     "at": "2026-10-21T14:16:01Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "ELK",
+     "price": 31.548419923782347,
+     "shares": 1516.0,
+     "value": 47827.40460445404,
+     "cost": 71.74110690668105,
+     "pnl": -208.97985823599447,
+     "pnl_pct": -0.004356956366502341,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T15:45:00",
+     "at": "2026-10-21T14:16:01Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "SCATC",
+     "price": 100.59929695129395,
+     "shares": 438.0,
+     "value": 44062.49206466675,
+     "cost": 66.09373809700013,
+     "pnl": -0.9851648166441009,
+     "pnl_pct": -2.239144100096252e-05,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T15:45:00",
+     "at": "2026-10-21T14:16:01Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "KID",
+     "price": 137.66220304870606,
+     "shares": 366.0,
+     "value": 50384.36631582642,
+     "cost": 75.57654947373963,
+     "pnl": -32.022436709929025,
+     "pnl_pct": -0.0006361128338724114,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T10:00:00",
+     "at": "2026-10-22T08:31:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "BWO",
+     "price": 40.340299236297604,
+     "shares": 1034.0,
+     "value": 41711.869410331725,
+     "cost": 62.56780411549759,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 40.20 broke above the 30-minute opening range high 40.05",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T10:15:00",
+     "at": "2026-10-22T08:31:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "VAR",
+     "price": 58.25820076370238,
+     "shares": 879.0,
+     "value": 51208.9584712944,
+     "cost": 76.8134377069416,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 58.20 broke above the 30-minute opening range high 57.92",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T14:15:00",
+     "at": "2026-10-22T12:31:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "YAR",
+     "price": 396.1957877807617,
+     "shares": 107.0,
+     "value": 42392.9492925415,
+     "cost": 63.58942393881225,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 397.80 broke above the 30-minute opening range high 397.10",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T15:45:00",
+     "at": "2026-10-22T14:01:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "VAR",
+     "price": 57.52242182922363,
+     "shares": 879.0,
+     "value": 50562.208787887575,
+     "cost": 75.84331318183136,
+     "pnl": -799.4064342955899,
+     "pnl_pct": -0.015587294575852595,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T15:45:00",
+     "at": "2026-10-22T14:01:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "YAR",
+     "price": 395.90368780517576,
+     "shares": 107.0,
+     "value": 42361.69459515381,
+     "cost": 63.54254189273071,
+     "pnl": -158.38666321924393,
+     "pnl_pct": -0.003730559956310407,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T15:45:00",
+     "at": "2026-10-22T14:15:59Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "BWO",
+     "price": 39.61035152435303,
+     "shares": 1034.0,
+     "value": 40957.10347618103,
+     "cost": 61.43565521427155,
+     "pnl": -878.7693934804629,
+     "pnl_pct": -0.02103605582929434,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T10:00:00",
+     "at": "2026-10-23T08:16:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "TOM",
+     "price": 102.80269694519042,
+     "shares": 426.0,
+     "value": 43793.94889865112,
+     "cost": 65.69092334797668,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 102.90 broke above the 30-minute opening range high 102.40",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T10:15:00",
+     "at": "2026-10-23T08:31:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "EQNR",
+     "price": 439.43899999999996,
+     "shares": 80.0,
+     "value": 35155.119999999995,
+     "cost": 52.732679999999995,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 440.00 broke above the 30-minute opening range high 439.60",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T10:30:00",
+     "at": "2026-10-23T08:46:01Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "NOD",
+     "price": 174.2741061096191,
+     "shares": 245.0,
+     "value": 42697.15599685668,
+     "cost": 64.04573399528502,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY opening_range: close 175.20 broke above the 30-minute opening range high 174.70",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T11:30:00",
+     "at": "2026-10-23T09:46:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "TOM",
+     "price": 98.4015,
+     "shares": 426.0,
+     "value": 41919.039,
+     "cost": 62.8785585,
+     "pnl": -2003.4793804990986,
+     "pnl_pct": -0.04567933956206805,
+     "reason": "STOP risk: 99.45 is -3.3% from the purchase at 102.80",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T11:45:00",
+     "at": "2026-10-23T10:01:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "NOD",
+     "price": 169.3305,
+     "shares": 245.0,
+     "value": 41485.9725,
+     "cost": 62.228958750000004,
+     "pnl": -1337.458189601959,
+     "pnl_pct": -0.031277376113519995,
+     "reason": "STOP risk: 170.60 is -2.1% from the purchase at 174.27",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T15:45:00",
+     "at": "2026-10-23T14:01:00Z",
+     "goat": "lillebukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "CLOSE",
+     "stock": "EQNR",
+     "price": 450.0495,
+     "shares": 80.0,
+     "value": 36003.96,
+     "cost": 54.00594,
+     "pnl": 742.1013800000001,
+     "pnl_pct": 0.021077723391564707,
+     "reason": "CLOSE risk: nothing is held overnight",
+     "forward": true
+    }
+   ],
+   "rewrites": 2,
+   "rank": 3,
+   "behind": 12648.684775004687
+  },
+  {
+   "id": "mellombukk",
+   "name": "Mellombukk",
+   "tagline": "the calculated one",
+   "account": "mellombukk_v3",
+   "accent": "fjord",
+   "story": "Waits for a momentum name to clear its 60-bar high, then follows it with a trailing stop. Five slots, holds overnight for as long as the trend holds.",
+   "lineage": [
+    {
+     "account": "intraday_breakout_slow",
+     "from": "2026-10-06T09:31:05",
+     "to": "2026-10-13T21:46:53",
+     "value": 105882.89,
+     "why": "The shepherd asked for it: the middle goat may now short a close under its 60-bar low and size its entries by how far the close cleared the range, up to ten slots. Same 3 percent stop and 4 percent trailing stop.",
+     "changes": {
+      "shorts": true,
+      "max_leverage": 10
+     }
+    },
+    {
+     "account": "mellombukk_v2",
+     "from": "2026-10-14T09:31:03",
+     "to": "2026-10-19T21:38:12",
+     "value": 91943.91,
+     "why": "Thirty days of replay: the 60-bar breakout earns 9 percent before costs long-only and 31 percent before costs with shorts and ten slots, but commission took it from 6.5 to 5.7 after costs. Two stops on five-slot entries cost 14 400 kroner in one day. Three slots at most keeps the gross and a third of the toll.",
+     "changes": {
+      "max_leverage": 3
+     }
+    }
+   ],
+   "missing": false,
+   "kind": "intraday",
+   "start": "2026-10-06T09:31:05",
+   "last_seen": "2026-10-23T16:46:00",
+   "sessions": 22,
+   "input_money": 100000.0,
+   "value": 91439.1039966373,
+   "cash": 158419.07370031162,
+   "pnl": -8560.896003362694,
+   "pnl_pct": -0.08560896003362695,
+   "benchmark_pct": 0.00537359630727785,
+   "universe_pct": null,
+   "status": {
+    "code": "GRAZING",
+    "text": "5 names held overnight \u00b7 next look at 09:00"
+   },
+   "holdings": [
+    {
+     "stock": "OKEA",
+     "name": "OKEA",
+     "side": "long",
+     "shares": 937.0,
+     "entry": 47.047,
+     "mark": 48.75,
+     "value": 45678.75,
+     "pnl": 1595.7110000000027,
+     "pnl_pct": 0.036197844708482974,
+     "since": "2026-10-23T09:30:00",
+     "stop": 47.04,
+     "target": null
+    },
+    {
+     "stock": "AKSO",
+     "name": "Aker Solutions",
+     "side": "short",
+     "shares": 943.0,
+     "entry": 37.82214060974121,
+     "mark": 37.040000915527344,
+     "value": 34928.720863342285,
+     "pnl": 737.5577316436772,
+     "pnl_pct": 0.020679413740332442,
+     "since": "2026-10-20T14:15:00",
+     "stop": 37.96,
+     "target": null
+    },
+    {
+     "stock": "WAWI",
+     "name": "Wallenius Wilhelmsen",
+     "side": "short",
+     "shares": 190.0,
+     "entry": 171.7280939025879,
+     "mark": 165.39999389648438,
+     "value": 31425.99884033203,
+     "pnl": 1202.339001159667,
+     "pnl_pct": 0.03684953266699098,
+     "since": "2026-10-22T10:15:00",
+     "stop": 169.2079968261719,
+     "target": null
+    },
+    {
+     "stock": "SUBC",
+     "name": "Subsea 7",
+     "side": "short",
+     "shares": 88.0,
+     "entry": 324.675,
+     "mark": 316.0,
+     "value": 27808.0,
+     "pnl": 763.400000000001,
+     "pnl_pct": 0.026719026719026706,
+     "since": "2026-10-21T09:30:00",
+     "stop": 320.32,
+     "target": null
+    },
+    {
+     "stock": "AKER",
+     "name": "Aker",
+     "side": "short",
+     "shares": 16.0,
+     "entry": 1174.824,
+     "mark": 1156.0,
+     "value": 18496.0,
+     "pnl": 301.1840000000011,
+     "pnl_pct": 0.016022825546635144,
+     "since": "2026-10-22T10:00:00",
+     "stop": 1187.68,
+     "target": null
+    }
+   ],
+   "pending": [],
+   "rules": {
+    "kind": "intraday",
+    "signal": "breakout(lookback=60)",
+    "slots": 5,
+    "execution": "open of the bar starting when the order is sent",
+    "watchlist": "MomentumFactor",
+    "stop_loss": 0.03,
+    "take_profit": null,
+    "trailing_stop": 0.04,
+    "flat_at_close": false,
+    "day_trade": false,
+    "exit_on_signal": true,
+    "entry_window": null,
+    "max_entries_per_day": null,
+    "min_relative_volume": null,
+    "min_range_to_cost": null,
+    "max_per_sector": null,
+    "cooldown_bars": 0,
+    "shorts": true,
+    "max_leverage": 3,
+    "financing_rate": 0.06,
+    "borrow_rate": 0.03,
+    "maintenance_margin": 0.05
+   },
+   "today": {
+    "entries": 1,
+    "cap": null,
+    "signals": 20,
+    "fills": 2,
+    "looks_made": 30,
+    "looks_due": 30,
+    "looks_share": 1.0,
+    "days_missed": 0
+   },
+   "last_call": {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "EQNR",
+    "price": 450.6000061035156,
+    "reason": "close 450.60 broke above the 60-bar high 444.20",
+    "outcome": "skipped: no free slot"
+   },
+   "fees": 4638.0497331184615,
+   "financing": 349.7761958771114,
+   "exposure": 158337.46970367432,
+   "leverage": 1.7316165927161449,
+   "dividends": 0,
+   "fills": 29,
+   "forward_fills": 29,
+   "round_trips": 7,
+   "win_rate": 0.0,
+   "decisions": 102,
+   "feed_lag": 31.01029338333333,
+   "equity": [
+    [
+     "2026-10-06T09:31:05",
+     100000.0
+    ],
+    [
+     "2026-10-06T10:31:39",
+     100000.0
+    ],
+    [
+     "2026-10-06T11:02:08",
+     100000.0
+    ],
+    [
+     "2026-10-06T11:16:04",
+     100000.0
+    ],
+    [
+     "2026-10-06T11:31:44",
+     100000.0
+    ],
+    [
+     "2026-10-06T11:46:24",
+     99900.44
+    ],
+    [
+     "2026-10-06T12:01:04",
+     99952.44
+    ],
+    [
+     "2026-10-06T12:16:03",
+     100160.44
+    ],
+    [
+     "2026-10-06T12:31:03",
+     100004.44
+    ],
+    [
+     "2026-10-06T12:46:03",
+     99978.44
+    ],
+    [
+     "2026-10-06T13:37:18",
+     99978.44
+    ],
+    [
+     "2026-10-06T13:46:03",
+     100004.44
+    ],
+    [
+     "2026-10-06T14:01:03",
+     100004.44
+    ],
+    [
+     "2026-10-06T14:16:03",
+     100134.44
+    ],
+    [
+     "2026-10-06T14:31:04",
+     100108.44
+    ],
+    [
+     "2026-10-06T14:46:03",
+     100108.44
+    ],
+    [
+     "2026-10-06T15:01:04",
+     100082.44
+    ],
+    [
+     "2026-10-06T15:16:03",
+     100030.44
+    ],
+    [
+     "2026-10-06T15:31:03",
+     99978.44
+    ],
+    [
+     "2026-10-06T15:46:03",
+     99952.44
+    ],
+    [
+     "2026-10-06T16:01:03",
+     99848.44
+    ],
+    [
+     "2026-10-06T16:16:05",
+     99848.44
+    ],
+    [
+     "2026-10-06T16:31:03",
+     99978.44
+    ],
+    [
+     "2026-10-06T16:46:04",
+     99900.44
+    ],
+    [
+     "2026-10-07T10:29:18",
+     99744.44
+    ],
+    [
+     "2026-10-07T10:31:02",
+     99796.44
+    ],
+    [
+     "2026-10-07T10:46:17",
+     99822.44
+    ],
+    [
+     "2026-10-07T11:02:42",
+     99796.44
+    ],
+    [
+     "2026-10-07T11:16:06",
+     99900.44
+    ],
+    [
+     "2026-10-07T11:31:04",
+     99874.44
+    ],
+    [
+     "2026-10-07T11:46:04",
+     99746.65
+    ],
+    [
+     "2026-10-07T12:01:07",
+     99848.95
+    ],
+    [
+     "2026-10-07T12:16:06",
+     99698.05
+    ],
+    [
+     "2026-10-07T12:31:04",
+     99819.55
+    ],
+    [
+     "2026-10-07T13:26:36",
+     99774.35
+    ],
+    [
+     "2026-10-07T13:31:04",
+     99776.05
+    ],
+    [
+     "2026-10-07T13:46:02",
+     99873.25
+    ],
+    [
+     "2026-10-07T14:01:03",
+     99998.15
+    ],
+    [
+     "2026-10-07T14:18:33",
+     100050.15
+    ],
+    [
+     "2026-10-07T14:31:07",
+     99999.85
+    ],
+    [
+     "2026-10-07T14:46:04",
+     99871.55
+    ],
+    [
+     "2026-10-08T09:31:27",
+     99500.75
+    ],
+    [
+     "2026-10-08T09:46:02",
+     99395.57
+    ],
+    [
+     "2026-10-08T10:33:43",
+     99408.12
+    ],
+    [
+     "2026-10-08T10:46:17",
+     99447.58
+    ],
+    [
+     "2026-10-08T11:01:07",
+     99361.63
+    ],
+    [
+     "2026-10-08T11:16:03",
+     99484.55
+    ],
+    [
+     "2026-10-08T11:31:03",
+     99482.31
+    ],
+    [
+     "2026-10-08T11:46:03",
+     99633.35
+    ],
+    [
+     "2026-10-08T12:01:03",
+     99816.97
+    ],
+    [
+     "2026-10-08T14:42:04",
+     100190.33
+    ],
+    [
+     "2026-10-08T14:46:03",
+     100203.97
+    ],
+    [
+     "2026-10-08T15:01:04",
+     100355.85
+    ],
+    [
+     "2026-10-08T15:16:04",
+     100354.7
+    ],
+    [
+     "2026-10-08T15:31:04",
+     100326.25
+    ],
+    [
+     "2026-10-08T15:46:06",
+     100349.13
+    ],
+    [
+     "2026-10-08T16:01:04",
+     100994.42
+    ],
+    [
+     "2026-10-08T16:16:03",
+     101036.66
+    ],
+    [
+     "2026-10-13T09:31:23",
+     105062.79
+    ],
+    [
+     "2026-10-13T09:46:08",
+     105118.77
+    ],
+    [
+     "2026-10-13T10:01:06",
+     105482.78
+    ],
+    [
+     "2026-10-13T10:16:06",
+     105968.09
+    ],
+    [
+     "2026-10-13T10:31:02",
+     106069.18
+    ],
+    [
+     "2026-10-13T10:46:04",
+     106047.97
+    ],
+    [
+     "2026-10-13T11:01:03",
+     105979.06
+    ],
+    [
+     "2026-10-13T11:16:03",
+     105882.89
+    ],
+    [
+     "2026-10-14T09:31:03",
+     105883.0
+    ],
+    [
+     "2026-10-14T09:46:03",
+     104906.7
+    ],
+    [
+     "2026-10-14T10:01:04",
+     104828.25
+    ],
+    [
+     "2026-10-14T10:16:03",
+     103788.26
+    ],
+    [
+     "2026-10-14T10:31:03",
+     103911.65
+    ],
+    [
+     "2026-10-14T10:46:21",
+     104909.75
+    ],
+    [
+     "2026-10-14T11:01:02",
+     105085.86
+    ],
+    [
+     "2026-10-14T11:16:03",
+     104302.75
+    ],
+    [
+     "2026-10-14T11:31:03",
+     103851.65
+    ],
+    [
+     "2026-10-14T11:46:03",
+     104247.26
+    ],
+    [
+     "2026-10-14T12:01:03",
+     104202.86
+    ],
+    [
+     "2026-10-14T12:16:03",
+     104840.86
+    ],
+    [
+     "2026-10-14T12:31:03",
+     104990.26
+    ],
+    [
+     "2026-10-14T12:46:03",
+     104539.15
+    ],
+    [
+     "2026-10-14T13:01:02",
+     104203.15
+    ],
+    [
+     "2026-10-14T13:16:02",
+     103803.35
+    ],
+    [
+     "2026-10-14T13:31:03",
+     104034.76
+    ],
+    [
+     "2026-10-14T13:46:02",
+     103812.86
+    ],
+    [
+     "2026-10-14T14:01:02",
+     103544.15
+    ],
+    [
+     "2026-10-14T14:16:02",
+     103160.35
+    ],
+    [
+     "2026-10-14T14:31:02",
+     102174.84
+    ],
+    [
+     "2026-10-14T14:46:02",
+     102992.96
+    ],
+    [
+     "2026-10-14T15:01:02",
+     103983.95
+    ],
+    [
+     "2026-10-14T15:16:03",
+     103786.15
+    ],
+    [
+     "2026-10-14T15:31:02",
+     103129.25
+    ],
+    [
+     "2026-10-14T15:46:02",
+     103850.45
+    ],
+    [
+     "2026-10-14T16:01:03",
+     95955.85
+    ],
+    [
+     "2026-10-15T09:31:03",
+     88842.3
+    ],
+    [
+     "2026-10-15T09:46:03",
+     86291.97
+    ],
+    [
+     "2026-10-15T10:01:03",
+     84183.56
+    ],
+    [
+     "2026-10-15T10:22:22",
+     82212.47
+    ],
+    [
+     "2026-10-15T10:31:03",
+     82572.67
+    ],
+    [
+     "2026-10-15T10:46:03",
+     82775.07
+    ],
+    [
+     "2026-10-15T11:01:02",
+     84058.07
+    ],
+    [
+     "2026-10-15T11:16:26",
+     85593.07
+    ],
+    [
+     "2026-10-15T11:31:03",
+     85338.36
+    ],
+    [
+     "2026-10-15T11:46:03",
+     85257.17
+    ],
+    [
+     "2026-10-15T12:01:05",
+     85491.87
+    ],
+    [
+     "2026-10-15T12:16:04",
+     85637.47
+    ],
+    [
+     "2026-10-15T12:31:02",
+     86234.86
+    ],
+    [
+     "2026-10-15T12:46:03",
+     86144.57
+    ],
+    [
+     "2026-10-15T15:22:14",
+     86710.58
+    ],
+    [
+     "2026-10-19T16:32:38",
+     93260.81
+    ],
+    [
+     "2026-10-19T16:46:17",
+     91943.91
+    ],
+    [
+     "2026-10-20T14:01:51",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:02:51",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:03:57",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:04:59",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:16:54",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:17:52",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:18:59",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:19:55",
+     91944.0
+    ],
+    [
+     "2026-10-20T14:31:55",
+     91892.52
+    ],
+    [
+     "2026-10-20T14:32:50",
+     91892.52
+    ],
+    [
+     "2026-10-20T14:33:59",
+     91892.52
+    ],
+    [
+     "2026-10-20T14:34:57",
+     91892.52
+    ],
+    [
+     "2026-10-20T14:45:59",
+     91967.96
+    ],
+    [
+     "2026-10-20T14:46:59",
+     91967.96
+    ],
+    [
+     "2026-10-20T14:47:51",
+     91967.96
+    ],
+    [
+     "2026-10-20T14:48:55",
+     91967.96
+    ],
+    [
+     "2026-10-20T14:49:56",
+     91967.96
+    ],
+    [
+     "2026-10-20T15:01:49",
+     91741.64
+    ],
+    [
+     "2026-10-20T15:02:50",
+     91741.64
+    ],
+    [
+     "2026-10-20T15:03:58",
+     91741.64
+    ],
+    [
+     "2026-10-20T15:04:54",
+     91741.64
+    ],
+    [
+     "2026-10-20T15:15:59",
+     91647.34
+    ],
+    [
+     "2026-10-20T15:16:59",
+     91647.34
+    ],
+    [
+     "2026-10-20T15:17:55",
+     91647.34
+    ],
+    [
+     "2026-10-20T15:18:55",
+     91647.34
+    ],
+    [
+     "2026-10-20T15:19:54",
+     91647.34
+    ],
+    [
+     "2026-10-20T15:30:59",
+     91685.06
+    ],
+    [
+     "2026-10-20T15:31:59",
+     91685.06
+    ],
+    [
+     "2026-10-20T15:32:50",
+     91685.06
+    ],
+    [
+     "2026-10-20T15:33:48",
+     91685.06
+    ],
+    [
+     "2026-10-20T15:34:55",
+     91685.06
+    ],
+    [
+     "2026-10-20T15:46:48",
+     91553.04
+    ],
+    [
+     "2026-10-20T15:47:52",
+     91553.04
+    ],
+    [
+     "2026-10-20T15:48:54",
+     91553.04
+    ],
+    [
+     "2026-10-20T15:49:50",
+     91553.04
+    ],
+    [
+     "2026-10-20T16:00:59",
+     91817.08
+    ],
+    [
+     "2026-10-20T16:01:45",
+     91817.08
+    ],
+    [
+     "2026-10-20T16:02:38",
+     91817.08
+    ],
+    [
+     "2026-10-20T16:03:48",
+     91817.08
+    ],
+    [
+     "2026-10-20T16:04:49",
+     91817.08
+    ],
+    [
+     "2026-10-20T16:15:59",
+     91647.34
+    ],
+    [
+     "2026-10-20T16:16:42",
+     91647.34
+    ],
+    [
+     "2026-10-20T16:17:55",
+     91647.34
+    ],
+    [
+     "2026-10-20T16:18:45",
+     91647.34
+    ],
+    [
+     "2026-10-20T16:19:47",
+     91647.34
+    ],
+    [
+     "2026-10-20T16:30:59",
+     91590.76
+    ],
+    [
+     "2026-10-20T16:31:59",
+     91553.04
+    ],
+    [
+     "2026-10-20T16:32:53",
+     91553.04
+    ],
+    [
+     "2026-10-20T16:33:49",
+     91553.04
+    ],
+    [
+     "2026-10-20T16:34:44",
+     91553.04
+    ],
+    [
+     "2026-10-20T16:46:53",
+     91571.9
+    ],
+    [
+     "2026-10-20T16:47:53",
+     91571.9
+    ],
+    [
+     "2026-10-20T16:48:54",
+     91571.9
+    ],
+    [
+     "2026-10-20T16:49:49",
+     91571.9
+    ],
+    [
+     "2026-10-21T09:30:59",
+     91361.48
+    ],
+    [
+     "2026-10-21T09:45:59",
+     91218.36
+    ],
+    [
+     "2026-10-21T10:00:59",
+     91160.53
+    ],
+    [
+     "2026-10-21T10:15:59",
+     91158.0
+    ],
+    [
+     "2026-10-21T10:31:00",
+     91380.54
+    ],
+    [
+     "2026-10-21T10:45:59",
+     91615.39
+    ],
+    [
+     "2026-10-21T11:01:00",
+     91666.99
+    ],
+    [
+     "2026-10-21T11:16:00",
+     92060.15
+    ],
+    [
+     "2026-10-21T11:31:00",
+     92117.87
+    ],
+    [
+     "2026-10-21T11:45:59",
+     91753.73
+    ],
+    [
+     "2026-10-21T12:01:00",
+     91133.58
+    ],
+    [
+     "2026-10-21T12:15:59",
+     91299.74
+    ],
+    [
+     "2026-10-21T12:30:59",
+     91171.05
+    ],
+    [
+     "2026-10-21T12:45:59",
+     91208.42
+    ],
+    [
+     "2026-10-21T13:01:00",
+     91437.24
+    ],
+    [
+     "2026-10-21T13:16:00",
+     91370.16
+    ],
+    [
+     "2026-10-21T13:31:01",
+     91277.98
+    ],
+    [
+     "2026-10-21T13:45:59",
+     91460.38
+    ],
+    [
+     "2026-10-21T13:46:50",
+     91460.38
+    ],
+    [
+     "2026-10-21T14:01:00",
+     91388.28
+    ],
+    [
+     "2026-10-21T14:16:00",
+     91512.12
+    ],
+    [
+     "2026-10-21T14:31:00",
+     91432.0
+    ],
+    [
+     "2026-10-21T14:46:00",
+     91756.84
+    ],
+    [
+     "2026-10-21T15:01:00",
+     91771.22
+    ],
+    [
+     "2026-10-21T15:16:01",
+     91760.78
+    ],
+    [
+     "2026-10-21T15:31:00",
+     91331.16
+    ],
+    [
+     "2026-10-21T15:46:01",
+     91219.38
+    ],
+    [
+     "2026-10-21T16:01:00",
+     91546.66
+    ],
+    [
+     "2026-10-21T16:16:01",
+     91129.96
+    ],
+    [
+     "2026-10-21T16:31:00",
+     90758.64
+    ],
+    [
+     "2026-10-21T16:46:00",
+     90568.54
+    ],
+    [
+     "2026-10-22T09:31:00",
+     89340.08
+    ],
+    [
+     "2026-10-22T09:46:00",
+     89026.38
+    ],
+    [
+     "2026-10-22T10:01:00",
+     88693.2
+    ],
+    [
+     "2026-10-22T10:16:00",
+     88470.8
+    ],
+    [
+     "2026-10-22T10:31:00",
+     88274.18
+    ],
+    [
+     "2026-10-22T10:46:00",
+     88293.46
+    ],
+    [
+     "2026-10-22T11:01:00",
+     88258.58
+    ],
+    [
+     "2026-10-22T11:16:00",
+     88634.72
+    ],
+    [
+     "2026-10-22T11:31:00",
+     88821.88
+    ],
+    [
+     "2026-10-22T11:46:00",
+     88865.6
+    ],
+    [
+     "2026-10-22T12:01:00",
+     88915.04
+    ],
+    [
+     "2026-10-22T12:16:00",
+     89244.0
+    ],
+    [
+     "2026-10-22T12:31:00",
+     89013.58
+    ],
+    [
+     "2026-10-22T12:46:00",
+     89075.52
+    ],
+    [
+     "2026-10-22T13:01:00",
+     89035.32
+    ],
+    [
+     "2026-10-22T13:16:00",
+     89053.82
+    ],
+    [
+     "2026-10-22T13:31:02",
+     88854.34
+    ],
+    [
+     "2026-10-22T13:46:50",
+     89351.22
+    ],
+    [
+     "2026-10-22T14:01:00",
+     89811.02
+    ],
+    [
+     "2026-10-22T14:16:00",
+     89972.08
+    ],
+    [
+     "2026-10-22T14:31:00",
+     89739.16
+    ],
+    [
+     "2026-10-22T14:46:00",
+     90046.68
+    ],
+    [
+     "2026-10-22T15:01:00",
+     89997.58
+    ],
+    [
+     "2026-10-22T15:16:00",
+     89806.86
+    ],
+    [
+     "2026-10-22T15:31:00",
+     89815.54
+    ],
+    [
+     "2026-10-22T15:46:00",
+     90133.6
+    ],
+    [
+     "2026-10-22T16:01:00",
+     90258.48
+    ],
+    [
+     "2026-10-22T16:15:59",
+     90233.04
+    ],
+    [
+     "2026-10-22T16:31:00",
+     90618.96
+    ],
+    [
+     "2026-10-22T16:46:00",
+     90507.76
+    ],
+    [
+     "2026-10-23T09:31:00",
+     90495.47
+    ],
+    [
+     "2026-10-23T09:46:00",
+     90371.6
+    ],
+    [
+     "2026-10-23T10:01:01",
+     90398.11
+    ],
+    [
+     "2026-10-23T10:16:00",
+     90682.27
+    ],
+    [
+     "2026-10-23T10:31:00",
+     90887.25
+    ],
+    [
+     "2026-10-23T10:46:01",
+     90806.77
+    ],
+    [
+     "2026-10-23T11:01:00",
+     90963.94
+    ],
+    [
+     "2026-10-23T11:16:00",
+     91222.51
+    ],
+    [
+     "2026-10-23T11:31:00",
+     91416.57
+    ],
+    [
+     "2026-10-23T11:46:00",
+     91615.43
+    ],
+    [
+     "2026-10-23T12:01:00",
+     91313.14
+    ],
+    [
+     "2026-10-23T12:16:01",
+     91233.69
+    ],
+    [
+     "2026-10-23T12:31:00",
+     91415.75
+    ],
+    [
+     "2026-10-23T12:46:00",
+     91088.32
+    ],
+    [
+     "2026-10-23T13:01:00",
+     91063.13
+    ],
+    [
+     "2026-10-23T13:16:00",
+     90706.92
+    ],
+    [
+     "2026-10-23T13:31:02",
+     90620.93
+    ],
+    [
+     "2026-10-23T13:46:51",
+     90569.7
+    ],
+    [
+     "2026-10-23T14:01:00",
+     90767.58
+    ],
+    [
+     "2026-10-23T14:16:00",
+     90799.92
+    ],
+    [
+     "2026-10-23T14:31:00",
+     90862.27
+    ],
+    [
+     "2026-10-23T14:46:00",
+     91137.22
+    ],
+    [
+     "2026-10-23T15:01:00",
+     91710.79
+    ],
+    [
+     "2026-10-23T15:16:00",
+     91777.03
+    ],
+    [
+     "2026-10-23T15:31:00",
+     92086.89
+    ],
+    [
+     "2026-10-23T15:46:00",
+     92326.85
+    ],
+    [
+     "2026-10-23T16:01:00",
+     92055.91
+    ],
+    [
+     "2026-10-23T16:16:00",
+     91847.83
+    ],
+    [
+     "2026-10-23T16:31:00",
+     91508.13
+    ],
+    [
+     "2026-10-23T16:46:00",
+     91439.1
+    ]
+   ],
+   "trades": [
+    {
+     "t": "2026-10-06T11:30:00",
+     "at": "2026-10-06T09:46:24Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "AKER",
+     "price": 1429.4279999999999,
+     "shares": 13.0,
+     "value": 18582.564,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 1426.00 broke above the 60-bar high 1424.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-07T11:30:00",
+     "at": "2026-10-07T09:46:04Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OKEA",
+     "price": 40.990950763702386,
+     "shares": 486.0,
+     "value": 19921.60207115936,
+     "cost": 29.88240310673904,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 41.00 broke above the 60-bar high 40.95",
+     "forward": true
+    },
+    {
+     "t": "2026-10-08T09:30:00",
+     "at": "2026-10-08T07:46:02Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "VAR",
+     "price": 52.41236061096191,
+     "shares": 379.0,
+     "value": 19864.284671554564,
+     "cost": 29.796427007331847,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 52.28 broke above the 60-bar high 52.02",
+     "forward": true
+    },
+    {
+     "t": "2026-10-08T09:30:00",
+     "at": "2026-10-08T08:33:43Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "AKER",
+     "price": 1374.624,
+     "shares": 13.0,
+     "value": 17870.112,
+     "cost": 29.0,
+     "pnl": -770.4519999999975,
+     "pnl_pct": -0.041396413541602284,
+     "reason": "STOP risk: 1384.00 is -3.2% from the purchase at 1429.43",
+     "forward": true
+    },
+    {
+     "t": "2026-10-08T10:45:00",
+     "at": "2026-10-08T09:01:07Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OET",
+     "price": 866.8659999999999,
+     "shares": 22.0,
+     "value": 19071.051999999996,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 866.00 broke above the 60-bar high 865.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-08T11:15:00",
+     "at": "2026-10-08T09:31:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "FRO",
+     "price": 518.7182122192382,
+     "shares": 38.0,
+     "value": 19711.292064331054,
+     "cost": 29.566938096496582,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 517.60 broke above the 60-bar high 517.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-08T14:45:00",
+     "at": "2026-10-08T13:16:04Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "SUBC",
+     "price": 327.1267877807617,
+     "shares": 61.0,
+     "value": 19954.73405462646,
+     "cost": 29.93210108193969,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 326.20 broke above the 60-bar high 326.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T09:30:00",
+     "at": "2026-10-14T07:46:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OET",
+     "price": 965.9649999999999,
+     "shares": 105.0,
+     "value": 101426.325,
+     "cost": 152.1394875,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 964.00 broke above the 60-bar high 956.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T09:30:00",
+     "at": "2026-10-14T07:46:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "WAWI",
+     "price": 178.67849999999999,
+     "shares": 321.0,
+     "value": 57355.7985,
+     "cost": 86.03369775,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 178.70 broke above the 60-bar high 177.70",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T09:30:00",
+     "at": "2026-10-14T07:46:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "HAUTO",
+     "price": 190.3901969451904,
+     "shares": 296.0,
+     "value": 56355.498295776364,
+     "cost": 84.53324744366455,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 190.00 broke above the 60-bar high 188.90",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T09:30:00",
+     "at": "2026-10-14T07:46:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "FRO",
+     "price": 572.7722122192382,
+     "shares": 171.0,
+     "value": 97944.04828948973,
+     "cost": 146.9160724342346,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 572.60 broke above the 60-bar high 570.20",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T09:30:00",
+     "at": "2026-10-14T08:01:04Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OKEA",
+     "price": 47.29725,
+     "shares": 3306.0,
+     "value": 156364.7085,
+     "cost": 234.54706275,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 47.30 broke above the 60-bar high 46.20",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T16:00:00",
+     "at": "2026-10-15T07:31:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "OET",
+     "price": 889.11,
+     "shares": 105.0,
+     "value": 93356.55,
+     "cost": 140.034825,
+     "pnl": -8361.949312499986,
+     "pnl_pct": -0.0823200995869453,
+     "reason": "STOP risk: 921.00 is -4.7% from the purchase at 965.96",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T16:00:00",
+     "at": "2026-10-15T07:31:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "FRO",
+     "price": 539.0603756103516,
+     "shares": 171.0,
+     "value": 92179.32422937012,
+     "cost": 138.26898634405518,
+     "pnl": -6049.909118897907,
+     "pnl_pct": -0.06167651789593685,
+     "reason": "STOP risk: 554.00 is -3.3% from the purchase at 572.77",
+     "forward": true
+    },
+    {
+     "t": "2026-10-14T16:00:00",
+     "at": "2026-10-15T07:31:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "BWLPG",
+     "price": 236.3634060974121,
+     "shares": 695.0,
+     "value": 164272.5672377014,
+     "cost": 246.40885085655214,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 241.60 broke below the 60-bar low 245.20",
+     "forward": true
+    },
+    {
+     "t": "2026-10-15T09:30:00",
+     "at": "2026-10-15T07:46:03Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "AKER",
+     "price": 1228.77,
+     "shares": 144.0,
+     "value": 176942.88,
+     "cost": 265.41432000000003,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 1236.00 broke below the 60-bar low 1290.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-20T14:15:00",
+     "at": "2026-10-20T12:31:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "AKSO",
+     "price": 37.82214060974121,
+     "shares": 943.0,
+     "value": 35666.27859498596,
+     "cost": 53.499417892478945,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 37.92 broke below the 60-bar low 38.24",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T09:30:00",
+     "at": "2026-10-21T07:45:59Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "SUBC",
+     "price": 324.675,
+     "shares": 88.0,
+     "value": 28571.4,
+     "cost": 42.8571,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 326.60 broke below the 60-bar low 328.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T10:30:00",
+     "at": "2026-10-21T08:45:59Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "VAR",
+     "price": 55.88405862808227,
+     "shares": 611.0,
+     "value": 34145.159821758265,
+     "cost": 51.2177397326374,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 56.08 broke below the 60-bar low 56.12",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T11:30:00",
+     "at": "2026-10-21T09:45:59Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "OKEA",
+     "price": 44.15580076217651,
+     "shares": 442.0,
+     "value": 19516.86393688202,
+     "cost": 29.275295905323027,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 44.35 broke below the 60-bar low 44.40",
+     "forward": true
+    },
+    {
+     "t": "2026-10-21T12:30:00",
+     "at": "2026-10-21T11:01:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "TGS",
+     "price": 138.8386969451904,
+     "shares": 140.0,
+     "value": 19437.417572326656,
+     "cost": 29.156126358489985,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 139.00 broke above the 60-bar high 138.90",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T09:30:00",
+     "at": "2026-10-22T07:46:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "cover",
+     "code": "STOP",
+     "stock": "VAR",
+     "price": 57.87781969451903,
+     "shares": 611.0,
+     "value": 35363.34783335113,
+     "cost": 53.0450217500267,
+     "pnl": -1322.4507730755286,
+     "pnl_pct": -0.03878843842386669,
+     "reason": "STOP risk: 57.58 is +3.0% from the short at 55.88",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T09:30:00",
+     "at": "2026-10-22T07:46:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "TGS",
+     "price": 132.66720304870606,
+     "shares": 140.0,
+     "value": 18573.40842681885,
+     "cost": 29.0,
+     "pnl": -922.165271866299,
+     "pnl_pct": -0.04737172992741839,
+     "reason": "STOP risk: 132.80 is -4.3% from the purchase at 138.84",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T10:00:00",
+     "at": "2026-10-22T08:31:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "AKER",
+     "price": 1174.824,
+     "shares": 16.0,
+     "value": 18797.184,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 1170.00 broke below the 60-bar low 1172.00",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T10:15:00",
+     "at": "2026-10-22T08:31:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "short",
+     "code": "SELL",
+     "stock": "WAWI",
+     "price": 171.7280939025879,
+     "shares": 190.0,
+     "value": 32628.3378414917,
+     "cost": 48.94250676223755,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "SELL breakout: close 171.20 broke below the 60-bar low 171.30",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T12:45:00",
+     "at": "2026-10-22T11:16:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "cover",
+     "code": "STOP",
+     "stock": "OKEA",
+     "price": 45.89584847259521,
+     "shares": 442.0,
+     "value": 20285.965024887082,
+     "cost": 30.428947537330625,
+     "pnl": -828.8053314477147,
+     "pnl_pct": -0.042529906943180214,
+     "reason": "STOP risk: 45.60 is +3.3% from the short at 44.16",
+     "forward": true
+    },
+    {
+     "t": "2026-10-22T13:00:00",
+     "at": "2026-10-22T11:16:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "TGS",
+     "price": 139.53939389038084,
+     "shares": 219.0,
+     "value": 30559.127261993402,
+     "cost": 45.83869089299011,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 140.60 broke above the 60-bar high 140.30",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T09:30:00",
+     "at": "2026-10-23T07:46:00Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OKEA",
+     "price": 47.047,
+     "shares": 937.0,
+     "value": 44083.039,
+     "cost": 66.12455849999999,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": "BUY breakout: close 46.75 broke above the 60-bar high 45.90",
+     "forward": true
+    },
+    {
+     "t": "2026-10-23T09:30:00",
+     "at": "2026-10-23T08:01:01Z",
+     "goat": "mellombukk",
+     "kind": "fill",
+     "side": "sell",
+     "code": "STOP",
+     "stock": "TGS",
+     "price": 131.868,
+     "shares": 219.0,
+     "value": 28879.092,
+     "cost": 43.318638,
+     "pnl": -1769.1925908863923,
+     "pnl_pct": -0.05780737000687751,
+     "reason": "STOP risk: 134.60 is -3.5% from the purchase at 139.54",
+     "forward": true
+    }
+   ],
+   "rewrites": 2,
+   "rank": 2,
+   "behind": 4804.137120512052
+  },
+  {
+   "id": "storebukk",
+   "name": "Storebukk",
+   "tagline": "the heavyweight",
+   "account": "live_momentum",
+   "accent": "rose",
+   "story": "Ten names with the strongest twelve-month momentum, bought at the open after the close that picked them. Rebalances monthly and butts nothing in a hurry.",
+   "lineage": [],
+   "missing": false,
+   "kind": "daily",
+   "start": "2026-10-02T00:00:00",
+   "last_seen": "2026-10-23T00:00:00",
+   "sessions": 16,
+   "input_money": 100000.0,
+   "value": 96243.24111714936,
+   "cash": 1523.131442695627,
+   "pnl": -3756.7588828506414,
+   "pnl_pct": -0.037567588828506415,
+   "benchmark_pct": 0.018591552763097097,
+   "universe_pct": -0.0052733942957007285,
+   "status": {
+    "code": "GRAZING",
+    "text": "10 names held \u00b7 decides again at the next close"
+   },
+   "holdings": [
+    {
+     "stock": "OKEA",
+     "name": "OKEA",
+     "side": "long",
+     "shares": 253.0,
+     "entry": 39.339299236297606,
+     "mark": 48.650001525878906,
+     "value": 12308.450386047363,
+     "pnl": 2355.607679264069,
+     "pnl_pct": 0.23667687199141807,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "TGS",
+     "name": "TGS",
+     "side": "long",
+     "shares": 74.0,
+     "entry": 134.53439389038084,
+     "mark": 136.89999389648438,
+     "value": 10130.599548339844,
+     "pnl": 175.05440045166154,
+     "pnl_pct": 0.017583607713214544,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "OET",
+     "name": "Okeanis Eco Tankers",
+     "side": "long",
+     "shares": 11.0,
+     "entry": 835.8349999999999,
+     "mark": 877.0,
+     "value": 9647.0,
+     "pnl": 452.81500000000085,
+     "pnl_pct": 0.04925015104655839,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "FRO",
+     "name": "Frontline",
+     "side": "long",
+     "shares": 19.0,
+     "entry": 502.7022122192382,
+     "mark": 494.0,
+     "value": 9386.0,
+     "pnl": -165.34203216552618,
+     "pnl_pct": -0.01731086915416835,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "AKSO",
+     "name": "Aker Solutions",
+     "side": "long",
+     "shares": 248.0,
+     "entry": 40.20015984725952,
+     "mark": 37.02000045776367,
+     "value": 9180.96011352539,
+     "pnl": -788.6795285949704,
+     "pnl_pct": -0.07910812796712408,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "HAUTO",
+     "name": "H\u00f6egh Autoliners",
+     "side": "long",
+     "shares": 52.0,
+     "entry": 191.19099999999997,
+     "mark": 175.89999389648438,
+     "value": 9146.799682617188,
+     "pnl": -795.1323173828112,
+     "pnl_pct": -0.07997764593268308,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "MPCC",
+     "name": "MPC Container Ships",
+     "side": "long",
+     "shares": 341.0,
+     "entry": 29.189159847259518,
+     "mark": 26.739999771118164,
+     "value": 9118.339921951294,
+     "pnl": -835.1635859642016,
+     "pnl_pct": -0.08390649436151199,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "WAWI",
+     "name": "Wallenius Wilhelmsen",
+     "side": "long",
+     "shares": 54.0,
+     "entry": 183.68349999999998,
+     "mark": 165.1999969482422,
+     "value": 8920.799835205078,
+     "pnl": -998.1091647949208,
+     "pnl_pct": -0.10062691015664338,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "AUTO",
+     "name": "AutoStore",
+     "side": "long",
+     "shares": 612.0,
+     "entry": 16.286270458221434,
+     "mark": 14.430000305175781,
+     "value": 8831.160186767578,
+     "pnl": -1136.0373336639395,
+     "pnl_pct": -0.11397760818276192,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    },
+    {
+     "stock": "AKER",
+     "name": "Aker",
+     "side": "long",
+     "shares": 7.0,
+     "entry": 1397.396,
+     "mark": 1150.0,
+     "value": 8050.0,
+     "pnl": -1731.7719999999997,
+     "pnl_pct": -0.17704072431866125,
+     "since": "2026-10-05T00:00:00",
+     "stop": null,
+     "target": null
+    }
+   ],
+   "pending": [],
+   "rules": {
+    "kind": "daily",
+    "signal": "momentum",
+    "slots": 10,
+    "execution": "next open",
+    "rebalance": "as the strategy decides"
+   },
+   "today": {
+    "pending": 0,
+    "fills": 0,
+    "session": "2026-10-23T00:00:00"
+   },
+   "last_call": {
+    "t": "2026-10-05T00:00:00",
+    "at": "2026-10-02T17:35:47Z",
+    "code": "BUY",
+    "rule": "momentum",
+    "stock": "AKSO",
+    "price": 40.20015984725952,
+    "reason": "filled at the open of 2026-10-05",
+    "outcome": "filled \u00b7 logged before the open"
+   },
+   "fees": 290.0,
+   "financing": 0,
+   "exposure": null,
+   "leverage": null,
+   "dividends": 0,
+   "fills": 10,
+   "forward_fills": 10,
+   "round_trips": 0,
+   "win_rate": null,
+   "decisions": 10,
+   "feed_lag": null,
+   "equity": [
+    [
+     "2026-10-02T00:00:00",
+     100000.0
+    ],
+    [
+     "2026-10-05T00:00:00",
+     99711.28
+    ],
+    [
+     "2026-10-06T00:00:00",
+     99096.71
+    ],
+    [
+     "2026-10-07T00:00:00",
+     98825.96
+    ],
+    [
+     "2026-10-08T00:00:00",
+     99399.78
+    ],
+    [
+     "2026-10-09T00:00:00",
+     100774.88
+    ],
+    [
+     "2026-10-12T00:00:00",
+     101956.63
+    ],
+    [
+     "2026-10-13T00:00:00",
+     102833.71
+    ],
+    [
+     "2026-10-14T00:00:00",
+     101017.98
+    ],
+    [
+     "2026-10-15T00:00:00",
+     99238.87
+    ],
+    [
+     "2026-10-16T00:00:00",
+     99559.23
+    ],
+    [
+     "2026-10-19T00:00:00",
+     98081.37
+    ],
+    [
+     "2026-10-20T00:00:00",
+     97194.28
+    ],
+    [
+     "2026-10-21T00:00:00",
+     97426.79
+    ],
+    [
+     "2026-10-22T00:00:00",
+     95678.72
+    ],
+    [
+     "2026-10-23T00:00:00",
+     96243.24
+    ]
+   ],
+   "trades": [
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OET",
+     "price": 835.8349999999999,
+     "shares": 11.0,
+     "value": 9194.185,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "AKER",
+     "price": 1397.396,
+     "shares": 7.0,
+     "value": 9781.771999999999,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "OKEA",
+     "price": 39.339299236297606,
+     "shares": 253.0,
+     "value": 9952.842706783294,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "TGS",
+     "price": 134.53439389038084,
+     "shares": 74.0,
+     "value": 9955.545147888182,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "FRO",
+     "price": 502.7022122192382,
+     "shares": 19.0,
+     "value": 9551.342032165527,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "WAWI",
+     "price": 183.68349999999998,
+     "shares": 54.0,
+     "value": 9918.909,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "AUTO",
+     "price": 16.286270458221434,
+     "shares": 612.0,
+     "value": 9967.197520431519,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "HAUTO",
+     "price": 191.19099999999997,
+     "shares": 52.0,
+     "value": 9941.931999999999,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "MPCC",
+     "price": 29.189159847259518,
+     "shares": 341.0,
+     "value": 9953.503507915495,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    },
+    {
+     "t": "2026-10-05T00:00:00",
+     "at": "2026-10-02T17:35:47Z",
+     "goat": "storebukk",
+     "kind": "fill",
+     "side": "buy",
+     "code": "BUY",
+     "stock": "AKSO",
+     "price": 40.20015984725952,
+     "shares": 248.0,
+     "value": 9969.63964212036,
+     "cost": 29.0,
+     "pnl": null,
+     "pnl_pct": null,
+     "reason": null,
+     "forward": true
+    }
+   ],
+   "rewrites": 0,
+   "rank": 1,
+   "behind": 0.0
+  }
+ ],
+ "herd": {
+  "generated_at": "2026-10-23T19:57:38Z",
+  "items": [
+   {
+    "account": "intraday_breakout",
+    "kind": "intraday",
+    "signal": "breakout(lookback=20)",
+    "start": "2026-10-03T16:39:11",
+    "value": 104528.81449760767,
+    "pnl_pct": 0.045288144976076694,
+    "benchmark_pct": 0.018591552763097097,
+    "fills": 43,
+    "holdings": 5,
+    "round_trips": 19,
+    "win_rate": 0.2631578947368421
+   },
+   {
+    "account": "intraday_ma",
+    "kind": "intraday",
+    "signal": "ma_cross(fast=5, slow=20)",
+    "start": "2026-10-03T16:39:11",
+    "value": 102160.11913907353,
+    "pnl_pct": 0.02160119139073524,
+    "benchmark_pct": 0.018591552763097097,
+    "fills": 83,
+    "holdings": 5,
+    "round_trips": 39,
+    "win_rate": 0.2564102564102564
+   },
+   {
+    "account": "daytrade_breakout",
+    "kind": "intraday",
+    "signal": "breakout(lookback=60)",
+    "start": "2026-10-06T09:31:05",
+    "value": 100587.95424421842,
+    "pnl_pct": 0.005879542442184249,
+    "benchmark_pct": 0.020322782956737395,
+    "fills": 18,
+    "holdings": 0,
+    "round_trips": 9,
+    "win_rate": 0.4444444444444444
+   },
+   {
+    "account": "live_trend_monthly",
+    "kind": "daily",
+    "signal": "trend_monthly",
+    "start": "2026-10-06T00:00:00",
+    "value": 98954.56433341217,
+    "pnl_pct": -0.01045435666587824,
+    "benchmark_pct": 0.020322782956737395,
+    "fills": 38,
+    "holdings": 38
+   },
+   {
+    "account": "intraday_ma_slow",
+    "kind": "intraday",
+    "signal": "ma_cross(fast=20, slow=60)",
+    "start": "2026-10-06T09:31:05",
+    "value": 96721.3620131019,
+    "pnl_pct": -0.03278637986898103,
+    "benchmark_pct": 0.020322782956737395,
+    "fills": 33,
+    "holdings": 3,
+    "round_trips": 15,
+    "win_rate": 0.2
+   },
+   {
+    "account": "live_trend",
+    "kind": "daily",
+    "signal": "trend",
+    "start": "2026-10-02T00:00:00",
+    "value": 93725.77620364,
+    "pnl_pct": -0.06274223796360001,
+    "benchmark_pct": 0.018591552763097097,
+    "fills": 10,
+    "holdings": 10
+   }
+  ]
+ },
+ "stream": {
+  "generated_at": "2026-10-23T19:57:38Z",
+  "items": [
+   {
+    "t": "2026-10-23T16:15:00",
+    "at": "2026-10-23T14:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BONHR",
+    "price": 245.0,
+    "reason": "close 245.00 broke above the 30-minute opening range high 244.50",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T16:15:00",
+    "at": "2026-10-23T14:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ARCH",
+    "price": 18.1200008392334,
+    "reason": "close 18.12 broke above the 30-minute opening range high 18.00",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T16:00:00",
+    "at": "2026-10-23T14:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BWO",
+    "price": 39.95000076293945,
+    "reason": "close 39.95 broke above the 30-minute opening range high 39.85",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:45:00",
+    "at": "2026-10-23T14:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BORR",
+    "price": 39.599998474121094,
+    "reason": "close 39.60 broke above the 30-minute opening range high 39.50",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "AKRBP",
+    "price": 390.0,
+    "reason": "close 390.00 broke above the 30-minute opening range high 387.60",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BWLPG",
+    "price": 236.1999969482422,
+    "reason": "close 236.20 broke above the 30-minute opening range high 232.00",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "PEN",
+    "price": 34.0,
+    "reason": "close 34.00 broke above the 30-minute opening range high 33.85",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:45:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "lillebukk",
+    "kind": "fill",
+    "side": "sell",
+    "code": "CLOSE",
+    "stock": "EQNR",
+    "price": 450.0495,
+    "shares": 80.0,
+    "value": 36003.96,
+    "cost": 54.00594,
+    "pnl": 742.1013800000001,
+    "pnl_pct": 0.021077723391564707,
+    "reason": "CLOSE risk: nothing is held overnight",
+    "forward": true
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "OET",
+    "price": 867.0,
+    "reason": "close 867.00 broke above the 60-bar high 860.00",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "OKEA",
+    "price": 48.650001525878906,
+    "reason": "close 48.65 broke above the 60-bar high 48.40",
+    "outcome": "skipped: already held"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "BWLPG",
+    "price": 236.1999969482422,
+    "reason": "close 236.20 broke above the 60-bar high 235.80",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "FRO",
+    "price": 489.79998779296875,
+    "reason": "close 489.80 broke above the 60-bar high 487.90",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "at": "2026-10-23T14:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "EQNR",
+    "price": 450.6000061035156,
+    "reason": "close 450.60 broke above the 60-bar high 444.20",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T15:15:00",
+    "at": "2026-10-23T13:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "CLOSE",
+    "rule": "risk",
+    "stock": "EQNR",
+    "price": 443.6000061035156,
+    "reason": "nothing is held overnight",
+    "outcome": "ordered"
+   },
+   {
+    "t": "2026-10-23T15:15:00",
+    "at": "2026-10-23T13:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "MOWI",
+    "price": 216.0,
+    "reason": "close 216.00 broke above the 30-minute opening range high 215.90",
+    "outcome": "skipped: too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:15:00",
+    "at": "2026-10-23T13:46:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "VAR",
+    "price": 58.380001068115234,
+    "reason": "close 58.38 broke above the 60-bar high 58.32",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T15:00:00",
+    "at": "2026-10-23T13:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BOUV",
+    "price": 51.20000076293945,
+    "reason": "close 51.20 broke above the 30-minute opening range high 50.90",
+    "outcome": "skipped: outside the entry window 09:30-14:30"
+   },
+   {
+    "t": "2026-10-23T15:00:00",
+    "at": "2026-10-23T13:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "SALM",
+    "price": 582.0,
+    "reason": "close 582.00 broke above the 30-minute opening range high 580.00",
+    "outcome": "skipped: outside the entry window 09:30-14:30"
+   },
+   {
+    "t": "2026-10-23T14:30:00",
+    "at": "2026-10-23T13:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "OKEA",
+    "price": 48.25,
+    "reason": "close 48.25 broke above the 60-bar high 47.85",
+    "outcome": "skipped: already held"
+   },
+   {
+    "t": "2026-10-23T14:30:00",
+    "at": "2026-10-23T13:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "SELL",
+    "rule": "breakout",
+    "stock": "MPCC",
+    "price": 26.579999923706055,
+    "reason": "close 26.58 broke below the 60-bar low 26.61",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T14:00:00",
+    "at": "2026-10-23T12:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "AKRBP",
+    "price": 387.70001220703125,
+    "reason": "close 387.70 broke above the 30-minute opening range high 387.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T14:00:00",
+    "at": "2026-10-23T12:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ORK",
+    "price": 97.5,
+    "reason": "close 97.50 broke above the 30-minute opening range high 97.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T14:00:00",
+    "at": "2026-10-23T12:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ODL",
+    "price": 105.5999984741211,
+    "reason": "close 105.60 broke above the 30-minute opening range high 105.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:45:00",
+    "at": "2026-10-23T12:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BWLPG",
+    "price": 232.39999389648438,
+    "reason": "close 232.40 broke above the 30-minute opening range high 232.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:45:00",
+    "at": "2026-10-23T12:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "AKSO",
+    "price": 37.29999923706055,
+    "reason": "close 37.30 broke above the 30-minute opening range high 37.18",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:45:00",
+    "at": "2026-10-23T12:16:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "OKEA",
+    "price": 47.849998474121094,
+    "reason": "close 47.85 broke above the 60-bar high 47.75",
+    "outcome": "skipped: already held"
+   },
+   {
+    "t": "2026-10-23T13:30:00",
+    "at": "2026-10-23T12:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "YAR",
+    "price": 400.6000061035156,
+    "reason": "close 400.60 broke above the 30-minute opening range high 400.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:30:00",
+    "at": "2026-10-23T12:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BONHR",
+    "price": 246.0,
+    "reason": "close 246.00 broke above the 30-minute opening range high 244.50",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:15:00",
+    "at": "2026-10-23T11:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "AKSO",
+    "price": 37.2599983215332,
+    "reason": "close 37.26 broke above the 30-minute opening range high 37.18",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:15:00",
+    "at": "2026-10-23T11:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ATEA",
+    "price": 165.8000030517578,
+    "reason": "close 165.80 broke above the 30-minute opening range high 165.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:00:00",
+    "at": "2026-10-23T11:31:02Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "SUBC",
+    "price": 311.20001220703125,
+    "reason": "close 311.20 broke above the 30-minute opening range high 311.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:00:00",
+    "at": "2026-10-23T11:31:02Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BOUV",
+    "price": 51.0,
+    "reason": "close 51.00 broke above the 30-minute opening range high 50.90",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T13:00:00",
+    "at": "2026-10-23T11:31:02Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ODL",
+    "price": 105.5999984741211,
+    "reason": "close 105.60 broke above the 30-minute opening range high 105.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:45:00",
+    "at": "2026-10-23T11:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "VEI",
+    "price": 206.5,
+    "reason": "close 206.50 broke above the 30-minute opening range high 206.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:30:00",
+    "at": "2026-10-23T11:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "SALM",
+    "price": 581.0,
+    "reason": "close 581.00 broke above the 30-minute opening range high 580.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:30:00",
+    "at": "2026-10-23T11:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "MOWI",
+    "price": 216.0,
+    "reason": "close 216.00 broke above the 30-minute opening range high 215.90",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:30:00",
+    "at": "2026-10-23T11:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "YAR",
+    "price": 400.29998779296875,
+    "reason": "close 400.30 broke above the 30-minute opening range high 400.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:30:00",
+    "at": "2026-10-23T11:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "EQNR",
+    "price": 442.6000061035156,
+    "reason": "close 442.60 broke above the 60-bar high 441.80",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T12:15:00",
+    "at": "2026-10-23T10:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BWLPG",
+    "price": 232.1999969482422,
+    "reason": "close 232.20 broke above the 30-minute opening range high 232.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:00:00",
+    "at": "2026-10-23T10:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ORK",
+    "price": 97.5,
+    "reason": "close 97.50 broke above the 30-minute opening range high 97.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T12:00:00",
+    "at": "2026-10-23T10:31:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "FRO",
+    "price": 485.6000061035156,
+    "reason": "close 485.60 broke above the 60-bar high 485.10",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T11:30:00",
+    "at": "2026-10-23T10:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "EQNR",
+    "price": 439.79998779296875,
+    "reason": "close 439.80 broke above the 30-minute opening range high 439.60",
+    "outcome": "skipped: already held"
+   },
+   {
+    "t": "2026-10-23T11:30:00",
+    "at": "2026-10-23T10:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "FRO",
+    "price": 484.20001220703125,
+    "reason": "close 484.20 broke above the 30-minute opening range high 481.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:30:00",
+    "at": "2026-10-23T10:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BWE",
+    "price": 66.69999694824219,
+    "reason": "close 66.70 broke above the 30-minute opening range high 66.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:45:00",
+    "at": "2026-10-23T10:01:00Z",
+    "goat": "lillebukk",
+    "kind": "fill",
+    "side": "sell",
+    "code": "STOP",
+    "stock": "NOD",
+    "price": 169.3305,
+    "shares": 245.0,
+    "value": 41485.9725,
+    "cost": 62.228958750000004,
+    "pnl": -1337.458189601959,
+    "pnl_pct": -0.031277376113519995,
+    "reason": "STOP risk: 170.60 is -2.1% from the purchase at 174.27",
+    "forward": true
+   },
+   {
+    "t": "2026-10-23T11:15:00",
+    "at": "2026-10-23T09:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "STOP",
+    "rule": "risk",
+    "stock": "NOD",
+    "price": 170.60000610351562,
+    "reason": "170.60 is -2.1% from the purchase at 174.27",
+    "outcome": "ordered"
+   },
+   {
+    "t": "2026-10-23T11:15:00",
+    "at": "2026-10-23T09:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "AKRBP",
+    "price": 387.70001220703125,
+    "reason": "close 387.70 broke above the 30-minute opening range high 387.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:15:00",
+    "at": "2026-10-23T09:46:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "KOG",
+    "price": 302.8999938964844,
+    "reason": "close 302.90 broke above the 30-minute opening range high 302.70",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:30:00",
+    "at": "2026-10-23T09:46:00Z",
+    "goat": "lillebukk",
+    "kind": "fill",
+    "side": "sell",
+    "code": "STOP",
+    "stock": "TOM",
+    "price": 98.4015,
+    "shares": 426.0,
+    "value": 41919.039,
+    "cost": 62.8785585,
+    "pnl": -2003.4793804990986,
+    "pnl_pct": -0.04567933956206805,
+    "reason": "STOP risk: 99.45 is -3.3% from the purchase at 102.80",
+    "forward": true
+   },
+   {
+    "t": "2026-10-23T11:15:00",
+    "at": "2026-10-23T09:46:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "OKEA",
+    "price": 47.599998474121094,
+    "reason": "close 47.60 broke above the 60-bar high 47.40",
+    "outcome": "skipped: already held"
+   },
+   {
+    "t": "2026-10-23T11:00:00",
+    "at": "2026-10-23T09:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "STOP",
+    "rule": "risk",
+    "stock": "TOM",
+    "price": 99.44999694824219,
+    "reason": "99.45 is -3.3% from the purchase at 102.80",
+    "outcome": "ordered"
+   },
+   {
+    "t": "2026-10-23T11:00:00",
+    "at": "2026-10-23T09:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "SALM",
+    "price": 580.5,
+    "reason": "close 580.50 broke above the 30-minute opening range high 580.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:00:00",
+    "at": "2026-10-23T09:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "VAR",
+    "price": 57.7400016784668,
+    "reason": "close 57.74 broke above the 30-minute opening range high 57.72",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:00:00",
+    "at": "2026-10-23T09:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "YAR",
+    "price": 400.29998779296875,
+    "reason": "close 400.30 broke above the 30-minute opening range high 400.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T11:00:00",
+    "at": "2026-10-23T09:31:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "SELL",
+    "rule": "breakout",
+    "stock": "HAUTO",
+    "price": 175.60000610351562,
+    "reason": "close 175.60 broke below the 60-bar low 176.50",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T10:45:00",
+    "at": "2026-10-23T09:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "FRO",
+    "price": 483.29998779296875,
+    "reason": "close 483.30 broke above the 30-minute opening range high 481.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:45:00",
+    "at": "2026-10-23T09:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ORK",
+    "price": 97.5,
+    "reason": "close 97.50 broke above the 30-minute opening range high 97.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:45:00",
+    "at": "2026-10-23T09:16:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "SELL",
+    "rule": "breakout",
+    "stock": "MPCC",
+    "price": 27.09000015258789,
+    "reason": "close 27.09 broke below the 60-bar low 27.15",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T10:30:00",
+    "at": "2026-10-23T09:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BOUV",
+    "price": 51.099998474121094,
+    "reason": "close 51.10 broke above the 30-minute opening range high 50.90",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:30:00",
+    "at": "2026-10-23T09:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BAKKA",
+    "price": 460.79998779296875,
+    "reason": "close 460.80 broke above the 30-minute opening range high 460.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:30:00",
+    "at": "2026-10-23T09:01:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "TEL",
+    "price": 126.69999694824219,
+    "reason": "close 126.70 broke above the 30-minute opening range high 126.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:30:00",
+    "at": "2026-10-23T09:01:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "SELL",
+    "rule": "breakout",
+    "stock": "HAUTO",
+    "price": 176.89999389648438,
+    "reason": "close 176.90 broke below the 60-bar low 177.10",
+    "outcome": "skipped: no free slot"
+   },
+   {
+    "t": "2026-10-23T10:15:00",
+    "at": "2026-10-23T08:46:01Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "FRO",
+    "price": 481.5,
+    "reason": "close 481.50 broke above the 30-minute opening range high 481.40",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:15:00",
+    "at": "2026-10-23T08:46:01Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ATEA",
+    "price": 165.8000030517578,
+    "reason": "close 165.80 broke above the 30-minute opening range high 165.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:30:00",
+    "at": "2026-10-23T08:46:01Z",
+    "goat": "lillebukk",
+    "kind": "fill",
+    "side": "buy",
+    "code": "BUY",
+    "stock": "NOD",
+    "price": 174.2741061096191,
+    "shares": 245.0,
+    "value": 42697.15599685668,
+    "cost": 64.04573399528502,
+    "pnl": null,
+    "pnl_pct": null,
+    "reason": "BUY opening_range: close 175.20 broke above the 30-minute opening range high 174.70",
+    "forward": true
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "NOD",
+    "price": 175.1999969482422,
+    "reason": "close 175.20 broke above the 30-minute opening range high 174.70",
+    "outcome": "ordered x1.5"
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "OKEA",
+    "price": 47.400001525878906,
+    "reason": "close 47.40 broke above the 30-minute opening range high 46.90",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "HAFNI",
+    "price": 97.6500015258789,
+    "reason": "close 97.65 broke above the 30-minute opening range high 96.80",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "AKRBP",
+    "price": 387.70001220703125,
+    "reason": "close 387.70 broke above the 30-minute opening range high 387.60",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "OET",
+    "price": 849.0,
+    "reason": "close 849.00 broke above the 30-minute opening range high 846.00",
+    "outcome": "skipped: 3 entries today already"
+   },
+   {
+    "t": "2026-10-23T10:15:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "lillebukk",
+    "kind": "fill",
+    "side": "buy",
+    "code": "BUY",
+    "stock": "EQNR",
+    "price": 439.43899999999996,
+    "shares": 80.0,
+    "value": 35155.119999999995,
+    "cost": 52.732679999999995,
+    "pnl": null,
+    "pnl_pct": null,
+    "reason": "BUY opening_range: close 440.00 broke above the 30-minute opening range high 439.60",
+    "forward": true
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:31:00Z",
+    "goat": "mellombukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "breakout",
+    "stock": "OKEA",
+    "price": 47.400001525878906,
+    "reason": "close 47.40 broke above the 60-bar high 47.00",
+    "outcome": "skipped: already held"
+   },
+   {
+    "t": "2026-10-23T09:45:00",
+    "at": "2026-10-23T08:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "EQNR",
+    "price": 440.0,
+    "reason": "close 440.00 broke above the 30-minute opening range high 439.60",
+    "outcome": "ordered x1.2"
+   },
+   {
+    "t": "2026-10-23T09:45:00",
+    "at": "2026-10-23T08:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "EPR",
+    "price": 85.0,
+    "reason": "close 85.00 broke above the 30-minute opening range high 84.60",
+    "outcome": "skipped: daily range 1.5% is under 4 round trips of 0.50%"
+   },
+   {
+    "t": "2026-10-23T09:45:00",
+    "at": "2026-10-23T08:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "KOG",
+    "price": 304.1000061035156,
+    "reason": "close 304.10 broke above the 30-minute opening range high 302.70",
+    "outcome": "skipped: 1 already in Industrials & materials"
+   },
+   {
+    "t": "2026-10-23T09:45:00",
+    "at": "2026-10-23T08:16:00Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "ATEA",
+    "price": 165.8000030517578,
+    "reason": "close 165.80 broke above the 30-minute opening range high 165.60",
+    "outcome": "skipped: volume 0.4x normal, under 1.5x"
+   },
+   {
+    "t": "2026-10-23T10:00:00",
+    "at": "2026-10-23T08:16:00Z",
+    "goat": "lillebukk",
+    "kind": "fill",
+    "side": "buy",
+    "code": "BUY",
+    "stock": "TOM",
+    "price": 102.80269694519042,
+    "shares": 426.0,
+    "value": 43793.94889865112,
+    "cost": 65.69092334797668,
+    "pnl": null,
+    "pnl_pct": null,
+    "reason": "BUY opening_range: close 102.90 broke above the 30-minute opening range high 102.40",
+    "forward": true
+   },
+   {
+    "t": "2026-10-23T09:30:00",
+    "at": "2026-10-23T08:01:01Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "TOM",
+    "price": 102.9000015258789,
+    "reason": "close 102.90 broke above the 30-minute opening range high 102.40",
+    "outcome": "ordered x1.5"
+   },
+   {
+    "t": "2026-10-23T09:30:00",
+    "at": "2026-10-23T08:01:01Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BAKKA",
+    "price": 461.20001220703125,
+    "reason": "close 461.20 broke above the 30-minute opening range high 460.00",
+    "outcome": "skipped: volume 0.6x normal, under 1.5x"
+   },
+   {
+    "t": "2026-10-23T09:30:00",
+    "at": "2026-10-23T08:01:01Z",
+    "goat": "lillebukk",
+    "kind": "signal",
+    "code": "BUY",
+    "rule": "opening_range",
+    "stock": "BRG",
+    "price": 142.39999389648438,
+    "reason": "close 142.40 broke above the 30-minute opening range high 142.00",
+    "outcome": "skipped: 1 already in Industrials & materials"
+   }
+  ]
+ },
+ "gate": {
+  "generated_at": "2026-10-23T19:57:38Z",
+  "day": "2026-10-23",
+  "items": [
+   {
+    "t": "2026-10-23T16:15:00",
+    "goat": "lillebukk",
+    "stock": "BONHR",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T16:15:00",
+    "goat": "lillebukk",
+    "stock": "ARCH",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T16:00:00",
+    "goat": "lillebukk",
+    "stock": "BWO",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:45:00",
+    "goat": "lillebukk",
+    "stock": "BORR",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "lillebukk",
+    "stock": "AKRBP",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "lillebukk",
+    "stock": "BWLPG",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "lillebukk",
+    "stock": "PEN",
+    "why": "too close to the close"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "mellombukk",
+    "stock": "OET",
+    "why": "no free slot"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "mellombukk",
+    "stock": "OKEA",
+    "why": "already held"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "mellombukk",
+    "stock": "BWLPG",
+    "why": "no free slot"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "mellombukk",
+    "stock": "FRO",
+    "why": "no free slot"
+   },
+   {
+    "t": "2026-10-23T15:30:00",
+    "goat": "mellombukk",
+    "stock": "EQNR",
+    "why": "no free slot"
+   }
+  ]
+ },
+ "troll": {
+  "rewrites": 4,
+  "reviewed_at": "2026-10-21T20:58:57Z",
+  "entries": [
+   {
+    "t": "2026-10-13T07:40:00Z",
+    "kind": "intro",
+    "text": "Who's that tripping over my bridge? Three goats with NOK 100 000 of play money each, and I read their books every weekday evening after the close. No goat gets its rules rewritten before it has had a full week on the far bank."
+   },
+   {
+    "t": "2026-10-13T07:44:00Z",
+    "kind": "verdict",
+    "goat": "mellombukk",
+    "text": "Mellombukk leads at +5.1% with all five slots full: OKEA, FRO, SUBC, OET, VAR. One round trip so far, and it lost. Everything else is open profit, and open profit is the troll's favourite breakfast."
+   },
+   {
+    "t": "2026-10-13T07:47:00Z",
+    "kind": "verdict",
+    "goat": "lillebukk",
+    "text": "Lillebukk has judged 136 signals, taken twelve fills and six round trips, half of them winners, and sits NOK 163 under its start. The bridge toll took NOK 594 of that. Trip-trap all day and the toll eats you."
+   },
+   {
+    "t": "2026-10-13T07:50:00Z",
+    "kind": "verdict",
+    "goat": "storebukk",
+    "text": "Storebukk's books stand at Friday. The evening job slept through Monday, so its +0.8% is three sessions old. Not the goat's fault. I only judge what is written down, and on Monday nothing was."
+   },
+   {
+    "t": "2026-10-13T07:55:00Z",
+    "kind": "handsoff",
+    "text": "Hands off. All three have holes from last week while the laptop dozed: two whole days of looks for the little ones, Monday's close for the big one. I rewrite rules, not naps. Fix the shepherd before you fix the goats."
+   },
+   {
+    "t": "2026-10-13T08:52:25Z",
+    "kind": "verdict",
+    "text": "Lillebukk burned all three entries at 10:00 on NOD, OKEA and WAWI and sits benched at NOK 99 440.4, -0.6% with OSEBX at +0.9%, while twelve more breakouts were turned away at the gate. Six round trips, three won, and the toll has taken NOK 743.2, more than this goat has ever made gross. It is midday and the market is open, so today's number is a mark, not a result.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-13T08:52:26Z",
+    "kind": "verdict",
+    "text": "Mellombukk stands at NOK 106 048.0, +6.0%, with all five slots full and NOK 6 966.6 of it open profit in OKEA, OET, FRO, SUBC and VAR; MPCC knocked at 10:00 and found no free slot. Its one closed trade is the AKER stop at -4.1%, and fees are NOK 206.2. Open profit is not profit; what is booked is one loss.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-13T08:52:29Z",
+    "kind": "verdict",
+    "text": "Storebukk's books still stand at Friday 9 October: NOK 100 774.9, +0.8%, ten names held, no round trips, NOK 290.0 in fees. The evening job never stepped Monday, and this morning's run called Friday up to date, so the big goat has slept two sessions and is sleeping through a third. I judge what is written down, and nothing new is.",
+    "goat": "storebukk"
+   },
+   {
+    "t": "2026-10-13T08:52:30Z",
+    "kind": "handsoff",
+    "text": "Hands off. Lillebukk and Mellombukk are four sessions old, one short of the five I need, and Storebukk has no round trips and books three sessions stale. I rewrite patterns, not naps, and not midday marks."
+   },
+   {
+    "t": "2026-10-13T19:23:05Z",
+    "kind": "verdict",
+    "text": "Lillebukk bought NOD, OKEA and WAWI at 10:00 and then the shepherd's loop went quiet at 11:16: 8 looks of 30 made, and the three names still sit in the books unclosed at a mark of NOK 99 496.5, -0.5% against OSEBX at +1.3%. Six round trips over four sessions, three won, and NOK 743.2 paid in toll against NOK 1 433.0 of gross wins. A goat that never came back for the close has no result today, only a mark from before lunch.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-13T19:23:07Z",
+    "kind": "verdict",
+    "text": "Mellombukk marks NOK 105 882.9, +5.9%, with all five slots full and NOK 6 801.5 of it open in OKEA, FRO, OET, SUBC and VAR; MPCC knocked twice more and found no slot. It too stopped looking at 11:16, 8 looks of 30, so its stops went unwatched all afternoon. One round trip in the books, the AKER stop at -4.1%, and NOK 206.2 of toll. Open profit is still not profit.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-13T19:23:09Z",
+    "kind": "verdict",
+    "text": "Storebukk's books are finally current: the evening job stepped Monday and Tuesday tonight, and the big goat stands at NOK 102 833.7, +2.8%, with OSEBX at +1.2% and its own ten-name pasture at +1.9%. OKEA, FRO and OET carry it at +16.9%, +12.5% and +12.9%, while AKER and AUTO drag at -6.4% and -5.4%. Eight sessions, no round trips, NOK 290.0 in fees, nothing booked. A week of marks is not a record.",
+    "goat": "storebukk"
+   },
+   {
+    "t": "2026-10-13T19:23:11Z",
+    "kind": "handsoff",
+    "text": "Hands off. Lillebukk and Mellombukk are four sessions old, one short of five, and both slept from 11:16 today with names open, so the day's books are half-written. Storebukk is eight sessions old with ten names and no round trips, and there is no pattern in a book where nothing has closed. I rewrite patterns, not naps."
+   },
+   {
+    "t": "2026-10-13T19:46:49Z",
+    "kind": "rewrite",
+    "text": "Lillebukk's rules rewritten: daytrade_orb closed its book at NOK 99,497; lillebukk_v2 starts there with shorts True, max_leverage 10. The shepherd asked for it: the little goat may now short a breakdown of the opening range and size its entries by how hard the bar broke out, up to ten slots. Same 2 percent stop, same flat-at-close rule, same filters.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-13T19:46:54Z",
+    "kind": "rewrite",
+    "text": "Mellombukk's rules rewritten: intraday_breakout_slow closed its book at NOK 105,883; mellombukk_v2 starts there with shorts True, max_leverage 10. The shepherd asked for it: the middle goat may now short a close under its 60-bar low and size its entries by how far the close cleared the range, up to ten slots. Same 3 percent stop and 4 percent trailing stop.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-15T07:19:51Z",
+    "kind": "verdict",
+    "text": "Lillebukk's first day with a short in its teeth: at 10:00 it put NOK 195.7k into DNO, NOK 271.5k into ODL and sold NOK 242.1k of NEL short, seven times its equity, and by 15:45 ODL and NEL were closed for -1.2% and -1.7%, NOK 7 403.3 gone in two trips. It marks NOK 91 787.7, -8.2%, with OSEBX up 0.4% on the day; eight round trips, three won, and the toll stands at NOK 2 680.3 against NOK 1 433.0 of gross wins, NOK 1 835.3 of it paid on yesterday's five fills alone. The close order for DNO was written at 15:15 and never filled: the laptop slept at 16:01, and the goat that never holds overnight is holding NOK 195.7k of DNO this morning.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-15T07:19:53Z",
+    "kind": "verdict",
+    "text": "Mellombukk went out at 09:30 with five slots and borrowed money: OET, FRO, OKEA, WAWI and HAUTO for NOK 469.4k on NOK 105.9k of equity, 4.8 times its equity today, and by the close OET was -4.7% and FRO -3.3%, both through their 3% stops. The stops were decided at 15:30 along with a short in BWLPG, then the laptop slept at 16:01 and nothing filled, so the goat marks NOK 95 955.8, -4.0% since the start and -9.4% since Tuesday's fork, with one round trip in the book, the AKER stop at -4.1%, and NOK 910.3 of toll. A 3% stop on five leveraged slots is 14% of equity; that is what the leverage did yesterday, and the stops it was meant to honour are still unfilled.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-15T07:19:55Z",
+    "kind": "verdict",
+    "text": "Storebukk's books still stand at Tuesday 13 October: NOK 102 833.7, +2.8%, with OSEBX at +1.2%, ten names held, no round trips, NOK 290.0 in fees. The evening job did not run on Wednesday and this morning's run called Tuesday up to date, so the big goat has slept through a session again. Nothing new is written, and I judge nothing new.",
+    "goat": "storebukk"
+   },
+   {
+    "t": "2026-10-15T07:20:04Z",
+    "kind": "handsoff",
+    "text": "Hands off. Lillebukk and Mellombukk were reborn on Tuesday evening and have one session in their new books, four short of the five I need, and that one session ended with the laptop asleep and their orders unfilled. Storebukk has no round trips and books two days stale. I see the toll on Lillebukk, NOK 2 680.3 against NOK 1 433.0 of gross wins, and the borrowed money on both little goats; I will have words about that when the books are old enough to read."
+   },
+   {
+    "t": "2026-10-19T19:35:24Z",
+    "kind": "verdict",
+    "text": "Lillebukk calls itself flat and has been holding NOK 700.9k of OKEA short, NAS and BWLPG long since Thursday 10:00, 7.9 times its equity, through Friday and the weekend, because the laptop made no looks on Friday and 2 of 30 today, both after the close. It marks NOK 89 241.5, -10.8% with OSEBX at +0.2%; nine round trips, three won, NOK 1 433.0 of gross wins against NOK 4 238.7 of toll, so the toll has eaten its wins three times over. The two closes and the BWLPG stop were written at 16:00 and sit unfilled, while its old unleveraged self still trots in the herd at NOK 100 979.0.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-19T19:35:27Z",
+    "kind": "verdict",
+    "text": "Mellombukk grazes on borrowed grass: five names for NOK 594.0k on NOK 91 943.9 of equity, 6.5 times, and marks -8.1% against OSEBX at +0.2%. Three round trips in the book and none won, NOK 15 182.3 lost on AKER, OET and FRO, the last two stopped at -8.2% and -6.2% because their 3% stops filled a morning late; NOK 1 790.0 of toll on top. Today's OKEA stop at -3.6% was decided at 16:00 after 2 of 30 looks and is still waiting for the open, and the shorts in AKER and BWLPG carry NOK 9 410.5 of open profit, which is not profit.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-19T19:35:31Z",
+    "kind": "verdict",
+    "text": "Storebukk's books stand at Friday 16 October: NOK 99 559.2, -0.4%, with OSEBX at +1.9% and its own ten-name pasture at +1.5%, so the big goat trails both its market and its own field. Ten names, no round trips, NOK 290.0 of toll; OKEA carries +17.4% and AKER drags -9.8%. Yahoo has Monday's bar and the evening job has not stepped it, so I judge Friday, because Friday is what is written down.",
+    "goat": "storebukk"
+   },
+   {
+    "t": "2026-10-19T19:35:34Z",
+    "kind": "handsoff",
+    "text": "Hands off. Lillebukk and Mellombukk are four sessions into their leveraged lives, one short of the five I need, and one of those four was slept through entirely, so the stops and closes they owe are unfilled and their books are half-written again. The borrowed money has lost on both banks, six leveraged round trips and not one winner, and it is the first thing I will take when the books are old enough; tonight I rewrite patterns, not naps."
+   },
+   {
+    "t": "2026-10-19T19:38:10Z",
+    "kind": "rewrite",
+    "text": "Lillebukk's rules rewritten: lillebukk_v2 closed its book at NOK 89,242; lillebukk_v3 starts there with shorts False, max_leverage 2. Thirty days of replay: the opening range is break-even before costs long-only and loses 29 percent before costs with shorts, and ten slots turned that into minus 58. Three round trips in the new book, all lost, and three positions carried over a weekend at eight times equity while the laptop slept. Shorts off, two slots at most.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-19T19:38:12Z",
+    "kind": "rewrite",
+    "text": "Mellombukk's rules rewritten: mellombukk_v2 closed its book at NOK 91,944; mellombukk_v3 starts there with max_leverage 3. Thirty days of replay: the 60-bar breakout earns 9 percent before costs long-only and 31 percent before costs with shorts and ten slots, but commission took it from 6.5 to 5.7 after costs. Two stops on five-slot entries cost 14 400 kroner in one day. Three slots at most keeps the gross and a third of the toll.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-21T20:58:25Z",
+    "kind": "verdict",
+    "text": "Lillebukk made every one of its 30 looks today and came home lighter anyway: ELK, SCATC and KID earned NOK 185 before commission and lost NOK 242 after it, because the bridge took NOK 427. Five round trips on its new two-slot rules, none won, and NOK 88 030, -12.0% since the start, on a day OSEBX rose 1.0%. The goat is no longer losing to the market; it is losing to the toll.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-21T20:58:28Z",
+    "kind": "verdict",
+    "text": "Mellombukk bet against a market that rose 1.0% today: it shorted SUBC, VAR and OKEA beside yesterday's AKSO, bought TGS, and goes into the night at 1.5 times its equity with NOK 1 167 of open loss, AKSO alone NOK 696. NOK 90 569, -9.4% since the start, no round trip closed on the new rules yet, and NOK 237 paid for borrowed money in all. Four shorts and a long are a view of the market, and one day is not a record.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-21T20:58:31Z",
+    "kind": "verdict",
+    "text": "Storebukk has held the same ten names since 5 October: NOK 97 427, -2.6%, while OSEBX rose 2.4% and its own equal-weighted pasture 1.2% over the same days. OKEA carries it at +12.6% and AKER drags at -14.3%; nothing has been sold, so all of it is open. Its monthly turn comes after the first close of November, and I judge its trades then.",
+    "goat": "storebukk"
+   },
+   {
+    "t": "2026-10-21T20:58:34Z",
+    "kind": "handsoff",
+    "text": "Hands off. Lillebukk and Mellombukk have had one full session on their new rules, four short of the five I wait for, and this was the first day the runner watched every look; Storebukk has nothing closed to judge. Last night's verdict is missing because I sat stuck under the bridge, and that silence was mine, not the goats'."
+   },
+   {
+    "t": "2026-10-21T20:58:50Z",
+    "kind": "verdict",
+    "text": "Lillebukk ends flat at NOK 88 030.0, -12.0% since it first crossed, with OSEBX at +1.0%; all 30 looks made today, no excuse from the laptop. Its new short-free book has five round trips over two days and won none, NOK 1 212.0 lost, and today's three entries made about NOK 184 before costs and paid NOK 426 of toll to lose NOK 242. Lifetime that is 14 round trips, 3 won, NOK 9 612.6 in fees: the little goat is losing to the toll, not to the market.",
+    "goat": "lillebukk"
+   },
+   {
+    "t": "2026-10-21T20:58:52Z",
+    "kind": "verdict",
+    "text": "Mellombukk marks NOK 90 568.5, -9.4% against OSEBX at +1.0%, and is down 1.5% since its three-slot rules began on Monday. It sleeps on the far bank with NOK 138.7k of exposure, 1.5 times its equity: four shorts in AKSO, VAR, SUBC and OKEA and one long in TGS, NOK 1 166.5 of open loss between them, which is a mark, not a result. No round trip closed in the new book yet; lifetime three, none won, NOK 2 849.5 in fees and NOK 236.9 of financing.",
+    "goat": "mellombukk"
+   },
+   {
+    "t": "2026-10-21T20:58:54Z",
+    "kind": "verdict",
+    "text": "Storebukk stands at NOK 97 426.8, -2.6%, while OSEBX is up 2.4% since its start and its own pasture up 1.2%, so the big goat trails both. Ten names untouched since 5 October, no round trips, NOK 290.0 of toll; OKEA carries +12.6% and AKER drags -14.3%. The evening job stepped it tonight; a month's rule judged after two and a half weeks is a reading, not a record.",
+    "goat": "storebukk"
+   },
+   {
+    "t": "2026-10-21T20:58:57Z",
+    "kind": "handsoff",
+    "text": "Hands off. Lillebukk and Mellombukk are two sessions into the rules I gave them on Monday, three short of the five I need, and Storebukk has closed no round trip to read a pattern from. Lillebukk's toll is the thing I am counting: five losers in the new book and fees bigger than its gross, again."
+   }
+  ]
+ }
+}
