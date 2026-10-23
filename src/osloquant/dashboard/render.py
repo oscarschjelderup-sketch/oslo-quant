@@ -256,10 +256,11 @@ def report_block(code: str, rep: dict | None) -> str:
         st = k["status"]
         cl = "k" if st == "triggered" else ("warn-t" if "nearer" in st else "")
         thr = "" if k.get("threshold") is None else f'{k["op"]} {_fmt_metric(k["metric"], k["threshold"])}'
-        krow.append(f'<tr><td>{E(k["criterion"])}</td><td class="{cl}"><b>{E(st)}</b></td><td>{_fmt_metric(k.get("metric") or "", k.get("now"))}</td>'
-                    f'<td>{_fmt_metric(k.get("metric") or "", k.get("previous"))}</td><td>{E(thr)}</td><td class="src">{E(k.get("note", ""))}</td></tr>')
+        note = f'<div class="src" style="white-space:normal">{E(k["note"])}</div>' if k.get("note") else ""
+        krow.append(f'<tr><td style="white-space:normal">{E(k["criterion"])}{note}</td><td class="{cl}"><b>{E(st)}</b></td><td>{_fmt_metric(k.get("metric") or "", k.get("now"))}</td>'
+                    f'<td>{_fmt_metric(k.get("metric") or "", k.get("previous"))}</td><td>{E(thr)}</td></tr>')
     kill_t = ('<h3 style="margin-top:14px">Kill-kriterier</h3><table class="odds"><thead><tr><th>Kriterium</th><th>Status</th><th>Nå</th><th>Forrige rapport</th>'
-              '<th>Grense</th><th></th></tr></thead><tbody>' + "".join(krow) + '</tbody></table>')
+              '<th>Grense</th></tr></thead><tbody>' + "".join(krow) + '</tbody></table>')
     cinfo = s.get("consensus")
     csrc = (f'Konsensus: {E(cinfo["source"])}, {cinfo.get("contributors") or "?"} analytikere, publisert {E(str(cinfo.get("published")))} '
             f'(<a href="{E(cinfo["url"])}" target="_blank" rel="noopener">kilde</a>).' if cinfo else 'Ingen offentlig konsensus funnet for dette kvartalet.')
