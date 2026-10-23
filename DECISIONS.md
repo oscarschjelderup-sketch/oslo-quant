@@ -143,3 +143,15 @@ be lost to a dashboard bug.
    the signals on followed stocks, and the week's announcements for followed companies.
 
 It lists what was missed; it does not grade the judgements. The calibration page and the market do that.
+
+## D14. The Day Trader skill: read, not installed; ideas taken, code reimplemented
+
+The skill pack (github.com/Jakeschincariol/day-trader-skill, commit 3d0f4ef, MIT) was read in full and never run,
+installed or given keys. `docs/dashboard/day-trader-vurdering.md` says what each of its 11 skills does, the safety
+review (HTTPS GETs only; no tool can place an order, but one skill steers Claude toward an outside broker tool) and
+what fits long-term cases on Oslo Børs. Taken as ideas: the Time Machine's question and output (target first, stop
+first, neither; simulated and historical counts side by side; break-even share 1/(1+R)), the analyst's comparisons
+(previous quarter, same quarter last year, what is derived), the insider pipeline's shape, and the budget/risk sizing
+(minimum of several limits, the binding limit named, zero shares is a refusal). Not taken: order execution, the
+intraday scanner and entry timer, delayed-quote alerts, US data code. No code is copied, so no MIT notice is needed;
+if a later change copies any, the notice ships with it.
