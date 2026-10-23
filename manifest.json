@@ -1,0 +1,28 @@
+{
+ "schema": "store/1",
+ "packed_at": "2026-10-23T19:57:43+00:00",
+ "accounts": [
+  "daytrade_breakout",
+  "daytrade_orb",
+  "intraday_breakout",
+  "intraday_breakout_slow",
+  "intraday_ma",
+  "intraday_ma_slow",
+  "lillebukk_v2",
+  "lillebukk_v3",
+  "live_momentum",
+  "live_trend",
+  "live_trend_monthly",
+  "mellombukk_v2",
+  "mellombukk_v3"
+ ],
+ "files": [
+  "goats.yaml",
+  "intraday.yaml",
+  "live.yaml",
+  "logs/intraday.log",
+  "logs/live.log",
+  "trader_live.db",
+  "troll.json"
+ ]
+}
