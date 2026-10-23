@@ -98,6 +98,33 @@ def decisions(snap: mk.Snapshot, cases: list[bk.Case], alerts: list[sg.Alert], t
     return sorted(items, key=lambda i: (i.urgency, i.code))
 
 
+REPORT_DAYS = 21
+
+
+def report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = REPORT_DAYS) -> list[Item]:
+    """A quarterly report read in the last ``days`` days with a kill criterion triggered or nearer, and no judgement or
+    kill check dated on or after the report."""
+    from osloquant.dashboard import reports as rp
+
+    items = []
+    for c in cases:
+        s = rp.latest(c.code)
+        if not s:
+            continue
+        pub = pd.Timestamp(s["published"][:10])
+        if (today - pub).days > days:
+            continue
+        hot = [k for k in s["kill"] if k["status"].startswith(("triggered", "intact, nearer"))]
+        answered = [r for r in c.history if r["kind"] in ("judgement", "kill_check") and r["date"] >= s["published"][:10]]
+        if hot and not answered:
+            trig = [k for k in hot if k["status"] == "triggered"]
+            items.append(Item(c.code, "report", f"{c.name}: Q{s['quarter']} {s['year']} report – {len(trig)} kill criteria over the line, "
+                              f"{len(hot) - len(trig)} nearer",
+                              "; ".join(f"{k['criterion'][:60]}: {k['status']}" for k in hot) + " – read the analysis on the stock page and log a kill check.",
+                              0 if trig else 1))
+    return items
+
+
 def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAYS) -> list[dict]:
     out = []
     for c in cases:

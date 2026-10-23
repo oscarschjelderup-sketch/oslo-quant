@@ -46,6 +46,7 @@ table.odds td, table.odds th { text-align:right; font-variant-numeric:tabular-nu
 table.odds th.grp { text-align:center; border-bottom:1px solid var(--line); }
 .t { color:var(--buy); font-weight:700; } .k { color:var(--risk); font-weight:700; }
 .bracket { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+.warn-t { color:#b07800; } @media (prefers-color-scheme: dark) { .warn-t { color:#f2c45a; } }
 """
 
 NAV = [("/", "I dag"), ("/sectors", "Sektorer"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning")]
@@ -186,9 +187,88 @@ def stock_page(code: str, ctx: dict) -> str:
              f'<div class="card"><h3>Børsmeldinger og nyheter</h3>{nhtml}</div>']
     if c:
         parts.append(case_block(c, st["price"], ctx.get("rdcf")))
+        parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
     parts.append(judge_form(code, name, st["price"], ctx["price_label"], ctx.get("form", {}), c))
     return page(f"{code}", "", "\n".join(parts))
+
+
+METRIC_NAMES = {"revenue": "Revenue", "ebitda": "EBITDA", "ebitda_pre16": "EBITDA before IFRS 16", "ebit_pre16": "EBIT before IFRS 16",
+                "net_debt": "Net debt", "clubs": "Clubs", "members_k": "Members (thousand)", "arpm": "ARPM (NOK/month)",
+                "personnel_pct_q": "Personnel in % of revenue, quarter", "personnel_pct_ltm": "Personnel in % of revenue, LTM",
+                "arpm_yoy": "ARPM growth y/y", "eps": "EPS (NOK)", "profit": "Profit for the period"}
+_RATIO = ("pct", "yoy", "margin")
+
+
+def _fmt_metric(key: str, v) -> str:
+    if v is None:
+        return "–"
+    return pct(v, 1, False) if any(r in key for r in _RATIO) else (f"{v:,.0f}".replace(",", " ") if abs(v) >= 100 else f"{v:g}")
+
+
+def report_block(code: str, rep: dict | None) -> str:
+    """The latest quarterly report read against the previous quarter, consensus and the case (dashboard/reports.py)."""
+    if rep is None:
+        return ""
+    s = rep.get("summary")
+    if not s:
+        return ('<div class="card"><h3>Siste kvartalsrapport</h3><p class="empty">No report read yet: oq dashboard --refresh reads new reports '
+                'from NewsWeb for companies configured in ~/osloquant-home/reports.yaml.</p></div>')
+    prev = ((s.get("previous") or {}).get("metrics") or {})
+    cons = (s.get("consensus") or {}).get("values") or {}
+    rows = []
+    for key, f in s["figures"].items():
+        if key.startswith("pl_"):
+            continue
+        cur, ly = f["value"], f["columns"].get("q_ly")
+        pv = (prev.get(key) or {}).get("value")
+        qoq = cur / pv - 1 if pv else None
+        yoy = cur / ly - 1 if ly else None
+        cv = cons.get(key)
+        rows.append(f'<tr><td>{E(METRIC_NAMES.get(key, key))}</td><td><b>{_fmt_metric(key, cur)}</b></td>'
+                    f'<td>{_fmt_metric(key, pv)}</td><td class="{cls(qoq)}">{pct(qoq)}</td><td>{_fmt_metric(key, ly)}</td><td class="{cls(yoy)}">{pct(yoy)}</td>'
+                    f'<td>{_fmt_metric(key, cv)}</td><td class="{cls(cur / cv - 1 if cv else None)}">{pct(cur / cv - 1) if cv else "–"}</td>'
+                    f'<td class="src">p. {f["page"]}{" ✓" if f["checked"].startswith("matches") else ""}</td></tr>')
+    for key in ("personnel_pct_q", "personnel_pct_ltm"):
+        if key in s["metrics"]:
+            m = s["metrics"][key]
+            pv = (prev.get(key) or {}).get("value")
+            rows.append(f'<tr><td>{E(METRIC_NAMES.get(key, key))}</td><td><b>{_fmt_metric(key, m["value"])}</b></td><td>{_fmt_metric(key, pv)}</td>'
+                        f'<td>{"" if pv is None else format((m["value"] - pv) * 100, "+.1f") + " pp"}</td>'
+                        f'<td>{_fmt_metric(key, (s["metrics"].get("personnel_pct_q_ly") or {}).get("value")) if key == "personnel_pct_q" else "–"}</td><td></td><td>–</td><td></td>'
+                        f'<td class="src">{E(m["how"])}</td></tr>')
+    figures = ('<table class="odds"><thead><tr><th></th><th>Dette kvartal</th><th>Forrige kvartal</th><th>Endring</th><th>Samme kvartal i fjor</th>'
+               '<th>Endring</th><th>Konsensus</th><th>Avvik</th><th>Kilde</th></tr></thead><tbody>' + "".join(rows) + '</tbody></table>')
+    case = s.get("case") or {}
+    crow = []
+    for r in (rep.get("spec") or {}).get("vs_case") or []:
+        v, cv = (s["metrics"].get(r["metric"]) or {}).get("value"), case.get(r["case"])
+        if r.get("pct"):
+            diff = "–" if v is None or cv is None else f'{(v - cv) * 100:+.1f} pp'
+        else:
+            diff = "–" if v is None or not cv else pct(v / cv - 1)
+        crow.append(f'<tr><td>{E(r["label"])}</td><td><b>{_fmt_metric(r["metric"], v)}</b></td><td>{_fmt_metric(r["metric"] + ("_pct" if r.get("pct") else ""), cv)}</td><td>{diff}</td></tr>')
+    case_t = ((f'<h3 style="margin-top:14px">Mot forutsetningene i casen ({s["year"]}E, EST)</h3><table class="odds"><thead><tr><th></th><th>Rapporten</th><th>Casen</th>'
+               '<th>Avvik</th></tr></thead><tbody>' + "".join(crow) + '</tbody></table>') if crow and case else
+              '<p class="empty">No case model values for this year.</p>')
+    krow = []
+    for k in s["kill"]:
+        st = k["status"]
+        cl = "k" if st == "triggered" else ("warn-t" if "nearer" in st else "")
+        thr = "" if k.get("threshold") is None else f'{k["op"]} {_fmt_metric(k["metric"], k["threshold"])}'
+        krow.append(f'<tr><td>{E(k["criterion"])}</td><td class="{cl}"><b>{E(st)}</b></td><td>{_fmt_metric(k.get("metric") or "", k.get("now"))}</td>'
+                    f'<td>{_fmt_metric(k.get("metric") or "", k.get("previous"))}</td><td>{E(thr)}</td><td class="src">{E(k.get("note", ""))}</td></tr>')
+    kill_t = ('<h3 style="margin-top:14px">Kill-kriterier</h3><table class="odds"><thead><tr><th>Kriterium</th><th>Status</th><th>Nå</th><th>Forrige rapport</th>'
+              '<th>Grense</th><th></th></tr></thead><tbody>' + "".join(krow) + '</tbody></table>')
+    cinfo = s.get("consensus")
+    csrc = (f'Konsensus: {E(cinfo["source"])}, {cinfo.get("contributors") or "?"} analytikere, publisert {E(str(cinfo.get("published")))} '
+            f'(<a href="{E(cinfo["url"])}" target="_blank" rel="noopener">kilde</a>).' if cinfo else 'Ingen offentlig konsensus funnet for dette kvartalet.')
+    foot = (f'<div class="src">Tallene er lest fra rapportens tabeller (side oppgitt; ✓ = stemmer med endringen rapporten selv skriver). LTM = siste hele år + hittil i år − samme periode i fjor. '
+            f'{csrc} Casen: {E(case.get("_file", "–"))} (Equity Research Toolkit, privat), verdier for {s["year"]} er casens egne estimater (EST). '
+            f'Lest {E(s["analysed_at"].replace("T", " ").replace("Z", " UTC"))}. Ingen tekst er generert: alt er tall med kilde.</div>')
+    head = (f'<h3>Siste kvartalsrapport: <a href="{E(s["url"])}" target="_blank" rel="noopener">{E(s["title"])}</a> '
+            f'<span class="src">({when(s["published"])}, <a href="/report/{E(code)}/{s["message_id"]}.pdf">PDF</a>)</span></h3>')
+    return f'<div class="card">{head}{figures}{case_t}{kill_t}{foot}</div>'
 
 
 REALITY = ('<div class="warn"><b>En realitetssjekk, ikke en prognose.</b> Tallene sier hvor ofte kurser som denne har nådd ett av '

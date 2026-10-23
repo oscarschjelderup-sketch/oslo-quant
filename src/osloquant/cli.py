@@ -1597,6 +1597,15 @@ def dashboard(
         out = feeds.refresh(sorted(market.snapshot().names))
         for name, status in out.items():
             console.print(f"  {name:<14} {'[green]ok[/]' if status == 'ok' else '[red]' + status + '[/]'}")
+        from osloquant.dashboard import book, reports
+
+        for c in book.cases():
+            if c.code in reports.specs():
+                try:
+                    new = reports.run(c.code, c.model, c.kill)
+                    console.print(f"  report {c.code:<7} " + (", ".join(s["title"][:40] for s in new) or "no new report"))
+                except Exception as e:  # noqa: BLE001 – a report that cannot be read must not stop the refresh
+                    console.print(f"  report {c.code:<7} [red]{type(e).__name__}: {e}[/]")
         if refresh_only:
             return
     from osloquant.dashboard import server
