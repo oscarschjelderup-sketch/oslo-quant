@@ -17,7 +17,7 @@ from pathlib import Path
 
 from osloquant import judgements as jg
 
-FEEDS = ("announcements", "rates", "fx", "salmon", "brent", "news")
+FEEDS = ("announcements", "rates", "fx", "salmon", "brent", "news", "shorts", "insiders")
 UA = "oslo-quant private dashboard (personal, non-commercial)"
 
 
@@ -131,9 +131,13 @@ def sector_drivers() -> dict[str, list[dict]]:
 # ------------------------------------------------------------------------------------------------ fetchers (refresh)
 def refresh(codes: list[str] | None = None) -> dict[str, str]:
     """Fetch every feed into the cache; returns feed -> 'ok' or the error. A failed feed keeps its old cache."""
+    from osloquant.dashboard import insiders as ins
+
     out = {}
+    year = datetime.now(UTC).year
     for name, fn in (("announcements", lambda: fetch_announcements(codes or [])), ("rates", fetch_rates), ("fx", fetch_fx),
-                     ("salmon", fetch_salmon), ("brent", fetch_brent), ("news", fetch_news)):
+                     ("salmon", fetch_salmon), ("brent", fetch_brent), ("news", fetch_news), ("shorts", ins.fetch_shorts),
+                     ("insiders", lambda: ins.fetch(codes or [], start_year=year, log=lambda s: None))):
         try:
             write(name, fn())
             out[name] = "ok"

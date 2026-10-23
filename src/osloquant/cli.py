@@ -1402,6 +1402,68 @@ def signals_score(
         console.print(f"odds written to {path}")
 
 
+# ------------------------------------------------------------------------------------------------ insiders and shorts
+insiders_app = typer.Typer(
+    help="Primary-insider notifications (NewsWeb) and public short positions (Finanstilsynet): fetch and measure.",
+    no_args_is_help=True,
+)
+app.add_typer(insiders_app, name="insiders")
+
+
+@insiders_app.command("backfill")
+def insiders_backfill(start_year: int = typer.Option(2010, help="First year to fetch.")) -> None:
+    """Fetch every primary-insider notification for the 64 stocks since ``start_year`` into the private cache.
+    Resumable; one request at a time with a pause (about 1.5 hours from scratch)."""
+    _setup()
+    from osloquant import signals as sg
+    from osloquant.dashboard import insiders
+
+    insiders.fetch(sorted(sg.stock_names()), start_year=start_year, log=console.print)
+
+
+@insiders_app.command("study")
+def insiders_study(
+    write: bool = typer.Option(False, "--write", help="Write resources/insider_study.yaml (aggregate numbers only)."),
+    end: str | None = typer.Option(None, help="Last session to use (default: the newest in the store)."),
+) -> None:
+    """Did insider buys (and sells) on Oslo Børs since 2010 come before excess returns? Reclassifies the cached
+    notifications with the current rules first."""
+    _setup()
+    import yaml
+    from rich.table import Table
+
+    from osloquant import signals as sg
+    from osloquant.dashboard import insiders
+
+    doc = insiders.reclassify()
+    P = sg.load_panel(start="2010-01-01")
+    if end:
+        P = {k: v.loc[:end] for k, v in P.items()}
+    res = insiders.study(P, doc["items"].values())
+    t = Table(title=f"Insider trades on Oslo Børs, excess return vs the 64 stocks (entry next open after publication), to {P['close'].index[-1]:%Y-%m-%d}")
+    for col in ("side", "horizon", "events", "months", "mean", "median", "positive", "net of 0.5 %", "t (monthly)"):
+        t.add_column(col, justify="left" if col == "side" else "right")
+    for side, r in res.items():
+        for h in insiders.STUDY_HORIZONS:
+            x = r.get(f"h{h}") or {}
+            if x.get("n"):
+                t.add_row(side, f"{h}d", str(x["n"]), str(x["months"]), _pct(x["mean_excess"], 2), _pct(x["median_excess"], 2),
+                          _pct(x["hit"], 0), _pct(x["net_of_cost"], 2), str(x["t_month"]))
+    console.print(t)
+    if write:
+        from collections import Counter
+
+        counts = Counter(i["side"] for i in doc["items"].values())
+        out = {"measured": {"from": "2010-01-01", "to": f"{P['close'].index[-1]:%Y-%m-%d}", "stocks": int(P["close"].shape[1]),
+                            "source": "Oslo Børs NewsWeb category 1102 (primary insiders), classified from the notification text",
+                            "entry": "next open after publication (Oslo time)", "excess": "vs the equal-weighted 64 stocks",
+                            "round_trip_cost": insiders.COST, "notifications": dict(counts)},
+               "results": res}
+        path = sg.odds_path().parent / "insider_study.yaml"
+        path.write_text(yaml.safe_dump(out, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        console.print(f"written {path}")
+
+
 # ------------------------------------------------------------------------------------------------ judgement log
 book_app = typer.Typer(
     help="The judgement log: every call written down when made, never edited, scored later (calibration).",

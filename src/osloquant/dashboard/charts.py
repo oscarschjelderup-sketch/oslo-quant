@@ -37,3 +37,18 @@ def price_chart(snap: mk.Snapshot, code: str, case=None, sessions: int = 260) ->
     fig.update_xaxes(gridcolor="rgba(128,128,128,0.15)", zeroline=False)
     fig.update_yaxes(gridcolor="rgba(128,128,128,0.15)", zeroline=False)
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
+
+
+def short_chart(series: list[tuple[str, float]], code: str) -> str:
+    """The total public short position over the register's two-year window (step line: it changes on report days)."""
+    if not series:
+        return ""
+    x = [pd.Timestamp(d) for d, _ in series]
+    y = [v for _, v in series]
+    fig = go.Figure(go.Scatter(x=x, y=y, mode="lines", line=dict(color="#b3261e", width=2, shape="hv"), name="Short %"))
+    fig.update_layout(height=200, margin=dict(l=40, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                      font=dict(color="#8a96a3"), showlegend=False,
+                      title=dict(text=f"{code} – public short positions, % of shares (Finanstilsynet)", font=dict(size=12)))
+    fig.update_xaxes(gridcolor="rgba(128,128,128,0.15)")
+    fig.update_yaxes(gridcolor="rgba(128,128,128,0.15)", rangemode="tozero", ticksuffix=" %")
+    return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})

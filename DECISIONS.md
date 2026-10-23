@@ -212,3 +212,23 @@ downloads the PDF to `~/osloquant-home/reports/<code>/` and reads it (`dashboard
   this is a table of read numbers with their page, the formulas, and links to the announcement and the PDF.
 - Tested on SATS's last four reports (Q3 2025 – Q2 2026): every key figure matched its printed change. The test on
   SATS's Q3 2026 report (27 Oct 2026) runs as a one-off scheduled task that morning.
+
+## D18. Primary insiders and short positions
+
+- **Insiders:** every NewsWeb notification in category 1102 for the 64 stocks since 2010 (8,433), fetched once
+  (`oq insiders backfill`, about 1.5 hours at one request at a time with a pause) and then the current year at each
+  `--refresh`. The text decides the type – company, programme, other, subscription, buy, sell or unknown, in that
+  order, with the deciding word shown on the page. A random sample was checked by hand (`docs/dashboard/insider-study.md`).
+  Private cache only (NewsWeb's terms).
+- **Shorts:** Finanstilsynet's short sale register has an open API (`ssr.finanstilsynet.no/api/v2/instruments`):
+  public positions of 0.5 % or more, daily, the last two years, per holder. Its issuer names were matched by hand to
+  37 of the 64 stocks (`SSR_NAMES`). A first fuzzy match got OKEA and Aker wrong, so no fuzzy matching. The others had
+  no public position in the window. The register states no licence terms on its pages; it is public disclosure data,
+  kept in the private cache.
+- **Pages:** the stock page lists the last 12 months of notifications (with type and deciding word) and the short
+  position with its history and holders. The front page lists insider buys, sells and subscriptions, and short moves
+  of 0.25 points or more, in followed stocks over the last seven days.
+- **The study** (`oq insiders study`): one event per stock and day, entry at the next open after publication, excess
+  return against the equal-weighted 64 stocks, monthly-clustered t. The answer is written plainly: the typical insider
+  buy was followed by a below-median return, and the positive average rests on a few large winners and on
+  survivorship. The 60-day line is shown on the stock page as context, never as a signal.

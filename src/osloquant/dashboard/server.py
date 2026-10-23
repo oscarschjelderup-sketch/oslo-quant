@@ -48,6 +48,10 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
                moves=td.target_moves(snap, cases), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
                announcements=fd.announcements(codes, days=7))
+    from osloquant.dashboard import insiders as ins
+
+    ctx["insiders"] = ins.recent(set(codes), days=7)
+    ctx["shorts_moved"] = ins.short_moves(codes, days=7)
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
         td.save_state(state)
@@ -76,7 +80,18 @@ def stock_context(code: str) -> dict:
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
-                odds=case_odds, report=_report(code) if c else None)
+                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code))
+
+
+def _insiders(code: str) -> dict:
+    from osloquant.dashboard import insiders as ins
+    from osloquant.dashboard.charts import short_chart
+
+    year_ago = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=365)).strftime("%Y-%m-%d")
+    items = [i for i in ins.for_code(code, limit=200) if i["time"][:10] >= year_ago][:20]
+    s = ins.shorts(code)
+    return {"items": items, "shorts": s, "short_change_30": ins.short_change(s, 30) if s else None,
+            "short_chart": short_chart(s["series"], code) if s else ""}
 
 
 def _report(code: str) -> dict | None:
