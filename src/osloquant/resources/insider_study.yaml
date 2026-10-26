@@ -1,0 +1,92 @@
+measured:
+  from: '2010-01-01'
+  to: '2026-10-22'
+  stocks: 64
+  source: Oslo Børs NewsWeb category 1102 (primary insiders), classified from the
+    notification text
+  entry: next open after publication (Oslo time)
+  excess: vs the equal-weighted 64 stocks
+  round_trip_cost: 0.005
+  notifications:
+    company: 2818
+    buy: 1818
+    programme: 2829
+    sell: 444
+    other: 262
+    unknown: 207
+    subscription: 55
+results:
+  buy:
+    events: 1585
+    stocks: 61
+    first: '2010-01-11'
+    last: '2026-10-16'
+    h20:
+      n: 1560
+      months: 200
+      mean_excess: 0.0023
+      median_excess: -0.0029
+      hit: 0.4885
+      net_of_cost: -0.0027
+      t_month: 1.29
+    h60:
+      n: 1538
+      months: 198
+      mean_excess: 0.007
+      median_excess: -0.0024
+      hit: 0.4902
+      net_of_cost: 0.002
+      t_month: 2.41
+    h120:
+      n: 1510
+      months: 196
+      mean_excess: 0.0158
+      median_excess: -0.01
+      hit: 0.4748
+      net_of_cost: 0.0108
+      t_month: 2.67
+    h250:
+      n: 1462
+      months: 188
+      mean_excess: 0.0551
+      median_excess: -0.0355
+      hit: 0.4528
+      net_of_cost: 0.0501
+      t_month: 2.81
+  sell:
+    events: 421
+    stocks: 56
+    first: '2010-03-04'
+    last: '2026-08-19'
+    h20:
+      n: 416
+      months: 155
+      mean_excess: -0.0024
+      median_excess: -0.0087
+      hit: 0.4399
+      net_of_cost: -0.0074
+      t_month: -1.06
+    h60:
+      n: 412
+      months: 155
+      mean_excess: 0.0012
+      median_excess: -0.008
+      hit: 0.483
+      net_of_cost: -0.0038
+      t_month: 0.06
+    h120:
+      n: 410
+      months: 153
+      mean_excess: 0.0032
+      median_excess: -0.0076
+      hit: 0.478
+      net_of_cost: -0.0018
+      t_month: 0.13
+    h250:
+      n: 390
+      months: 146
+      mean_excess: 0.0006
+      median_excess: -0.0714
+      hit: 0.4256
+      net_of_cost: -0.0044
+      t_month: 0.68

@@ -122,6 +122,8 @@ def today_page(ctx: dict, static: bool = False) -> str:
     body.append('<div class="grid2"><div><h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
                 + (up or '<li class="empty">no events in the next 30 days</li>') + '</ul><div class="src">From researchbook.yaml (your own entries).</div></div></div>'
                 '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
+    if "insiders" in ctx:
+        body.append(insider_front(ctx["insiders"], ctx.get("shorts_moved", []), static))
     # signals since last visit
     alerts = ctx["alerts"]
     book = ctx["book_codes"]
@@ -184,13 +186,83 @@ def stock_page(code: str, ctx: dict) -> str:
              if news else '<p class="empty">not fetched – oq dashboard --refresh</p>')
     parts = [head, msgs, f'<div class="card">{ctx["chart"]}</div>',
              f'<div class="grid2"><div class="card"><h3>Nøkkeltall</h3>{keyhtml}</div><div class="card"><h3>Aktive signaler (10 økter)</h3>{sig}</div></div>',
-             f'<div class="card"><h3>Børsmeldinger og nyheter</h3>{nhtml}</div>']
+             f'<div class="card"><h3>Børsmeldinger og nyheter</h3>{nhtml}</div>', insider_block(code, ctx.get("insiders"))]
     if c:
         parts.append(case_block(c, st["price"], ctx.get("rdcf")))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
     parts.append(judge_form(code, name, st["price"], ctx["price_label"], ctx.get("form", {}), c))
     return page(f"{code}", "", "\n".join(parts))
+
+
+SIDE_NO = {"buy": "kjøp", "sell": "salg", "subscription": "tegning", "programme": "program", "company": "selskapet", "other": "annet", "unknown": "uklart"}
+
+
+@lru_cache(maxsize=1)
+def _insider_study() -> dict:
+    from importlib import resources
+
+    import yaml
+
+    p = resources.files("osloquant").joinpath("resources/insider_study.yaml")
+    try:
+        return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    except (OSError, FileNotFoundError):
+        return {}
+
+
+def insider_study_line(side: str = "buy") -> str:
+    st = (_insider_study().get("results") or {}).get(side) or {}
+    h = st.get("h60") or {}
+    if not h.get("n"):
+        return ""
+    m = _insider_study().get("measured") or {}
+    word = "kjøp" if side == "buy" else "salg"
+    return (f'<div class="src" style="white-space:normal">Innsideres {word} på Oslo Børs {E(str(m.get("from")))}–{E(str(m.get("to")))}: '
+            f'{pct(h["mean_excess"])} meravkastning mot snittet av de 64 aksjene over 60 handelsdager i snitt, median {pct(h["median_excess"])}, '
+            f'positiv i {_p(h["hit"])} av {_int(h["n"])} tilfeller (t = {h.get("t_month")} på månedssnitt). Se docs/dashboard/insider-study.md – '
+            'en historisk gjennomsnittsrate, ikke et råd.</div>')
+
+
+def insider_block(code: str, ins: dict | None) -> str:
+    """Primary-insider notifications and public short positions for one stock (dashboard/insiders.py)."""
+    if ins is None:
+        return ""
+    items = ins.get("items") or []
+    rows = "".join(f'<tr><td>{pd.Timestamp(i["time"]).tz_convert("Europe/Oslo"):%d %b %Y}</td><td><span class="chip {"buy" if i["side"] == "buy" else "risk" if i["side"] == "sell" else ""}">'
+                   f'{E(SIDE_NO.get(i["side"], i["side"]))}</span></td><td style="white-space:normal"><a href="{E(i["url"])}" target="_blank" rel="noopener">'
+                   f'{E(i["title"][:110])}</a> <span class="src">«{E(i.get("why", ""))}»</span></td></tr>' for i in items)
+    itab = (f'<table><tbody>{rows}</tbody></table>' if rows else '<p class="empty">no primary-insider notifications in the cache</p>')
+    s = ins.get("shorts")
+    if s:
+        hold = ", ".join(f"{E(h)} {v:.2f} %" for h, v in s["holders"][:5]) or "ingen over 0,5 %"
+        ch = ins.get("short_change_30")
+        sh = (f'<p><b>{s["now"]:.2f} %</b> av aksjene shortet offentlig ({E(s["date"])})'
+              + (f', {ch:+.2f} prosentpoeng siste 30 dager' if ch is not None else '') + f'. Posisjoner: {hold}.</p>{ins.get("short_chart", "")}'
+              f'<div class="src">Finanstilsynet, shortregisteret: bare posisjoner på 0,5 % eller mer er offentlige, og bare de siste to årene; '
+              f'{E(str(s.get("fetched_at") or ""))}.</div>')
+    else:
+        sh = ('<p class="empty">Not in the short register: no public short position of 0.5 % or more in the last two years '
+              '(or not fetched yet – oq dashboard --refresh).</p>')
+    return (f'<div class="grid2"><div class="card"><h3>Innsidehandler (meldepliktige, siste 12 mnd)</h3>{itab}{insider_study_line("buy")}'
+            '<div class="src">Oslo Børs NewsWeb, kategori «Meldepliktig handel for primærinnsidere» (privat bruk). Typen er lest av meldingsteksten '
+            '(ordet i «» avgjorde); program, opsjoner og selskapets egne aksjer er ikke kjøp.</div></div>'
+            f'<div class="card"><h3>Shortposisjoner</h3>{sh}</div></div>')
+
+
+def insider_front(rows: list[dict], shorts_moved: list[dict], static: bool = False) -> str:
+    """Front page: insider trades and short moves in followed stocks over the last seven days."""
+    L = lambda c, t=None: link(c, t, static)  # noqa: E731
+    a = "".join(f'<li>{when(i["time"])} {L(i["code"])} <b>{E(SIDE_NO.get(i["side"], i["side"]))}</b> – '
+                f'<a href="{E(i["url"])}" target="_blank" rel="noopener">{E(i["title"][:90])}</a></li>' for i in rows)
+    b = "".join(f'<li>{L(m["code"])} short {m["now"]:.2f} % ({m["change"]:+.2f} pp på 7 dager, {E(m["date"])})'
+                + (f' – {E(m["holders"][0][0])}' if m["holders"] else '') + '</li>' for m in shorts_moved)
+    if not a and not b:
+        body = '<p class="empty">No insider trade or short move of 0.25 pp or more in followed stocks in the last 7 days.</p>'
+    else:
+        body = f'<ul class="news">{a}{b}</ul>'
+    return (f'<h2>Innsidere og short i aksjer du følger</h2><div class="card">{body}<div class="src">Innsidehandler: NewsWeb (kjøp, salg, tegning). '
+            'Short: Finanstilsynet (endring på minst 0,25 prosentpoeng).</div></div>')
 
 
 METRIC_NAMES = {"revenue": "Revenue", "ebitda": "EBITDA", "ebitda_pre16": "EBITDA before IFRS 16", "ebit_pre16": "EBIT before IFRS 16",
