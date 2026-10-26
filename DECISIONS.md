@@ -189,3 +189,26 @@ Tests that must give the same answer every time run on a frozen copy of real dat
 (`oq freeze-testdata`). It stays outside the repository: Yahoo's prices and NewsWeb's texts are for private use.
 Those tests skip where the copy is absent (CI); synthetic tests cover the same code everywhere. One of them checks that
 the committed `signal_odds.yaml` brackets reproduce exactly from the frozen prices.
+
+## D17. Quarterly reports: read, compared, kill criteria marked – no generated text
+
+When a research-book company publishes a quarterly report on NewsWeb (a message with a report PDF and a quarter in the
+title; SATS files them as "half year financial report"), `oq dashboard --refresh` – and so the evening task –
+downloads the PDF to `~/osloquant-home/reports/<code>/` and reads it (`dashboard/reports.py`, `pypdf` added):
+
+- **What is read** is configured per company in the private `~/osloquant-home/reports.yaml`: rows of the key-figure
+  table (quarter, year-ago quarter, change, YTD, YTD a year ago, change) and of the income statement (one number per
+  column of its header). Numbers use spaces as thousands separators; each key-figure row is split so the printed
+  change matches, and marked ✓ when it does. Note references before income-statement numbers are skipped.
+- **Compared** with the previous quarter's report, the same quarter a year earlier (from the report), the consensus
+  the company publishes before the report (SATS: compiled by Modular Finance on its behalf, released through MFN;
+  public), and the case model's numbers for the report's year (EST). Last-twelve-month figures: last full year +
+  year to date − the same period a year earlier.
+- **Kill criteria:** those with a measurable threshold get a rule in `reports.yaml` (metric, operator, value) and are
+  marked triggered, intact-nearer, intact-further or unchanged against the previous report; the others are listed as
+  "not machine-checkable: read the report". A report read in the last 21 days with a criterion triggered or nearer,
+  and no judgement or kill check dated after it, goes to "Dette krever en vurdering fra deg".
+- **No text is generated.** The research dropped AI summaries (D6) because an unverifiable summary weakens the log;
+  this is a table of read numbers with their page, the formulas, and links to the announcement and the PDF.
+- Tested on SATS's last four reports (Q3 2025 – Q2 2026): every key figure matched its printed change. The test on
+  SATS's Q3 2026 report (27 Oct 2026) runs as a one-off scheduled task that morning.

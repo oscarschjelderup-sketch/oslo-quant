@@ -43,7 +43,8 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     alerts, sessions = td.signals_since(snap, last_seen or state.get("last_seen_session"))
     newest = [a for a in alerts if a.session == f"{snap.asof:%Y-%m-%d}"]
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
-    ctx = dict(decisions=td.decisions(snap, cases, newest, today, watch), upcoming=td.upcoming(cases, today),
+    decisions = sorted(td.decisions(snap, cases, newest, today, watch) + td.report_items(cases, today), key=lambda i: (i.urgency, i.code))
+    ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today),
                moves=td.target_moves(snap, cases), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
                announcements=fd.announcements(codes, days=7))
@@ -75,7 +76,14 @@ def stock_context(code: str) -> dict:
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
-                odds=case_odds)
+                odds=case_odds, report=_report(code) if c else None)
+
+
+def _report(code: str) -> dict | None:
+    from osloquant.dashboard import reports as rp
+
+    s = rp.latest(code)
+    return {"summary": s, "spec": rp.specs().get(code) or {}} if s else ({"summary": None, "spec": rp.specs().get(code)} if rp.specs().get(code) else None)
 
 
 def create_app() -> Flask:
@@ -85,6 +93,15 @@ def create_app() -> Flask:
     def plotly_js():
         path = Path(str(resources.files("plotly").joinpath("package_data/plotly.min.js")))
         return send_file(path, mimetype="application/javascript", max_age=86400)
+
+    @app.get("/report/<code>/<int:mid>.pdf")
+    def report_pdf(code, mid):
+        if not code.isalnum():
+            abort(404)
+        p = jg.home() / "reports" / code.upper() / f"{mid}.pdf"
+        if not p.exists():
+            abort(404)
+        return send_file(p, mimetype="application/pdf")
 
     @app.get("/")
     def home():
