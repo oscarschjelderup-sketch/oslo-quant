@@ -80,7 +80,19 @@ def stock_context(code: str) -> dict:
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
-                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code))
+                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code))
+
+
+def _sizing(code: str) -> dict | None:
+    from osloquant.dashboard import sizing
+
+    cfg = sizing.config()
+    if not cfg:
+        return None
+    opened = sizing.open_positions(exclude=code)
+    used = sum(float(r.get("position_value") or 0) for r in opened.values())
+    return {"cfg": cfg, "cost": sizing.COST, "free": max(float(cfg["paper_capital"]) - used, 0.0),
+            "open_loss": sum(float(r.get("loss_at_kill") or 0) for r in opened.values())}
 
 
 def _insiders(code: str) -> dict:
@@ -150,7 +162,7 @@ def create_app() -> Flask:
         form = {"rating": f.get("rating", ""), "rationale": f.get("rationale", ""), "kill_text": f.get("kill", ""),
                 "kill": [k for k in f.get("kill", "").splitlines() if k.strip()], "horizon": f.get("horizon") or 12}
         errors = []
-        for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level"):
+        for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares"):
             try:
                 form[k] = _num(f.get(k))
             except ValueError as e:

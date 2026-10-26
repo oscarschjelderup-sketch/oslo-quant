@@ -232,3 +232,23 @@ downloads the PDF to `~/osloquant-home/reports/<code>/` and reads it (`dashboard
   return against the equal-weighted 64 stocks, monthly-clustered t. The answer is written plainly: the typical insider
   buy was followed by a below-median return, and the positive average rests on a few large winners and on
   survivorship. The 60-day line is shown on the stock page as context, never as a signal.
+
+## D19. Position size in the judgement form
+
+For a BUY view the form computes a paper position with the kill level as the stop (`dashboard/sizing.py`), the Day
+Trader skill's budget method moved to long-term views:
+
+- shares = the smallest of: max loss / loss per share, paper sum x max position / price, free paper sum / price, and
+  (if set) what is left of a total loss cap across all open BUY views / loss per share. Loss per share = price − kill
+  level + the 0.5 % round trip. The binding limit is named in the form and stored in the row.
+- The limits are Oscar's, in the private `~/osloquant-home/dashboard.yaml`. The paper sum is the NOK 100,000 each
+  paper account starts with (`live.yaml`); max loss (NOK 2,000) and max position (25 %) were set by Claude as starting
+  values and are marked so in the file. Without the file there is no sizing and no block.
+- The form shows the largest allowed size, the position's value and share of the paper sum, and the loss if the kill
+  level is reached, as the kill level and the size are typed; the server checks again on submit and refuses a
+  position whose loss at the kill level is over the limit (or over the cap, the free sum or the total cap) – nothing is
+  written. With a sizing config, a BUY needs a kill level; HOLD and SELL get no size.
+- The row stores `position_shares`, `position_value`, `loss_at_kill` and the limits used. Open positions (the newest
+  BUY row per stock) reduce the free paper sum for the next one.
+- The loss at the kill level is a floor, not a cap: a report or a gap can open the price below it. The form says so.
+- Paper only: nothing is bought, and no paper account is stepped.

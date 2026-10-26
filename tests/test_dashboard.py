@@ -327,3 +327,26 @@ def test_the_kill_level_is_stored_and_must_sit_on_the_right_side(app):
     assert client.post("/stock/BBB/judge", data={**GOOD, "kill_level": f"{px * 0.8:.2f}"}).status_code == 303
     (row,) = jg.read_log()
     assert row["kill_level"] == pytest.approx(round(px * 0.8, 2))
+
+
+# ------------------------------------------------------------------------------------------------ position size (part 4)
+def test_the_form_sizes_a_buy_and_refuses_a_loss_over_the_limit(app, home):
+    import yaml
+
+    from osloquant.dashboard import sizing
+
+    client, snap = app
+    (home / sizing.CONFIG).write_text(yaml.safe_dump({"sizing": {"paper_capital": 100000, "max_loss": 2000, "max_position": 0.25}}), encoding="utf-8")
+    page = client.get("/stock/BBB").get_data(as_text=True)
+    assert "Posisjonsstørrelse" in page and "et gulv, ikke et tak" in page and 'name="position_shares"' in page
+    px = float(snap.panel["close"]["BBB"].iloc[-1])
+    kill = round(px * 0.9, 2)
+    r = client.post("/stock/BBB/judge", data={**GOOD, "bear": "", "bull": "", "base": "", "p_bear": "", "p_base": "", "p_bull": "",
+                                              "kill_level": kill, "position_shares": "100000"})
+    assert r.status_code == 400 and "above your limit" in r.get_data(as_text=True)
+    assert not jg.log_path().exists() or jg.read_log() == []
+    r = client.post("/stock/BBB/judge", data={**GOOD, "bear": "", "bull": "", "base": "", "p_bear": "", "p_base": "", "p_bull": "",
+                                              "kill_level": kill})
+    assert r.status_code == 303
+    (row,) = jg.read_log()
+    assert row["position_shares"] > 0 and row["loss_at_kill"] <= 2000
