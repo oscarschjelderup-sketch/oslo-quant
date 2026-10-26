@@ -1334,6 +1334,36 @@ def signals_digest(
         console.print("notification shown" if shown else "[yellow]notification not shown[/yellow]")
 
 
+@signals_app.command("brackets")
+def signals_brackets(
+    write: bool = typer.Option(False, "--write", help="Add the outcomes to resources/signal_odds.yaml (next to the excess returns)."),
+) -> None:
+    """Every signal as a trade: target first, stop first or neither (2 x ATR, after the round trip), over the same
+    period as the measured odds."""
+    _setup()
+    import yaml
+    from rich.table import Table
+
+    from osloquant import signals as sg
+    from osloquant.dashboard import odds
+
+    doc = yaml.safe_load(sg.odds_path().read_text(encoding="utf-8")) or {}
+    start, end = str(doc.get("measured", {}).get("from", odds.START)), str(doc.get("measured", {}).get("to"))
+    P = sg.load_panel(start=start)
+    rows = odds.signal_brackets(P, end=end if end != "None" else None)
+    t = Table(title=f"Signal brackets {start} .. {end}: R = {odds.R_MULT:g} x ATR(20), round trip {odds.COST * 100:.1f} %")
+    for col in ("signal", "kind", "events", "target 20d", "stop 20d", "neither 20d", "mean R 20d", "target 60d", "stop 60d", "mean R 60d"):
+        t.add_column(col, justify="left" if col in ("signal", "kind") else "right")
+    for name, r in rows.items():
+        a, b = r["h20"], r["h60"]
+        t.add_row(name, r["kind"], str(a["events"]), _pct(a["target"], 0), _pct(a["stop"], 0), _pct(a["neither"], 0), f"{a['mean_R']:+.2f}",
+                  _pct(b["target"], 0), _pct(b["stop"], 0), f"{b['mean_R']:+.2f}")
+    console.print(t)
+    if write:
+        odds.write_brackets(rows)
+        console.print(f"written to {sg.odds_path()}")
+
+
 @signals_app.command("score")
 def signals_score(
     start: str = typer.Option("2010-01-01", help="First session of the measurement."),
@@ -1576,6 +1606,20 @@ def dashboard(
         return
     console.print(f"Dashboard at http://127.0.0.1:{port}  (Ctrl+C to stop)")
     server.main(port=port, open_browser=not no_browser)
+
+
+@app.command("freeze-testdata")
+def freeze_testdata(
+    end: str = typer.Option("2026-10-22", help="Last session of the frozen prices."),
+    prices: bool = typer.Option(True, "--prices/--no-prices", help="Rewrite the frozen prices (off: add caches and reports only)."),
+) -> None:
+    """Copy real data (prices, insider and short caches, report PDFs) to ~/osloquant-home/testdata/<end> for the tests
+    that must give the same answer every time. Private: never commit it."""
+    _setup()
+    from osloquant.dashboard import testdata
+
+    path = testdata.freeze(testdata.default_dir() if end == testdata.DEFAULT else testdata.default_dir().parent / end, end=end, panel=prices)
+    console.print(f"frozen to {path}")
 
 
 if __name__ == "__main__":

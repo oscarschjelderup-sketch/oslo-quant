@@ -64,10 +64,18 @@ def stock_context(code: str) -> dict:
     from osloquant.dashboard.charts import price_chart
 
     lp = mk.last_price(snap, code)
+    case_odds = None
+    if c and c.view and c.view.get("target"):
+        from osloquant.dashboard import odds as od
+
+        kill, why = od.kill_level(c.view)
+        if kill:
+            case_odds = od.case_odds(code, float(c.view["target"]), kill, why)
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
-                rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names))
+                rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
+                odds=case_odds)
 
 
 def create_app() -> Flask:
@@ -110,7 +118,7 @@ def create_app() -> Flask:
         form = {"rating": f.get("rating", ""), "rationale": f.get("rationale", ""), "kill_text": f.get("kill", ""),
                 "kill": [k for k in f.get("kill", "").splitlines() if k.strip()], "horizon": f.get("horizon") or 12}
         errors = []
-        for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull"):
+        for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level"):
             try:
                 form[k] = _num(f.get(k))
             except ValueError as e:

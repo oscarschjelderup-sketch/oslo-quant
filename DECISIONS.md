@@ -155,3 +155,37 @@ first, neither; simulated and historical counts side by side; break-even share 1
 (minimum of several limits, the binding limit named, zero shares is a refusal). Not taken: order execution, the
 intraday scanner and entry timer, delayed-quote alerts, US data code. No code is copied, so no MIT notice is needed;
 if a later change copies any, the notice ships with it.
+
+## D15. Outcome odds: target first, kill level first, or neither
+
+On the stock page of every research-book company (`dashboard/odds.py`), for 3, 6 and 12 months:
+
+- **Simulation:** 10,000 paths from the stock's own daily log returns since 2010 (or its listing), resampled in
+  blocks of 20 sessions so calm and volatile spells stay together, with a fixed seed. The Day Trader skill draws single
+  5-minute bars by time of day; over months that would lose volatility clustering, so the unit changed. The sample's
+  own drift stays in and is printed, with its volatility and today's.
+- **Historical cases:** every month-start since 2010 on all 64 stocks, with the target and kill level at the same
+  distances measured in each stock's volatility at the time; and the stock's own history at the same percentage
+  distances. Windows overlap, so the page prints the approximate number of independent cases (n x 21 / horizon).
+- **Rule:** a level counts when a daily close reaches it; adjusted closes (dividends reinvested); today's bar is left
+  out until the session has closed (16:40 Oslo).
+- **Break-even:** R = distance to target / distance to kill level; the target must come first in 1/(1+R) of the
+  decided cases. The page compares the simulation's share with that, in the skill's words for the gap
+  (coin flip under 5 points, leans 5–15, clearly over 15).
+- **Kill level:** a price field in the judgement form (`kill_level`, stored in the log row; below the price for a BUY,
+  above for a SELL). A view without one uses its bear value as a stand-in, and the page says so in the heading.
+- **Signals:** each signal as a trade – entry at the next open, target = entry x (1 + 0.5 %) + R, stop = entry - R,
+  R = 2 x ATR(20) – measured over the same period as the existing odds (2010 to 19 Oct 2026) and added to
+  `signal_odds.yaml` under `bracket` without touching the existing numbers (`oq signals brackets --write`). Shown
+  under each active signal and as a table on the calibration page. Result: after costs every signal's average is
+  within ±0.07 R of zero at 20 and 60 sessions – the same finding as D11, now in trade terms.
+- A reality check, not a forecast: the page says so above the table. Reports, rates and news can do what the history
+  never did; survivorship (today's 64 stocks) flatters the historical cases.
+
+## D16. Frozen real data for deterministic tests
+
+Tests that must give the same answer every time run on a frozen copy of real data – the store's prices to
+22 Oct 2026, and later the insider and short caches and the report PDFs – in `~/osloquant-home/testdata/2026-10-22`
+(`oq freeze-testdata`). It stays outside the repository: Yahoo's prices and NewsWeb's texts are for private use.
+Those tests skip where the copy is absent (CI); synthetic tests cover the same code everywhere. One of them checks that
+the committed `signal_odds.yaml` brackets reproduce exactly from the frozen prices.
