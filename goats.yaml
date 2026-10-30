@@ -1,0 +1,68 @@
+# The three goats the Trading Goats page follows. Each is one of the paper accounts in this store (live.yaml or
+# intraday.yaml). Change the mapping here; the accounts themselves are never touched.
+#
+# id        the key the page stores the goat under (letters, digits, - and _)
+# account   the paper account the goat follows now
+# tagline   shown under the name
+# accent    gold, fjord or rose: the goat's colour on the page
+# story     one line on how the goat trades
+# lineage   the accounts the goat followed before (written by `oq goats rewrite`; leave alone)
+#
+# rewrites                        how many times the troll has rewritten a goat's rules (kept by `oq goats rewrite`)
+# min_sessions_between_rewrites   a goat's account must be at least this many sessions old before it can be rewritten
+
+
+rewrites: 4
+min_sessions_between_rewrites: 5
+goats:
+- id: lillebukk
+  name: Lillebukk
+  tagline: the scalper
+  account: lillebukk_v3
+  accent: gold
+  story: The smallest. Trips over the bridge at the open, grabs what breaks out of the first half hour across all 63 names, and is back on the near bank before the close. Never sleeps on the far side.
+  lineage:
+  - account: daytrade_orb
+    from: '2026-10-06T09:31:05'
+    to: '2026-10-13T21:46:49'
+    value: 99496.53
+    why: 'The shepherd asked for it: the little goat may now short a breakdown of the opening range and size its entries by how hard the bar broke out, up to ten slots. Same 2 percent stop, same flat-at-close rule, same filters.'
+    changes:
+      shorts: true
+      max_leverage: 10
+  - account: lillebukk_v2
+    from: '2026-10-14T09:31:03'
+    to: '2026-10-19T21:38:09'
+    value: 89241.52
+    why: 'Thirty days of replay: the opening range is break-even before costs long-only and loses 29 percent before costs with shorts, and ten slots turned that into minus 58. Three round trips in the new book, all lost, and three positions carried over a weekend at eight times equity while the laptop slept. Shorts off, two slots at most.'
+    changes:
+      shorts: false
+      max_leverage: 2
+- id: mellombukk
+  name: Mellombukk
+  tagline: the calculated one
+  account: mellombukk_v3
+  accent: fjord
+  story: Waits for a momentum name to clear its 60-bar high, then follows it with a trailing stop. Five slots, holds overnight for as long as the trend holds.
+  lineage:
+  - account: intraday_breakout_slow
+    from: '2026-10-06T09:31:05'
+    to: '2026-10-13T21:46:53'
+    value: 105882.89
+    why: 'The shepherd asked for it: the middle goat may now short a close under its 60-bar low and size its entries by how far the close cleared the range, up to ten slots. Same 3 percent stop and 4 percent trailing stop.'
+    changes:
+      shorts: true
+      max_leverage: 10
+  - account: mellombukk_v2
+    from: '2026-10-14T09:31:03'
+    to: '2026-10-19T21:38:12'
+    value: 91943.91
+    why: 'Thirty days of replay: the 60-bar breakout earns 9 percent before costs long-only and 31 percent before costs with shorts and ten slots, but commission took it from 6.5 to 5.7 after costs. Two stops on five-slot entries cost 14 400 kroner in one day. Three slots at most keeps the gross and a third of the toll.'
+    changes:
+      max_leverage: 3
+- id: storebukk
+  name: Storebukk
+  tagline: the heavyweight
+  account: live_momentum
+  accent: rose
+  story: Ten names with the strongest twelve-month momentum, bought at the open after the close that picked them. Rebalances monthly and butts nothing in a hurry.
