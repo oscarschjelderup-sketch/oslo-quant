@@ -371,7 +371,7 @@ same list.
 
 ## D27. The book as one thing: shared kill drivers and sector concentration
 
-The per-view loss limit (D13) treats two views as independent. With two consumer-discretionary BUYs whose kill
+The per-view loss limit (D19) treats two views as independent. With two consumer-discretionary BUYs whose kill
 criteria both start with a margin line, that is not true: one bad quarter for Norwegian retail spending can kill
 both, and the loss at the kill levels adds up. The front page now has a block under the research-book table that
 sums the loss at kill per sector group and per kill driver, and says in words when every open BUY sits in one
