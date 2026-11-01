@@ -407,3 +407,44 @@ def test_a_buy_with_a_kill_criterion_already_triggered_needs_an_acknowledgement(
     assert "logget med utløst kill-kriterium" in client.get("/stock/BBB").get_data(as_text=True)
     # a HOLD is not a bet on the case: no acknowledgement needed
     assert client.post("/stock/BBB/judge", data={**GOOD, "rating": "HOLD"}).status_code == 303
+
+
+# ------------------------------------------------------------------------------------------------ five minutes before a lecture (night)
+def test_front_page_says_what_to_do_first_and_how_old_the_data_is(app, monkeypatch):
+    from osloquant.dashboard import render as rd
+    from osloquant.dashboard import today as td
+
+    client, snap = app
+    page = client.get("/").get_data(as_text=True)
+    assert "Siste sluttkurs:" in page and "I dag" in page
+    assert "Static snapshot" not in page.split("<h1>")[0]                         # nothing above the heading
+    # a direct render with decisions: numbered, ordered, timed; without: the all-clear
+    items = [td.Item("AAA", "re-assess", "Alpha +12% since the view", "re-assess and log the view", 1),
+             td.Item("BBB", "kill-check", "Beta: Q3 report", "check the 3 kill criteria", 0)]
+    ctx = dict(decisions=sorted(items, key=lambda i: i.urgency), upcoming=[], moves=[], alerts=[], sessions=["2026-10-30"],
+               asof=pd.Timestamp("2026-10-30"), today=pd.Timestamp("2026-11-01"), book_codes={"AAA", "BBB"}, price_label="x", announcements=None)
+    html = rd.today_page(ctx)
+    assert "2 ting, omtrent" in html and "1. Gjør først" in html and "2. I dag" in html
+    assert html.index("BBB") < html.index("AAA")                                     # urgency 0 first
+    assert "eldre enn siste virkedag" not in html                                     # Friday close read on a Sunday is not stale
+    ctx["asof"] = pd.Timestamp("2026-10-28")
+    assert "eldre enn siste virkedag" in rd.today_page(ctx)
+    ctx["decisions"] = []
+    ctx["upcoming"] = [{"code": "BBB", "name": "Beta", "date": pd.Timestamp("2026-11-12"), "what": "Q3 report", "kill": []}]
+    html = rd.today_page(ctx)
+    assert "Ingenting krever en vurdering i dag" in html and "Neste dato: 12 Nov" in html
+
+
+def test_signals_on_other_stocks_are_folded_and_chips_are_neutral(app):
+    from osloquant import signals as sg
+    from osloquant.dashboard import render as rd
+
+    client, snap = app
+    a = sg.Alert("CCC", "Gamma", "New 52-week high", sg.BUY, "2026-10-30", 100.0, "above the 250-day high", 0.0003, 0.0056, 0.47)
+    b = sg.Alert("AAA", "Alpha", "New 52-week high", sg.BUY, "2026-10-30", 100.0, "above the 250-day high", 0.0003, 0.0056, 0.47)
+    ctx = dict(decisions=[], upcoming=[], moves=[], alerts=[a, b], sessions=["2026-10-30"], asof=pd.Timestamp("2026-10-30"),
+               today=pd.Timestamp("2026-10-31"), book_codes={"AAA"}, price_label="x", announcements=None)
+    html = rd.today_page(ctx)
+    assert "1 på dine aksjer" in html and "<details><summary>1 signaler på andre aksjer" in html
+    assert html.index("Alpha") < html.index("<details>")                             # own stocks open, others folded
+    assert 'class="chip  odds"' in html or 'class="chip buy odds"' not in html         # a D-grade signal is not green

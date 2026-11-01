@@ -330,3 +330,13 @@ buys, 60 sessions: t 2.41 shown for a +0.70 % mean whose own cluster-robust t is
   signals). Event counts changed slightly; the brackets were re-measured.
 - `docs/dashboard/insider-study.md` carries a correction section and the new table. Both files are regenerated from
   the frozen data (`--frozen`), and the tests reproduce every number.
+
+## D24. The front page for a five-minute visit
+
+The student read (`docs/natt/ideer-student.md`) found the count clear and the order, time and data date not. Now:
+the heading shows today's date and, under it, the date of the newest close; an amber banner says when that close is
+older than the last weekday (run `oq record`). The decision card opens with "N ting, omtrent M minutter, i denne
+rekkefølgen" and numbers the items with "Gjør først / I dag / Kan vente" and a minute estimate per kind (fixed
+guesses, to be replaced by measured times). With nothing to decide it says so and names the next date. Signals on
+research-book stocks stay open; the rest fold behind one line. The report item's criterion text is no longer cut
+at 60 characters. The "static snapshot" note moved to the footer.

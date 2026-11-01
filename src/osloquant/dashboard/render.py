@@ -77,10 +77,10 @@ def page(title: str, active: str, body: str, generated: datetime | None = None, 
     plotly = '' if static else '<script src="/static/plotly.min.js"></script>'
     note = ('<div class="src">Static snapshot written by the evening job. Live dashboard: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
-    gen = f'<div class="src">Generated {(generated or datetime.now()):%d %b %Y %H:%M}. Private: research book and judgements are read from ~/osloquant-home, never published.</div>'
+    gen = f'<div class="src">Generated {(generated or datetime.now()):%d %b %Y %H:%M}. Private: research book and judgements are read from ~/osloquant-home, never published.</div>{note}'
     return f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)} – Oslo Børs dashboard</title><style>{CSS}</style>{plotly}</head><body><div class="wrap">
-<nav class="top"><span class="brand">Oslo Børs · beslutninger</span>{nav}{search}</nav>{note}
+<nav class="top"><span class="brand">Oslo Børs · beslutninger</span>{nav}{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Prices: daily closes from Yahoo Finance via the oslo-quant store – delayed, not real time. Signal odds: measured on this store's history (oq signals score). Nothing here trades or advises.</div></div>
 </div></body></html>"""
@@ -96,11 +96,32 @@ def today_page(ctx: dict, static: bool = False) -> str:
     """ctx: decisions, upcoming, moves, alerts, sessions, announcements, asof, feeds_note"""
     L = lambda c, t=None: link(c, t, static)  # noqa: E731
     dec = ctx["decisions"]
-    tags = {0: "u0", 1: "u1", 2: "u2"}
-    dec_html = "".join(f'<div class="item"><span class="tag {tags[i.urgency]}">{E(i.kind)}</span><b>{L(i.code, i.title)}</b>'
-                       f'<div class="why">{E(i.detail)}</div></div>' for i in dec) or '<p class="empty">Nothing needs a decision today.</p>'
-    body = [f'<h1>I dag <span class="code">{ctx["asof"]:%A %d %b %Y}</span></h1>',
-            f'<div class="sub">Newest close in the store: {ctx["asof"]:%d %b %Y} (delayed). Signals cover {E(", ".join(ctx["sessions"]) or "–")}.</div>',
+    today = ctx.get("today") or pd.Timestamp.now().normalize()
+    asof = ctx["asof"]
+    # the data date is not today's date: say both, and warn when the newest close is older than the last weekday
+    expected = today - pd.Timedelta(days=1)
+    while expected.weekday() >= 5:
+        expected -= pd.Timedelta(days=1)
+    stale = asof.normalize() < expected if asof is not None and asof == asof else True
+    banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {asof:%A %d %b} – eldre enn siste virkedag ({expected:%d %b}). '
+              'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
+    urgency_word = {0: "Gjør først", 1: "I dag", 2: "Kan vente"}
+    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10}
+    total_min = sum(minutes.get(i.kind, 5) for i in dec)
+    if dec:
+        summary = (f'<p style="margin:0 0 8px"><b>{len(dec)} ting, omtrent {total_min} minutter, i denne rekkefølgen:</b> '
+                   + " ".join(f'{n}) {E(i.code)}' for n, i in enumerate(dec, 1)) + '</p>')
+        dec_html = summary + "".join(
+            f'<div class="item"><span class="tag {["u0", "u1", "u2"][i.urgency]}">{n}. {E(urgency_word[i.urgency])}</span>'
+            f'<span class="src">{E(i.kind)} · ~{minutes.get(i.kind, 5)} min</span><br><b>{L(i.code, i.title)}</b>'
+            f'<div class="why">{E(i.detail)}</div></div>' for n, i in enumerate(dec, 1))
+    else:
+        nxt = ctx["upcoming"][0] if ctx.get("upcoming") else None
+        dec_html = ('<p style="font-size:16px;margin:4px 0"><b>Ingenting krever en vurdering i dag.</b> Gå til forelesning.</p>'
+                    + (f'<div class="src">Neste dato: {nxt["date"]:%d %b} – {L(nxt["code"], nxt["name"])}, {E(nxt["what"])}.</div>' if nxt else ''))
+    body = [f'<h1>I dag <span class="code">{today:%A %d %b %Y}</span></h1>',
+            f'<div class="sub">Siste sluttkurs: {asof:%A %d %b %Y} (Yahoo, forsinket). Signaler dekker {E(", ".join(ctx["sessions"]) or "–")}.</div>',
+            banner,
             f'<div class="card decide"><h2>Dette krever en vurdering fra deg ({len(dec)})</h2>{dec_html}</div>']
     # cases vs target
     rows = "".join(
@@ -128,13 +149,18 @@ def today_page(ctx: dict, static: bool = False) -> str:
     alerts = ctx["alerts"]
     book = ctx["book_codes"]
     first = [a for a in alerts if a.code in book] + [a for a in alerts if a.code not in book]
-    al = "".join(f'<div class="alert"><b>{L(a.code)}</b><span>{E(a.name)} · <b>{E(a.signal)}</b> · {a.session} at {a.price:.2f}'
-                 + (' <span class="chip info">book</span>' if a.code in book else '') + f'</span>'
-                 f'<span class="chip {"buy" if (a.exc60 or 0) > 0 else "risk"} odds">{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span>'
-                 f'<span class="d">{E(a.detail)}</span></div>' for a in first[:60])
-    body.append(f'<h2>Nye signaler siden sist ({len(alerts)})</h2><div class="card">{al or "<p class=empty>no new signals</p>"}'
-                '<div class="src">Odds: average excess return over the equal-weighted universe 20/60 sessions after this kind of signal, and the hit rate '
-                '(oq signals score, 2010-2026). No buy signal has paid after costs; risk signals carry more information.</div></div>')
+    row = lambda a: (f'<div class="alert"><b>{L(a.code)}</b><span>{E(a.name)} · <b>{E(a.signal)}</b> · {a.session} at {a.price:.2f}'  # noqa: E731
+                     + (' <span class="chip info">book</span>' if a.code in book else '') + '</span>'
+                     f'<span class="chip {chip_class(a)} odds">{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span>'
+                     f'<span class="d">{E(a.detail)}{robustness_line(a.signal)}</span></div>')
+    mine = [a for a in first if a.code in book]
+    rest = [a for a in first if a.code not in book]
+    foot = ('<div class="src">Odds: meravkastning mot de 64 aksjene 20/60 handelsdager etter denne typen signal, treffrate og antall '
+            '(oq signals score, 2010–2026, bare dagens aksjer). Ingen kjøpssignal har betalt seg etter kostnader på 20 dager; grad A–D under hvert '
+            'signal sier om tallet har holdt seg.</div>')
+    open_part = "".join(row(a) for a in mine) or '<p class="empty">no new signals on research-book stocks</p>'
+    folded = (f'<details><summary>{len(rest)} signaler på andre aksjer – vis</summary>{"".join(row(a) for a in rest[:60])}</details>' if rest else '')
+    body.append(f'<h2>Nye signaler siden sist ({len(alerts)}, {len(mine)} på dine aksjer)</h2><div class="card">{open_part}{folded}{foot}</div>')
     return page("I dag", "/", "\n".join(body), static=static)
 
 

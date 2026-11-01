@@ -120,7 +120,7 @@ def report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = REPORT_D
             trig = [k for k in hot if k["status"] == "triggered"]
             items.append(Item(c.code, "report", f"{c.name}: Q{s['quarter']} {s['year']} report – {len(trig)} kill criteria over the line, "
                               f"{len(hot) - len(trig)} nearer",
-                              "; ".join(f"{k['criterion'][:60]}: {k['status']}" for k in hot) + " – read the analysis on the stock page and log a kill check.",
+                              "; ".join(f"{k['criterion']}: {k['status']}" for k in hot) + " – read the analysis on the stock page and log a kill check.",
                               0 if trig else 1))
     return items
 
