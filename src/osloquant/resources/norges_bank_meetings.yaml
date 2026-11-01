@@ -1,0 +1,7 @@
+# Norges Bank policy rate decisions, copied by hand from the bank's public calendar. Only dates read from the page are
+# here; nothing is extrapolated. Add dates from https://www.norges-bank.no/en/news-events/calendar/ as they are
+# published (the page shows a few months at a time).
+source: https://www.norges-bank.no/en/news-events/calendar/
+read: 2026-11-01
+dates:
+  - {date: 2026-11-05, what: "Policy rate decision (10:00)"}

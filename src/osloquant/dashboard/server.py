@@ -184,6 +184,13 @@ def create_app() -> Flask:
         ctx["errors"], ctx["form"] = errors, form
         return Response(rd.stock_page(code, ctx), status=400)
 
+    @app.get("/calendar")
+    def calendar_page():
+        from osloquant.dashboard import calendar as cal
+
+        today = pd.Timestamp.now().normalize()
+        return cal.page_html(cal.events(bk.cases(), bk.watchlist(), today), today, fd.read(cal.CAL_FEED), cal.norges_bank_meetings())
+
     @app.get("/health")
     def health():
         from osloquant.dashboard import datahealth as dh

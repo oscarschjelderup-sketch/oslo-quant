@@ -17,7 +17,7 @@ from pathlib import Path
 
 from osloquant import judgements as jg
 
-FEEDS = ("announcements", "rates", "fx", "salmon", "brent", "news", "shorts", "insiders")
+FEEDS = ("announcements", "rates", "fx", "salmon", "brent", "news", "shorts", "insiders", "calendar")
 UA = "oslo-quant private dashboard (personal, non-commercial)"
 
 
@@ -128,16 +128,26 @@ def sector_drivers() -> dict[str, list[dict]]:
     }
 
 
+def followed_codes() -> list[str]:
+    """Research-book companies and watched ones: the feeds that cost a request per company are fetched for these only."""
+    from osloquant.dashboard import book as bk
+
+    codes = [c.code for c in bk.cases()] + [w["code"] for w in bk.watchlist() if not w.get("moved_to_book")]
+    return sorted(set(codes))
+
+
 # ------------------------------------------------------------------------------------------------ fetchers (refresh)
 def refresh(codes: list[str] | None = None) -> dict[str, str]:
     """Fetch every feed into the cache; returns feed -> 'ok' or the error. A failed feed keeps its old cache."""
+    from osloquant.dashboard import calendar as cal
     from osloquant.dashboard import insiders as ins
 
     out = {}
     year = datetime.now(UTC).year
     for name, fn in (("announcements", lambda: fetch_announcements(codes or [])), ("rates", fetch_rates), ("fx", fetch_fx),
                      ("salmon", fetch_salmon), ("brent", fetch_brent), ("news", fetch_news), ("shorts", ins.fetch_shorts),
-                     ("insiders", lambda: ins.fetch(codes or [], start_year=year, log=lambda s: None))):
+                     ("insiders", lambda: ins.fetch(codes or [], start_year=year, log=lambda s: None)),
+                     ("calendar", lambda: cal.fetch_financial_calendars(followed_codes()))):
         try:
             write(name, fn())
             out[name] = "ok"

@@ -357,3 +357,14 @@ when it was last run. The night audit found 29 notices with no adjustment (Bouve
 Wilhelmsen, Aker, Kid, Grieg, Protector, TGS) – a dividend Yahoo missed looks like a price fall, fires false risk
 signals and understates that stock-year's return. Nothing can repair Yahoo's series; knowing which stock-years are
 affected is the honest substitute.
+
+## D26. A calendar from the issuers' own announcements
+
+Report dates come from the "Financial calendar" messages the issuers file on NewsWeb ("DD.MM.YYYY - Quarterly
+Report - Q3"), fetched for research-book and watched companies at each refresh (two requests per company) and parsed
+into dates; the research book's own events stay the primary list and a date both have is shown once with a note.
+Norges Bank's decision dates live in a resource file with the page they were read from and the day – one date was
+verifiable tonight (5 Nov 2026), so the file holds one date and the page says the rest must be added from the
+official calendar. Ex-dividend dates are left out: NewsWeb announces them on the day and the advance notices have no
+fixed form; guessing them would be worse than not listing them. The front page's "Kommende datoer" draws from the
+same list.

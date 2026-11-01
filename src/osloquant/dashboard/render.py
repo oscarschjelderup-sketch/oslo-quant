@@ -49,7 +49,7 @@ table.odds th.grp { text-align:center; border-bottom:1px solid var(--line); }
 .warn-t { color:#b07800; } @media (prefers-color-scheme: dark) { .warn-t { color:#f2c45a; } }
 """
 
-NAV = [("/", "I dag"), ("/sectors", "Sektorer"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
+NAV = [("/", "I dag"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
 
 
 def pct(v, d=1, sign=True):
@@ -133,15 +133,17 @@ def today_page(ctx: dict, static: bool = False) -> str:
                 + (rows or '<tr><td colspan="9" class="empty">no cases with a view</td></tr>') + '</tbody></table>'
                 f'<div class="src">Close: {E(ctx["price_label"])}. A move of 10 % or more since the view puts the case on the decision list.</div></div>')
     # upcoming + kill
-    up = "".join(f'<li><b>{e["date"]:%d %b}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"])} – {E(e["what"])}'
+    up = "".join(f'<li><b>{e["date"]:%d %b}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"]) if e.get("code") else E(e["name"])} – {E(e["what"])}'
+                 + (f' <span class="src">({E(e["source"])})</span>' if e.get("source") else '')
                  + (f'<details><summary>{len(e["kill"])} kill criteria to check at this event</summary><ul>'
-                    + "".join(f"<li>{E(k)}</li>" for k in e["kill"]) + '</ul></details>' if e["kill"] else '') + '</li>' for e in ctx["upcoming"])
+                    + "".join(f"<li>{E(k)}</li>" for k in e["kill"]) + '</ul></details>' if e.get("kill") else '') + '</li>' for e in ctx["upcoming"])
     ann = ctx.get("announcements")
     ann_html = ("".join(f'<li><b>{E(a["code"])}</b> {when(a["time"])} – <a href="{E(a["url"])}" target="_blank" rel="noopener">{E(a["title"])}</a></li>' for a in ann["items"])
                 or '<li class="empty">no announcements in the window</li>') + f'</ul><div class="src">{E(ann["source"])}</div>' if ann else \
         '<li class="empty">announcements not fetched (oq dashboard --refresh)</li></ul>'
     body.append('<div class="grid2"><div><h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
-                + (up or '<li class="empty">no events in the next 30 days</li>') + '</ul><div class="src">From researchbook.yaml (your own entries).</div></div></div>'
+                + (up or '<li class="empty">no events in the next 30 days</li>') + '</ul><div class="src">Research book, the issuers\' financial calendars on NewsWeb and Norges Bank; '
+                + ('<a href="/calendar">hele kalenderen</a>' if not static else 'full calendar on the dashboard') + '.</div></div></div>'
                 '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
     if "insiders" in ctx:
         body.append(insider_front(ctx["insiders"], ctx.get("shorts_moved", []), static))

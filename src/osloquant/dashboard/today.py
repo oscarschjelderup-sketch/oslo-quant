@@ -152,13 +152,21 @@ def pre_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = PRE_
 
 
 def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAYS) -> list[dict]:
+    """The next ``days`` days: the research book's own events (with the kill criteria to check when close), then the
+    issuers' financial calendars and Norges Bank from the calendar feed, without repeating a date the book has."""
+    from osloquant.dashboard import calendar as cal
+
     out = []
     for c in cases:
         for ev in c.events:
             d = pd.Timestamp(ev["date"])
             if today <= d <= today + pd.Timedelta(days=days):
                 out.append({"code": c.code, "name": c.name, "date": d, "what": ev["what"],
-                            "kill": c.kill if (d - today).days <= KILL_SOON_DAYS else []})
+                            "kill": c.kill if (d - today).days <= KILL_SOON_DAYS else [], "source": None})
+    for e in cal.events(cases, today=today, days=days):
+        if e["kind"] == "case" or e.get("duplicate_of_case_event"):
+            continue
+        out.append({"code": e.get("code"), "name": e["name"], "date": e["date"], "what": e["what"], "kill": [], "source": e["source"].split(" (")[0]})
     return sorted(out, key=lambda e: e["date"])
 
 

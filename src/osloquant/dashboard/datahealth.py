@@ -18,7 +18,7 @@ import pandas as pd
 from osloquant import judgements as jg
 from osloquant.dashboard import feeds as fd
 
-FEED_MAX_AGE_DAYS = {"announcements": 3, "news": 3, "rates": 7, "fx": 7, "brent": 7, "salmon": 14, "shorts": 7, "insiders": 7}
+FEED_MAX_AGE_DAYS = {"announcements": 3, "news": 3, "rates": 7, "fx": 7, "brent": 7, "salmon": 14, "shorts": 7, "insiders": 7, "calendar": 14}
 GAP_RUN = 20                 # consecutive missing sessions that count as a source gap, not a thin day
 BIG_MOVE = 0.25              # a daily move this large in the last 60 sessions is listed for a look
 
@@ -160,12 +160,25 @@ def dividend_audit(closes_adj: pd.DataFrame, closes_raw: pd.DataFrame, codes: li
                             "yield": None if px != px or not px else round(amt / px, 4), "adjusted": adjusted, "url": f"https://newsweb.oslobors.no/message/{m['messageId']}"})
         if log:
             log(f"{code}: {len(seen)} ex-dividend notices")
+    return {"since": since, "stocks": len(codes), "notices": len(notices), **summarise(notices), "failed": failed,
+            "source": "Oslo Børs NewsWeb category 1101 vs Yahoo adjusted/raw close (private use)"}
+
+
+SPLIT_SUSPECT = 0.15         # a "yield" this high means the amount predates a later split (Yahoo's raw table is split-adjusted backwards)
+
+
+def summarise(notices: list[dict]) -> dict:
+    """The missed notices and the missed yield per stock. A yield above 15 % is not a yield: the dividend was paid
+    before a later split and Yahoo's raw close is already divided by the split, so it is listed but not summed."""
     missed = [n for n in notices if not n["adjusted"] and (n["yield"] or 0) > 0.003]
-    by_code = {}
     for n in missed:
-        by_code[n["code"]] = round(by_code.get(n["code"], 0.0) + (n["yield"] or 0), 4)
-    return {"since": since, "stocks": len(codes), "notices": len(notices), "missed": missed, "missed_yield_by_code": dict(sorted(by_code.items(), key=lambda kv: -kv[1])),
-            "failed": failed, "source": "Oslo Børs NewsWeb category 1101 vs Yahoo adjusted/raw close (private use)"}
+        n["yield_doubtful"] = bool((n["yield"] or 0) > SPLIT_SUSPECT)
+    by_code: dict[str, float] = {}
+    for n in missed:
+        if not n["yield_doubtful"]:
+            by_code[n["code"]] = round(by_code.get(n["code"], 0.0) + (n["yield"] or 0), 4)
+    doubtful = sorted({n["code"] for n in missed if n["yield_doubtful"]})
+    return {"missed": missed, "missed_yield_by_code": dict(sorted(by_code.items(), key=lambda kv: -kv[1])), "split_suspect_codes": doubtful}
 
 
 def dividend_audit_cached() -> dict | None:
@@ -246,9 +259,11 @@ def page_html(ov: dict) -> str:
         div = '<p class="empty">Not run. <code>oq data audit</code> checks every NewsWeb ex-dividend notice since 2010 against Yahoo\'s adjustments (64 calls, a few minutes).</p>'
     else:
         miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{E(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
-                       f'<td>{pct(m["yield"], 1, False)}</td><td><a href="{E(m["url"])}" target="_blank" rel="noopener">NewsWeb</a></td></tr>' for m in d["missed"])
+                       f'<td>{pct(m["yield"], 1, False)}{" (before a later split – not a yield)" if m.get("yield_doubtful") else ""}</td>'
+                       f'<td><a href="{E(m["url"])}" target="_blank" rel="noopener">NewsWeb</a></td></tr>' for m in d["missed"])
+        susp = f' Amounts that predate a later split ({E(", ".join(d.get("split_suspect_codes", [])))}) are listed but not summed.' if d.get("split_suspect_codes") else ""
         div = (f'<p>{d["notices"]} ex-dividend notices with an amount since {E(d["since"])} on {d["stocks"]} stocks; <b>{len(d["missed"])}</b> with no Yahoo adjustment '
-               f'(yield above 0.3 %). Missed yield by stock (pct points): {E(", ".join(f"{k} {v * 100:.1f}" for k, v in list(d["missed_yield_by_code"].items())[:10]))}.</p>'
+               f'(yield above 0.3 %). Missed yield by stock (pct points): {E(", ".join(f"{k} {v * 100:.1f}" for k, v in list(d["missed_yield_by_code"].items())[:10]))}.{susp}</p>'
                f'<details><summary>Every missed notice</summary><table class="odds"><thead><tr><th>Aksje</th><th>Ex-dato</th><th>Beløp</th><th>Kurs</th><th>Yield</th><th></th></tr></thead>'
                f'<tbody>{miss}</tbody></table></details><div class="src">Fetched {E(_fmt_dt(d.get("fetched_at")))}. A missed dividend shows as a price drop in the adjusted series: '
                'false risk signals that day and a lower total return for that stock-year. Lower bound: issuers that file ex-dates in other categories are not seen.</div>')
