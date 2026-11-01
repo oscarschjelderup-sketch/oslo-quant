@@ -18,6 +18,7 @@ from osloquant.dashboard import book as bk
 from osloquant.dashboard import feeds as fd
 from osloquant.dashboard import market as mk
 from osloquant.dashboard import server
+from osloquant.dashboard import testdata as tdata
 
 from .helpers import business_days
 
@@ -228,11 +229,12 @@ def test_no_private_file_is_tracked():
 
 
 def test_no_tracked_file_holds_the_private_research_book():
-    """Run where the real book exists (Oscar's laptop): no kill criterion, model file name or a case's target, bear
-    and bull values together on one line (the shape of a copied fixture) is in any tracked file."""
-    real = Path.home() / "osloquant-home" / "researchbook.yaml"
+    """Run where a frozen copy of the real book exists (private test data, never the live file): no kill criterion,
+    model file name or a case's target, bear and bull values together on one line (the shape of a copied fixture) is
+    in any tracked file."""
+    real = tdata.default_dir() / "researchbook.yaml"
     if not real.exists():
-        pytest.skip("no private research book on this machine")
+        pytest.skip("no frozen research-book copy on this machine")
     import yaml
 
     entries = (yaml.safe_load(real.read_text(encoding="utf-8")) or {}).get("entries", [])

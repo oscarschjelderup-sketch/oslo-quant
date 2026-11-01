@@ -16,3 +16,18 @@ Thumbs.db
 *.db
 # a runner's home directory, when the store is checked out next to the code
 .home/
+
+# Private files of the dashboard and the judgement log: they live in ~/osloquant-home, never here (belt and braces)
+researchbook.yaml
+judgements.jsonl
+judgements-heads.txt
+watchlist.yaml
+dashboard.yaml
+dashboard_state.json
+reports.yaml
+feeds/
+reports/
+testdata/
+weekly/
+monthly/
+*.summary.json
