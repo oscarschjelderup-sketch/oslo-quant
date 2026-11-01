@@ -125,7 +125,7 @@ def report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = REPORT_D
     return items
 
 
-PRE_REPORT_DAYS = 10          # a report this close asks for a view logged before it
+PRE_REPORT_DAYS = 14          # a report this close asks for a view logged before it
 PRE_REPORT_FRESH = 30         # a view dated within this many days before the report counts as "before the report"
 _REPORT_WORDS = ("report", "rapport", "results", "resultat", "q1", "q2", "q3", "q4", "quarter", "kvartal", "interim", "half-year", "halvår")
 
