@@ -134,6 +134,8 @@ def validate_form(form: dict) -> list[str]:
         problems.append("the rationale must say why (at least 20 characters)")
     if form.get("rating") not in (None, "", "BUY", "HOLD", "SELL"):
         problems.append("the view must be BUY, HOLD or SELL")
+    if form.get("consensus_target") not in (None, "") and not (form.get("consensus_source") or "").strip():
+        problems.append("a consensus target needs its source and date")
     for k in ("target", "bear", "base", "bull"):
         if form.get(k) is not None and form[k] != "" and float(form[k]) <= 0:
             problems.append(f"{k} must be a positive price")
@@ -188,6 +190,8 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   bear=form.get("bear"), base=form.get("base"), bull=form.get("bull"),
                   p_bear=form.get("p_bear"), p_base=form.get("p_base"), p_bull=form.get("p_bull"),
                   kill=kill, kill_level=kl, thesis=form["rationale"].strip(), price_date=price_date, price_source=price_source,
+                  consensus_target=float(form["consensus_target"]) if form.get("consensus_target") not in (None, "") else None,
+                  consensus_source=(form.get("consensus_source") or "").strip() or None,
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()

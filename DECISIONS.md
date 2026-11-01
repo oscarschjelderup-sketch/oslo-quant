@@ -272,3 +272,19 @@ as independent (naive t 3.9–4.0 on the 60-day breakouts, 1.3–2.1 with one me
 - Every signal on the dashboard shows one more line: the excess in both halves, on the survivors-from-the-start,
   the clustered t and the verdict, with "only today's 64 stocks (survivors)". The public scorecard page gets the
   same columns. A pooled number is never shown alone again.
+
+## D21. Calibration against references, and probability against outcome
+
+A call is only good relative to something. Each scored judgement now carries three references (`judgements.score`):
+OSEBX (direction and excess, as before); **"the price stays where it is"** – did my target miss the later price by
+less than a forecast of no change (`beat_flat`); and **the public consensus target** when one was logged with the view
+(`consensus_target` + `consensus_source`, entered by hand from a public page because consensus feeds are licensed;
+the form refuses a target without its source and date). The calibration page shows the three hit rates for final
+calls and for all scored calls, with the counts.
+
+`judgements.reliability()` turns every final call with scenario probabilities into three (stated probability,
+happened) pairs – bear, base, bull – buckets them by the stated probability and plots stated against realised with
+the binary Brier score. Until the first horizon has passed the page says how many calls are pending and shows no
+plot: nothing is calibrated against nothing. Below 20 final calls the page says the plot is noise.
+
+Found on the way: the calibration page crashed when every call was logged today (no price after the call yet). Fixed.

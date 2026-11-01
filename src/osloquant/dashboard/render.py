@@ -527,6 +527,8 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 <div class="row3"><div><label>Sannsynlighet bear</label><input name="p_bear" inputmode="decimal" placeholder="0.25" value="{val("p_bear")}"></div>
 <div><label>Sannsynlighet base</label><input name="p_base" inputmode="decimal" placeholder="0.50" value="{val("p_base")}"></div>
 <div><label>Sannsynlighet bull</label><input name="p_bull" inputmode="decimal" placeholder="0.25" value="{val("p_bull")}"></div></div>
+<div class="row3"><div><label>Konsensus kursmål (valgfritt, offentlig kilde)</label><input name="consensus_target" inputmode="decimal" value="{val("consensus_target")}"></div>
+<div style="grid-column:span 2"><label>Kilde og dato for konsensus (påkrevd hvis mål)</label><input name="consensus_source" placeholder="f.eks. selskapets IR-side, 2026-10-22" value="{val("consensus_source")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
 <label>Kill-kriterier (påkrevd, ett per linje)</label><textarea name="kill" required>{E(f.get("kill_text", kill_default))}</textarea>
 {sizing_box(px, sz, val("position_shares"))}
@@ -573,7 +575,7 @@ Tapet ved kill-nivået er et gulv, ikke et tak: en rapport eller et gap kan åpn
 
 
 # ------------------------------------------------------------------------------------------------ Kalibrering
-def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict]) -> str:
+def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict], rel: dict | None = None) -> str:
     body = ['<h1>Kalibrering</h1><div class="sub">What I said, what happened, how far off. Calls younger than their horizon are provisional and are not evidence.</div>']
     chain = "verifies" if check.ok else "BROKEN: " + "; ".join(check.problems[:3])
     body.append(f'<div class="src">Judgement log: {check.rows} rows, chain {E(chain)}, head {check.head[:16]}.</div>')
@@ -588,6 +590,9 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
             + (f'<li>Scenario Brier score: {s["mean_brier"]:.2f} (0 = perfect, 0.67 = uniform)</li>' if "mean_brier" in s else '') + '</ul>'
             if s["n"] else '<p class="empty">none yet</p>') + '</div>')
     body.append('<div class="grid2">' + "".join(tiles) + '</div>')
+    body.append(benchmarks_block(table, summary))
+    if rel is not None:
+        body.append(reliability_block(rel))
     if len(table):
         rows = "".join(
             f'<tr><td>#{r["seq"]}</td><td>{link(r["code"])}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:.2f}</td><td>{r["target"]:g}</td>'
@@ -599,15 +604,77 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
                     '<th>TSR</th><th>vs OSEBX</th><th>vs TP</th><th>In band</th><th>Direction</th><th>Status</th></tr></thead>'
                     f'<tbody>{rows}</tbody></table><div class="src">Total return from the call price on the adjusted series (dividends included); OSEBX from the store; '
                     'prices delayed. Direction for BUY/SELL = sign of the excess over OSEBX.</div></div>')
-        per = table.groupby("code").agg(n=("seq", "count"), tsr=("tsr", "mean"), ex=("excess_osebx", "mean"), hit=("direction_hit", "mean"))
-        prow = "".join(f'<tr><td>{link(code)}</td><td>{int(r["n"])}</td><td>{pct(r["tsr"])}</td><td>{pct(r["ex"])}</td><td>{pct(r["hit"], 0, False)}</td></tr>' for code, r in per.iterrows())
-        body.append(f'<h2>Per case</h2><div class="card"><table><thead><tr><th>Code</th><th>Calls</th><th>Mean TSR</th><th>Mean vs OSEBX</th><th>Direction right</th></tr></thead><tbody>{prow}</tbody></table></div>')
+        if {"tsr", "excess_osebx", "direction_hit"} <= set(table.columns):
+            per = table.groupby("code").agg(n=("seq", "count"), tsr=("tsr", "mean"), ex=("excess_osebx", "mean"), hit=("direction_hit", "mean"))
+            prow = "".join(f'<tr><td>{link(code)}</td><td>{int(r["n"])}</td><td>{pct(r["tsr"])}</td><td>{pct(r["ex"])}</td><td>{pct(r["hit"], 0, False)}</td></tr>' for code, r in per.iterrows())
+            body.append(f'<h2>Per case</h2><div class="card"><table><thead><tr><th>Code</th><th>Calls</th><th>Mean TSR</th><th>Mean vs OSEBX</th><th>Direction right</th></tr></thead><tbody>{prow}</tbody></table></div>')
+        else:
+            body.append('<h2>Per case</h2><div class="card"><p class="empty">No call has a price after its date yet (a view logged today is scored from tomorrow).</p></div>')
     kb = sum(bool(k["breached"]) for k in kills)
     body.append(f'<h2>Kill-kriterier</h2><div class="card"><p>{len(kills)} checks logged, {kb} breached, '
                 f'{sum(bool(k["breached"]) and str(k.get("action", "")).lower() not in ("held", "none", "nothing", "ignored") for k in kills)} acted on.</p>'
                 '<div class="src">Log a check with oq book kill --code X --date YYYY-MM-DD --criterion "..." --breached/--intact --action "..."</div></div>')
     body.append(signal_brackets_block())
     return page("Kalibrering", "/calibration", "\n".join(body))
+
+
+def benchmarks_block(table: pd.DataFrame, summary: dict) -> str:
+    """Am I better than doing nothing? Three references per call: OSEBX (direction and excess), a forecast that the
+    price stays where it is (target error against the naive error), and the public consensus target when one was
+    logged with the view (DECISIONS D21)."""
+    if not len(table):
+        return ""
+    scored = table[table["status"].isin(["final", "provisional"])] if "status" in table else table.iloc[0:0]
+    if not len(scored) or "direction_hit" not in scored:
+        return ('<h2>Er jeg bedre enn referansene?</h2><div class="card"><p class="empty">Nothing to compare yet: a view is scored against '
+                'OSEBX, «kursen står stille» and consensus from its first session after the call.</p></div>')
+    fin = scored[scored["status"] == "final"]
+    rows = []
+    for label, t in (("Final calls", fin), ("All scored (incl. provisional)", scored)):
+        if not len(t):
+            rows.append(f'<tr><td>{E(label)}</td><td colspan="4" class="empty">none yet</td></tr>')
+            continue
+        osebx = t["direction_hit"].dropna()
+        flat = t["beat_flat"].dropna() if "beat_flat" in t else pd.Series(dtype=bool)
+        cons = t["beat_consensus"].dropna() if "beat_consensus" in t else pd.Series(dtype=bool)
+        cell = lambda b: f'<b>{pct(b.astype(bool).mean(), 0, False)}</b> <span class="src">({int(b.astype(bool).sum())} av {len(b)})</span>' if len(b) else '–'  # noqa: E731
+        rows.append(f'<tr><td>{E(label)}</td><td>{cell(osebx)}</td><td>{pct(t["excess_osebx"].mean()) if t["excess_osebx"].notna().any() else "–"}</td>'
+                    f'<td>{cell(flat)}</td><td>{cell(cons) if len(cons) else "<span class=src>no consensus logged</span>"}</td></tr>')
+    return ('<h2>Er jeg bedre enn referansene?</h2><div class="card"><table class="odds"><thead><tr><th></th><th>Retning riktig mot OSEBX</th>'
+            '<th>Meravkastning mot OSEBX, snitt</th><th>Kursmålet nærmere enn «kursen står stille»</th><th>Kursmålet nærmere enn konsensus</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table><div class="src">«Kursen står stille»: hvor ofte mitt kursmål bommet mindre på sluttkursen enn en '
+            'prognose om uendret kurs. Konsensus: bare for vurderinger der et offentlig konsensusmål ble lagt inn med kilde i skjemaet. '
+            'OSEBX fra lageret (Yahoo). Provisoriske vurderinger er ikke bevis.</div></div>')
+
+
+def reliability_block(rel: dict) -> str:
+    """Stated probability against realised frequency for bear/base/bull, with the binary Brier score."""
+    n_final, pending = rel.get("final_calls", 0), rel.get("pending_calls", 0)
+    head = '<h2>Oppgitt sannsynlighet mot det som skjedde</h2><div class="card">'
+    if not rel.get("pairs"):
+        return (head + f'<p class="empty">No final call with scenario probabilities yet ({pending} pending). The plot appears when the first '
+                'horizon has passed; until then there is nothing to calibrate against.</p></div>')
+    import plotly.graph_objects as go
+
+    b = rel["buckets"]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", line=dict(color="#9aa7b5", dash="dot"), name="perfect"))
+    fig.add_trace(go.Scatter(x=[x["stated"] for x in b], y=[x["realised"] for x in b], mode="markers+text",
+                             marker=dict(size=[10 + 3 * min(x["n"], 20) for x in b], color="#3b82c4"),
+                             text=[f'n {x["n"]}' for x in b], textposition="top center", name="my calls"))
+    fig.update_layout(height=320, margin=dict(l=40, r=20, t=20, b=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                      font=dict(color="#8a96a3"), showlegend=False, xaxis=dict(title="Oppgitt sannsynlighet", range=[0, 1], tickformat=".0%"),
+                      yaxis=dict(title="Andel som skjedde", range=[0, 1], tickformat=".0%"))
+    fig.update_xaxes(gridcolor="rgba(128,128,128,0.15)")
+    fig.update_yaxes(gridcolor="rgba(128,128,128,0.15)")
+    plot = fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
+    rows = "".join(f'<tr><td>{x["lo"]:.0%}–{x["hi"]:.0%}</td><td>{x["n"]}</td><td>{x["stated"]:.0%}</td><td>{x["realised"]:.0%}</td>'
+                   f'<td class="{cls(x["realised"] - x["stated"])}">{(x["realised"] - x["stated"]) * 100:+.0f} pp</td></tr>' for x in b)
+    return (head + f'<p>{n_final} endelige vurderinger ({3 * n_final} scenario-sannsynligheter), {pending} venter på horisonten. '
+            f'Brier (binær, per scenario): <b>{rel["brier_binary"]:.3f}</b> – 0 er perfekt, 0.25 er å si 50 % om alt.</p>{plot}'
+            f'<table class="odds"><thead><tr><th>Oppgitt</th><th>n</th><th>Snitt oppgitt</th><th>Skjedde</th><th>Avvik</th></tr></thead><tbody>{rows}</tbody></table>'
+            '<div class="src">Hvert endelig syn gir tre par (bear, base, bull): sannsynligheten jeg oppga og om det scenarioet lå nærmest sluttkursen. '
+            'Punkter under linjen: jeg var for sikker. Få punkter sier lite: under 20 endelige vurderinger er dette støy.</div></div>')
 
 
 def signal_brackets_block() -> str:

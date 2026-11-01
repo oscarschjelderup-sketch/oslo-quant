@@ -162,7 +162,8 @@ def create_app() -> Flask:
         form = {"rating": f.get("rating", ""), "rationale": f.get("rationale", ""), "kill_text": f.get("kill", ""),
                 "kill": [k for k in f.get("kill", "").splitlines() if k.strip()], "horizon": f.get("horizon") or 12}
         errors = []
-        for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares"):
+        form["consensus_source"] = (f.get("consensus_source") or "").strip()
+        for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))
             except ValueError as e:
@@ -184,9 +185,11 @@ def create_app() -> Flask:
     @app.get("/calibration")
     def calibration():
         check = jg.verify()
-        table, summary = jg.calibration()
-        kills = [r for r in jg.read_log() if r["kind"] == "kill_check"]
-        return rd.calibration_page(table, summary, check, kills)
+        rows = jg.read_log()
+        table, summary = jg.calibration(rows)
+        kills = [r for r in rows if r["kind"] == "kill_check"]
+        rel = jg.reliability(rows, table=table) if len(table) else None
+        return rd.calibration_page(table, summary, check, kills, rel)
 
     def _watch(msg=None, status=200):
         snap = mk.snapshot()

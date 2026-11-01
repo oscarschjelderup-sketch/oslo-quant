@@ -245,6 +245,15 @@ def score(j: dict, prices: Prices, asof: pd.Timestamp, kills: list[dict]) -> dic
     out["direction_hit"] = (rel > 0) if expected == 1 else (rel < 0) if expected == -1 else (abs(rel) < 0.10)
     out["vs_target"] = raw[1] / j["target"] - 1
     out["target_reached"] = (raw[1] >= j["target"]) if j["target"] >= j["price"] else (raw[1] <= j["target"])
+    # benchmarks for the target itself: "the price stays where it is" and, when logged with the view, the public
+    # consensus target (entered by hand with its source; consensus feeds are licensed)
+    out["flat_err"] = abs(raw[1] / j["price"] - 1)
+    out["beat_flat"] = abs(out["vs_target"]) < out["flat_err"]
+    ct = j.get("consensus_target")
+    if ct:
+        out["consensus_target"] = float(ct)
+        out["vs_consensus"] = raw[1] / float(ct) - 1
+        out["beat_consensus"] = abs(out["vs_target"]) < abs(out["vs_consensus"])
     if j.get("bear") is not None and j.get("bull") is not None:
         out["in_band"] = j["bear"] <= raw[1] <= j["bull"]
     probs = [j.get(k) for k in ("p_bear", "p_base", "p_bull")]
@@ -286,6 +295,12 @@ def calibration(rows: list[dict] | None = None, prices: Prices | None = None, as
             d["in_band_rate"] = float(t["in_band"].dropna().astype(bool).mean())
         if "brier" in t and t["brier"].notna().any():
             d["mean_brier"] = float(t["brier"].mean())
+        if "beat_flat" in t and t["beat_flat"].notna().any():
+            d["beat_flat_rate"] = float(t["beat_flat"].dropna().astype(bool).mean())
+        if "beat_consensus" in t and t["beat_consensus"].notna().any():
+            bc = t["beat_consensus"].dropna()
+            d["beat_consensus_rate"] = float(bc.astype(bool).mean())
+            d["n_consensus"] = int(len(bc))
         return d
 
     summary = {"judgements": len(js), "asof": f"{asof:%Y-%m-%d}", "final": stats(final), "all_scored": stats(scored),
@@ -293,6 +308,38 @@ def calibration(rows: list[dict] | None = None, prices: Prices | None = None, as
                "kills_acted": sum(bool(k["breached"]) and str(k.get("action", "")).lower() not in ("held", "none", "nothing", "ignored") for k in kills),
                "log_head": verify().head if rows is None else None}
     return table, summary
+
+
+def reliability(rows: list[dict] | None = None, table: pd.DataFrame | None = None, prices: Prices | None = None,
+                asof: pd.Timestamp | None = None, edges=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0001)) -> dict:
+    """Stated scenario probabilities against what happened, for final calls: every (probability, happened) pair of
+    bear/base/bull, bucketed by the stated probability. The Brier score is the mean squared gap; a perfectly
+    calibrated forecaster has the realised share equal to the stated probability in every bucket."""
+    rows = read_log() if rows is None else rows
+    if table is None:
+        table, _ = calibration(rows, prices=prices, asof=asof)
+    by_seq = {j["seq"]: j for j in judgements(rows)}
+    pairs = []
+    pending = 0
+    for _, r in table.iterrows():
+        j = by_seq.get(r["seq"], {})
+        probs = [j.get(k) for k in ("p_bear", "p_base", "p_bull")]
+        if any(p is None for p in probs):
+            continue
+        if r.get("status") != "final" or not isinstance(r.get("scenario_hit"), str):
+            pending += 1
+            continue
+        for name, pr in zip(("bear", "base", "bull"), probs, strict=True):
+            pairs.append({"seq": int(r["seq"]), "code": r["code"], "scenario": name, "p": float(pr), "happened": r["scenario_hit"] == name})
+    buckets = []
+    for lo, hi in zip(edges[:-1], edges[1:], strict=True):
+        sel = [x for x in pairs if lo <= x["p"] < hi]
+        if sel:
+            buckets.append({"lo": lo, "hi": min(hi, 1.0), "n": len(sel), "stated": float(np.mean([x["p"] for x in sel])),
+                            "realised": float(np.mean([x["happened"] for x in sel]))})
+    brier = float(np.mean([(x["p"] - float(x["happened"])) ** 2 for x in pairs])) if pairs else None
+    return {"pairs": pairs, "buckets": buckets, "pending_calls": pending, "final_calls": len({x["seq"] for x in pairs}),
+            "brier_binary": brier}
 
 
 def _p(v, d=1, sign=True):

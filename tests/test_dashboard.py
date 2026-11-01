@@ -352,3 +352,17 @@ def test_the_form_sizes_a_buy_and_refuses_a_loss_over_the_limit(app, home):
     assert r.status_code == 303
     (row,) = jg.read_log()
     assert row["position_shares"] > 0 and row["loss_at_kill"] <= 2000
+
+
+# ------------------------------------------------------------------------------------------------ benchmarks (night: D21)
+def test_consensus_target_needs_a_source_and_the_calibration_page_shows_benchmarks(app):
+    client, snap = app
+    r = client.post("/stock/BBB/judge", data={**GOOD, "consensus_target": "140"})
+    assert r.status_code == 400 and "needs its source" in r.get_data(as_text=True)
+    r = client.post("/stock/BBB/judge", data={**GOOD, "consensus_target": "140", "consensus_source": "IR page, 2026-10-22"})
+    assert r.status_code == 303
+    (row,) = jg.read_log()
+    assert row["consensus_target"] == 140.0 and row["consensus_source"] == "IR page, 2026-10-22"
+    page = client.get("/calibration").get_data(as_text=True)
+    assert "Er jeg bedre enn referansene?" in page and "kursen står stille" in page
+    assert "Oppgitt sannsynlighet mot det som skjedde" in page and "pending" in page       # no final call yet: plot withheld

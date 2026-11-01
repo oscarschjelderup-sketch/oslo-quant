@@ -118,3 +118,37 @@ def test_recorded_heads_catch_a_rewritten_log(home):
     jg.append("judgement", _call(target=150.0, bull=180.0), now=T0)
     assert jg.verify().ok
     assert jg.heads_consistent(jg.verify()) and "no longer matches" in jg.heads_consistent(jg.verify())[0]
+
+
+def test_benchmarks_flat_and_consensus_and_reliability(tmp_path):
+    """Three final calls with probabilities: the target beats 'price unchanged' when its error is smaller, the consensus
+    comparison exists only where a consensus target was logged, and the reliability pairs bucket by stated probability."""
+    path = tmp_path / "log.jsonl"
+    n = 400
+    up = np.r_[np.linspace(100, 128, 255), np.full(n - 255, 128.0)]      # ends at 128: my target 130 beats flat (100)
+    down = np.r_[np.linspace(100, 90, 255), np.full(n - 255, 90.0)]      # ends at 90: target 130 loses to flat
+    prices = _prices({"AAA": up, "BBB": down, "CCC": up})
+    jg.append("judgement", _call(), path, now=T0)
+    jg.append("judgement", _call(code="BBB", bear=70.0, base=125.0, bull=170.0, p_bear=0.6, p_base=0.3, p_bull=0.1), path, now=T0)
+    jg.append("judgement", _call(code="CCC", consensus_target=120.0, consensus_source="IR page, 2025-01-02"), path, now=T0)
+    rows = jg.read_log(path)
+    table, summary = jg.calibration(rows, prices=prices, asof=pd.Timestamp("2026-07-01"))
+    t = table.set_index("code")
+    assert bool(t.loc["AAA", "beat_flat"]) and not bool(t.loc["BBB", "beat_flat"])
+    assert t.loc["AAA", "flat_err"] == pytest.approx(0.28) and pd.isna(t.loc["AAA"].get("beat_consensus"))
+    assert t.loc["CCC", "consensus_target"] == 120.0 and bool(t.loc["CCC", "beat_consensus"])   # |128/130-1| < |128/120-1|
+    assert summary["final"]["beat_flat_rate"] == pytest.approx(2 / 3) and summary["final"]["beat_consensus_rate"] == 1.0
+    assert summary["final"]["n_consensus"] == 1
+    rel = jg.reliability(rows, table=table)
+    assert rel["final_calls"] == 3 and rel["pending_calls"] == 0 and len(rel["pairs"]) == 9
+    # AAA and CCC ended nearest base (125); BBB at 90 is nearest bear (70) → realised: bear 1/3, base 2/3, bull 0
+    by = {(x["code"], x["scenario"]): x["happened"] for x in rel["pairs"]}
+    assert by[("AAA", "base")] and by[("BBB", "bear")] and not by[("CCC", "bull")]
+    assert 0 < rel["brier_binary"] < 0.5
+    total_n = sum(b["n"] for b in rel["buckets"])
+    assert total_n == 9 and all(0 <= b["realised"] <= 1 for b in rel["buckets"])
+    # a call still inside its horizon is pending, not plotted
+    jg.append("judgement", _call(code="AAA", date="2026-05-01"), path, now=T0)
+    rows = jg.read_log(path)
+    table, _ = jg.calibration(rows, prices=prices, asof=pd.Timestamp("2026-07-01"))
+    assert jg.reliability(rows, table=table)["pending_calls"] == 1
