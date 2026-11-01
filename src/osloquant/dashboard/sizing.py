@@ -16,6 +16,7 @@ The limits are Oscar's, in ``~/osloquant-home/dashboard.yaml`` (private):
       max_loss: 2000               # NOK lost if the kill level is reached, per view
       max_position: 0.25           # share of the paper sum in one stock
       max_total_loss: 6000         # NOK, all open BUY views together (optional)
+    max_loss_per_group: 3000     # NOK, open BUY views in the same sector group together (optional)
 
 Without that file there is no sizing and no block.
 """
@@ -63,7 +64,8 @@ class Size:
     open_loss: float
 
 
-def size(price: float, kill: float, cfg: dict, code: str | None = None, rows: list[dict] | None = None) -> Size:
+def size(price: float, kill: float, cfg: dict, code: str | None = None, rows: list[dict] | None = None, group: str | None = None,
+         groups: dict[str, str] | None = None) -> Size:
     if not kill < price:
         raise ValueError(f"the kill level {kill:g} must be below the price {price:.2f} for a BUY")
     lps = price - kill + COST * price
@@ -76,14 +78,18 @@ def size(price: float, kill: float, cfg: dict, code: str | None = None, rows: li
               "free paper sum": math.floor(free / price)}
     if cfg.get("max_total_loss"):
         limits["total loss, all open views"] = math.floor(max(float(cfg["max_total_loss"]) - open_loss, 0) / lps)
+    if cfg.get("max_loss_per_group") and group:
+        same = sum(float(r.get("loss_at_kill") or 0) for c, r in opened.items() if (groups or {}).get(c) == group)
+        limits[f"loss in the {group} group"] = math.floor(max(float(cfg["max_loss_per_group"]) - same, 0) / lps)
     binding = min(limits, key=limits.get)
     n = max(limits[binding], 0)
     return Size(n, binding, round(n * price, 2), round(n * lps, 2), round(lps, 4), limits, round(free, 2), round(open_loss, 2))
 
 
-def check(shares: int, price: float, kill: float, cfg: dict, code: str, rows: list[dict] | None = None) -> tuple[Size, list[str]]:
+def check(shares: int, price: float, kill: float, cfg: dict, code: str, rows: list[dict] | None = None, group: str | None = None,
+          groups: dict[str, str] | None = None) -> tuple[Size, list[str]]:
     """The largest allowed size and what is wrong with ``shares`` (empty = it can be written)."""
-    s = size(price, kill, cfg, code, rows)
+    s = size(price, kill, cfg, code, rows, group, groups)
     problems = []
     if shares < 0:
         problems.append("the position cannot be negative")
@@ -98,4 +104,8 @@ def check(shares: int, price: float, kill: float, cfg: dict, code: str, rows: li
     if "total loss, all open views" in s.limits and shares > s.limits["total loss, all open views"]:
         problems.append(f"all open views together would lose more than NOK {nok(cfg['max_total_loss'])} at their kill levels; "
                         f"at most {s.limits['total loss, all open views']} shares")
+    gkey = f"loss in the {group} group" if group else None
+    if gkey in s.limits and shares > s.limits[gkey]:
+        problems.append(f"the open views in the {group} group would together lose more than NOK {nok(cfg['max_loss_per_group'])} at their kill levels; "
+                        f"at most {s.limits[gkey]} shares")
     return s, problems

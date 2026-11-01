@@ -180,9 +180,10 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
         if kl is None:
             raise ValueError("a BUY needs a kill level: it is the stop the position size is measured against")
         raw = form.get("position_shares")
-        s = sizing.size(price, kl, cfg, code)
+        groups = _groups()
+        s = sizing.size(price, kl, cfg, code, group=groups.get(code), groups=groups)
         shares = s.shares if raw in (None, "") else int(float(raw))
-        s, problems = sizing.check(shares, price, kl, cfg, code)
+        s, problems = sizing.check(shares, price, kl, cfg, code, group=groups.get(code), groups=groups)
         if problems:
             raise ValueError("; ".join(problems))
         pos = dict(position_shares=shares, position_value=round(shares * price, 2), loss_at_kill=round(shares * s.loss_per_share, 2),
@@ -204,6 +205,17 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
         _append_book_entry(code, name or code, today)
     mark_moved(code, row["seq"], today)
     return row
+
+
+def _groups() -> dict[str, str]:
+    """Sector group per code from the store, empty when the store is not there (tests without prices)."""
+    try:
+        from osloquant.dashboard import market as mk
+
+        snap = mk.snapshot()
+        return {c: snap.group(c) for c in snap.names}
+    except Exception:  # noqa: BLE001 – sizing must work without a store
+        return {}
 
 
 def triggered_now(code: str) -> list[str]:

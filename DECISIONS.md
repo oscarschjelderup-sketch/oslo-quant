@@ -368,3 +368,16 @@ verifiable tonight (5 Nov 2026), so the file holds one date and the page says th
 official calendar. Ex-dividend dates are left out: NewsWeb announces them on the day and the advance notices have no
 fixed form; guessing them would be worse than not listing them. The front page's "Kommende datoer" draws from the
 same list.
+
+## D27. The book as one thing: shared kill drivers and sector concentration
+
+The per-view loss limit (D13) treats two views as independent. With two consumer-discretionary BUYs whose kill
+criteria both start with a margin line, that is not true: one bad quarter for Norwegian retail spending can kill
+both, and the loss at the kill levels adds up. The front page now has a block under the research-book table that
+sums the loss at kill per sector group and per kill driver, and says in words when every open BUY sits in one
+group or when two views can die from the same driver. The driver of a kill criterion is read from an explicit tag
+at the end of the line (`... below 49% [margin]`) or, without one, inferred from its words and marked with a star
+so the author can overrule it – inference is a hint, never a verdict. The sizing gets an optional
+`max_loss_per_group` (NOK) across open BUY views in the same sector group, applied like `max_total_loss`; the
+default config writes it as 3000 against a 6000 total, which Oscar should set himself. Nothing here changes a
+rating; it changes what the size form allows and what the morning visit sees.

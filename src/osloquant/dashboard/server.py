@@ -50,9 +50,12 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
                announcements=fd.announcements(codes, days=7))
     from osloquant.dashboard import insiders as ins
+    from osloquant.dashboard import portfolio as pf
+    from osloquant.dashboard import sizing
 
     ctx["insiders"] = ins.recent(set(codes), days=7)
     ctx["shorts_moved"] = ins.short_moves(codes, days=7)
+    ctx["portfolio"] = pf.exposure(cases, {c.code: snap.group(c.code) for c in cases}, sizing.config())
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
         td.save_state(state)

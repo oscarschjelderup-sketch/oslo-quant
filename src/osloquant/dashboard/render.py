@@ -132,6 +132,10 @@ def today_page(ctx: dict, static: bool = False) -> str:
                 '<th>TP</th><th>To TP</th><th>To bear</th><th>To bull</th><th>View from</th></tr></thead><tbody>'
                 + (rows or '<tr><td colspan="9" class="empty">no cases with a view</td></tr>') + '</tbody></table>'
                 f'<div class="src">Close: {E(ctx["price_label"])}. A move of 10 % or more since the view puts the case on the decision list.</div></div>')
+    if ctx.get("portfolio"):
+        from osloquant.dashboard import portfolio as pf
+
+        body.append(pf.block_html(ctx["portfolio"], static))
     # upcoming + kill
     up = "".join(f'<li><b>{e["date"]:%d %b}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"]) if e.get("code") else E(e["name"])} – {E(e["what"])}'
                  + (f' <span class="src">({E(e["source"])})</span>' if e.get("source") else '')
