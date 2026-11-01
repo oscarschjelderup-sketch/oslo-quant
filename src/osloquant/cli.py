@@ -1414,6 +1414,43 @@ def signals_score(
         console.print(f"odds written to {path}")
 
 
+# ------------------------------------------------------------------------------------------------ data health
+data_app = typer.Typer(help="What is stale, missing or doubtful in the data (the dashboard's Datahelse page).", no_args_is_help=True)
+app.add_typer(data_app, name="data")
+
+
+@data_app.command("audit")
+def data_audit(since: str = typer.Option("2010-01-01", help="First ex-date to check.")) -> None:
+    """Check every NewsWeb ex-dividend notice against Yahoo's adjustment factor and cache the result for the Datahelse
+    page (one request per stock, about two minutes). Run it weekly, not on every refresh."""
+    _setup()
+    from osloquant import judgements as jg
+    from osloquant.dashboard import datahealth as dh
+    from osloquant.dashboard import feeds
+
+    pr = jg.load_prices(start=pd.Timestamp(since))
+    res = dh.dividend_audit(pr.adjusted, pr.raw, since=since, log=console.print)
+    feeds.write(dh.AUDIT_FILE, res)
+    console.print(f"{res['notices']} notices on {res['stocks']} stocks; {len(res['missed'])} not adjusted in Yahoo: "
+                  + ", ".join(f"{k} {v * 100:.1f} pp" for k, v in list(res["missed_yield_by_code"].items())[:8]))
+    if res["failed"]:
+        console.print(f"[yellow]failed: {', '.join(res['failed'])}[/yellow]")
+
+
+@data_app.command("health")
+def data_health() -> None:
+    """Print the data-health problems (the Datahelse page's warning box)."""
+    _setup()
+    from osloquant.dashboard import book
+    from osloquant.dashboard import datahealth as dh
+    from osloquant.dashboard import odds as od
+
+    closes = od.long_closes()
+    probs = dh.problems(dh.overview(closes, book.cases(), closes.index[-1] if len(closes) else None))
+    for x in probs or ["no known problems"]:
+        console.print(f"  {x}")
+
+
 # ------------------------------------------------------------------------------------------------ reports
 reports_app = typer.Typer(help="Quarterly reports: read a PDF with a company's spec before the real one arrives.", no_args_is_help=True)
 app.add_typer(reports_app, name="reports")

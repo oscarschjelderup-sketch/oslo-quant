@@ -340,3 +340,20 @@ rekkefølgen" and numbers the items with "Gjør først / I dag / Kan vente" and 
 guesses, to be replaced by measured times). With nothing to decide it says so and names the next date. Signals on
 research-book stocks stay open; the rest fold behind one line. The report item's criterion text is no longer cut
 at 60 characters. The "static snapshot" note moved to the footer.
+
+## D25. A data-health page, and the dividend audit as a command
+
+`/health` ("Datahelse", `dashboard/datahealth.py`) shows, before any number is read: the store's newest dates per
+table; every stock without a close on the newest session, its missing sessions in the last 250, gaps of 20 sessions
+or more (Borr Drilling's 2025 source gap shows here) and daily moves of 25 % or more in the last 60 sessions; each
+feed's age against a limit (announcements and news 3 days, rates, FX, Brent, shorts and insiders 7, salmon 14);
+the report reader's state per case (spec, latest report, rows not found, kill rules against kill texts); the
+judgement log's chain and recorded heads; whether the frozen test data is present; and the dividend audit. The
+warning box at the top is also `oq data health` for the terminal.
+
+The audit (`oq data audit`) matches every NewsWeb ex-dividend notice since 2010 against Yahoo's adjustment factor
+and caches the result in the private feed folder, because it costs one NewsWeb request per stock; the page shows
+when it was last run. The night audit found 29 notices with no adjustment (Bouvet 2010–15, Mowi 2015–17, Wilh.
+Wilhelmsen, Aker, Kid, Grieg, Protector, TGS) – a dividend Yahoo missed looks like a price fall, fires false risk
+signals and understates that stock-year's return. Nothing can repair Yahoo's series; knowing which stock-years are
+affected is the honest substitute.

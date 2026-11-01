@@ -49,7 +49,7 @@ table.odds th.grp { text-align:center; border-bottom:1px solid var(--line); }
 .warn-t { color:#b07800; } @media (prefers-color-scheme: dark) { .warn-t { color:#f2c45a; } }
 """
 
-NAV = [("/", "I dag"), ("/sectors", "Sektorer"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning")]
+NAV = [("/", "I dag"), ("/sectors", "Sektorer"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
 
 
 def pct(v, d=1, sign=True):

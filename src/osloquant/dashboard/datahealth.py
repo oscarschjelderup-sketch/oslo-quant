@@ -1,0 +1,262 @@
+"""What is stale, missing or doubtful in the data the dashboard reads – one page, so no number is read without knowing
+its age and its holes (DECISIONS D25).
+
+Checked here: the price store (newest close per stock, gaps, long source gaps, split-sized moves), the adjustment
+check against NewsWeb ex-dividend notices (cached by `oq data audit`, since it costs 64 NewsWeb calls), every feed
+cache's age, the report reader per research-book company, the judgement log's chain, and the frozen test data.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import time
+from datetime import UTC, datetime
+
+import pandas as pd
+
+from osloquant import judgements as jg
+from osloquant.dashboard import feeds as fd
+
+FEED_MAX_AGE_DAYS = {"announcements": 3, "news": 3, "rates": 7, "fx": 7, "brent": 7, "salmon": 14, "shorts": 7, "insiders": 7}
+GAP_RUN = 20                 # consecutive missing sessions that count as a source gap, not a thin day
+BIG_MOVE = 0.25              # a daily move this large in the last 60 sessions is listed for a look
+
+
+def price_health(closes: pd.DataFrame, asof: pd.Timestamp | None = None) -> dict:
+    """Per stock: first and last close, whether it is stale, missing sessions in the last 250, long gaps, big moves."""
+    asof = asof if asof is not None else closes.index[-1]
+    rows = []
+    for code in closes.columns:
+        s = closes[code]
+        first, last = s.first_valid_index(), s.last_valid_index()
+        if first is None:
+            rows.append({"code": code, "first": None, "last": None, "stale": True, "missing_250": None, "gaps": [], "big_moves": []})
+            continue
+        span = s.loc[first:last]
+        na = span.isna()
+        runs = []
+        if na.any():
+            start = None
+            for d, v in na.items():
+                if v and start is None:
+                    start = d
+                elif not v and start is not None:
+                    n = int(na.loc[start:d].sum())
+                    if n >= GAP_RUN:
+                        runs.append((f"{start:%Y-%m-%d}", f"{d:%Y-%m-%d}", n))
+                    start = None
+        recent = s.iloc[-250:]
+        chg = s.iloc[-61:].pct_change(fill_method=None)
+        big = [(f"{d:%Y-%m-%d}", float(v)) for d, v in chg.items() if v == v and abs(v) >= BIG_MOVE]
+        rows.append({"code": code, "first": f"{first:%Y-%m-%d}", "last": f"{last:%Y-%m-%d}", "stale": last < asof,
+                     "missing_250": int(recent.loc[max(first, recent.index[0]):].isna().sum()), "gaps": runs, "big_moves": big})
+    return {"asof": f"{asof:%Y-%m-%d}", "stocks": len(rows), "stale": [r["code"] for r in rows if r["stale"]],
+            "with_gaps": [r["code"] for r in rows if r["gaps"]], "rows": rows}
+
+
+def feed_health(now: datetime | None = None) -> list[dict]:
+    now = now or datetime.now(UTC)
+    out = []
+    for name in fd.FEEDS:
+        doc = fd.read(name)
+        fetched = (doc or {}).get("fetched_at")
+        age = None
+        if fetched:
+            age = (now - datetime.strptime(fetched, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)).total_seconds() / 86400
+        limit = FEED_MAX_AGE_DAYS.get(name, 7)
+        out.append({"feed": name, "fetched_at": fetched, "age_days": None if age is None else round(age, 1), "limit_days": limit,
+                    "status": "never fetched" if age is None else ("stale" if age > limit else "ok"),
+                    "items": len((doc or {}).get("items", [])) if isinstance((doc or {}).get("items"), list) else None,
+                    "error": (doc or {}).get("error")})
+    return out
+
+
+def report_health(cases) -> list[dict]:
+    from osloquant.dashboard import reports as rp
+
+    specs = rp.specs()
+    out = []
+    for c in cases:
+        spec = specs.get(c.code)
+        s = rp.latest(c.code)
+        wanted = set((spec or {}).get("key") or {}) | {f"pl_{k}" for k in ((spec or {}).get("pl") or {})}
+        found = set((s or {}).get("figures") or {})
+        out.append({"code": c.code, "spec": bool(spec), "latest": (s or {}).get("title"), "published": (s or {}).get("published", "")[:10] or None,
+                    "missing": sorted(wanted - found) if s else sorted(wanted), "kill_rules": len((spec or {}).get("kill") or []),
+                    "kill_texts": len(c.kill),
+                    "status": "no spec" if not spec else ("no report read" if not s else ("rows missing" if wanted - found else "ok"))})
+    return out
+
+
+def log_health() -> dict:
+    rows = jg.read_log() if jg.log_path().exists() else []
+    check = jg.verify() if rows else None
+    heads_ok = jg.heads_consistent(check) if check else []
+    last = max((r.get("logged_at", "") for r in rows), default=None)
+    return {"rows": len(rows), "chain_ok": None if check is None else check.ok, "problems": (check.problems if check else []) + list(heads_ok or []),
+            "last_logged_at": last, "head": check.head[:16] if check else None}
+
+
+def store_health() -> dict:
+    from osloquant.contract.api import get_coverage
+    from osloquant.domain import Index1dKdata, Stock1dAdjKdata, Stock1dKdata
+
+    out = {}
+    for name, schema in (("adjusted", Stock1dAdjKdata), ("raw", Stock1dKdata), ("index", Index1dKdata)):
+        try:
+            c = get_coverage(schema)
+            out[name] = {"last": f"{c['last']:%Y-%m-%d}" if c.get("last") is not None else None, "entities": c.get("entities"), "rows": c.get("rows")}
+        except Exception as e:  # noqa: BLE001 – an empty table must not take the page down
+            out[name] = {"error": f"{type(e).__name__}: {e}"}
+    return out
+
+
+def testdata_health() -> dict:
+    from osloquant.dashboard import testdata as tdata
+
+    d = tdata.default_dir()
+    return {"path": str(d), "present": d.exists(), "files": sorted(p.name for p in d.iterdir()) if d.exists() else [],
+            "frozen_to": tdata.DEFAULT}
+
+
+# ------------------------------------------------------------------------------------------------ the dividend audit (cached)
+AUDIT_FILE = "data_health"
+_AMT = re.compile(r"(?i)(?:ex[- ]?(?:dividend|utbytte)|eks[- ]?utbytte|exclusive (?:of )?dividend).{0,40}?(?:NOK|kr|USD|EUR)\s?(\d+(?:[.,]\d+)?)"
+                  r"|(?:NOK|kr|USD|EUR)\s?(\d+(?:[.,]\d+)?).{0,40}?(?:ex[- ]?(?:dividend|utbytte)|eks[- ]?utbytte)")
+
+
+def dividend_audit(closes_adj: pd.DataFrame, closes_raw: pd.DataFrame, codes: list[str] | None = None, since: str = "2010-01-01",
+                   pause: float = 0.6, log=None) -> dict:
+    """Every NewsWeb ex-dividend notice with an amount in its title, against Yahoo's adjustment factor (adjusted / raw
+    close): a notice with no factor move within ±7 sessions is a dividend Yahoo did not adjust for. One POST per
+    stock; run it with `oq data audit`, not on every refresh."""
+    codes = codes or [c for c in closes_adj.columns if c in closes_raw.columns]
+    fac = closes_adj / closes_raw.reindex(closes_adj.index)
+    notices, failed = [], []
+    for code in codes:
+        try:
+            doc = json.loads(fd._get(f"{fd.NEWSWEB}/list?issuer={code}&category=1101&fromDate={since}&toDate={datetime.now(UTC):%Y-%m-%d}", method="POST"))["data"]
+        except Exception as e:  # noqa: BLE001
+            failed.append(f"{code}: {type(e).__name__}")
+            continue
+        time.sleep(pause)
+        j = fac[code].pct_change(fill_method=None) if code in fac else pd.Series(dtype=float)
+        jumps = j[j.abs() > 0.0005].index
+        seen = set()
+        for m in doc.get("messages", []):
+            mm = _AMT.search(m["title"])
+            if not mm:
+                continue
+            d = pd.Timestamp(m["publishedTime"][:10])
+            if d in seen:
+                continue
+            seen.add(d)
+            amt = float((mm.group(1) or mm.group(2)).replace(",", "."))
+            px = closes_raw[code].loc[:d].dropna() if code in closes_raw else pd.Series(dtype=float)
+            px = float(px.iloc[-1]) if len(px) else float("nan")
+            adjusted = bool(any(abs((d - x).days) <= 7 for x in jumps))
+            notices.append({"code": code, "date": f"{d:%Y-%m-%d}", "amount": amt, "price": None if px != px else round(px, 2),
+                            "yield": None if px != px or not px else round(amt / px, 4), "adjusted": adjusted, "url": f"https://newsweb.oslobors.no/message/{m['messageId']}"})
+        if log:
+            log(f"{code}: {len(seen)} ex-dividend notices")
+    missed = [n for n in notices if not n["adjusted"] and (n["yield"] or 0) > 0.003]
+    by_code = {}
+    for n in missed:
+        by_code[n["code"]] = round(by_code.get(n["code"], 0.0) + (n["yield"] or 0), 4)
+    return {"since": since, "stocks": len(codes), "notices": len(notices), "missed": missed, "missed_yield_by_code": dict(sorted(by_code.items(), key=lambda kv: -kv[1])),
+            "failed": failed, "source": "Oslo Børs NewsWeb category 1101 vs Yahoo adjusted/raw close (private use)"}
+
+
+def dividend_audit_cached() -> dict | None:
+    return fd.read(AUDIT_FILE)
+
+
+def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> dict:
+    return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(),
+            "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(),
+            "generated": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+def problems(ov: dict) -> list[str]:
+    """One line per thing that should worry the reader, for the front page and the morning."""
+    out = []
+    p = ov["prices"]
+    if p["stale"]:
+        out.append(f"{len(p['stale'])} stocks without a close on {p['asof']}: {', '.join(p['stale'][:8])}")
+    for f in ov["feeds"]:
+        if f["status"] != "ok":
+            out.append(f"feed {f['feed']}: {f['status']}" + (f" ({f['age_days']} d old, limit {f['limit_days']})" if f["age_days"] is not None else ""))
+    for r in ov["reports"]:
+        if r["status"] != "ok":
+            out.append(f"report reader {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
+    lg = ov["log"]
+    if lg["chain_ok"] is False or lg["problems"]:
+        out.append("judgement log: " + "; ".join(lg["problems"][:2]))
+    d = ov.get("dividends")
+    if d is None:
+        out.append("dividend audit never run (oq data audit)")
+    elif d.get("missed"):
+        out.append(f"{len(d['missed'])} ex-dividend notices with no Yahoo adjustment ({', '.join(list(d['missed_yield_by_code'])[:5])})")
+    if not ov["testdata"]["present"]:
+        out.append("frozen test data missing: the deterministic tests will skip")
+    return out
+
+
+def _fmt_dt(s: str | None) -> str:
+    return s.replace("T", " ").replace("Z", " UTC") if s else "–"
+
+
+def page_html(ov: dict) -> str:
+    from osloquant.dashboard.render import E, link, page, pct
+
+    probs = problems(ov)
+    head = ('<h1>Datahelse</h1><div class="sub">Hva som er utdatert, mangler eller ikke stemmer – før et tall leses av.</div>'
+            + ('<div class="warn"><b>Ting å vite nå:</b><ul>' + "".join(f"<li>{E(x)}</li>" for x in probs) + '</ul></div>' if probs
+               else '<div class="ok">Ingen kjente problemer i dataene akkurat nå.</div>'))
+    st = ov["store"]
+    store = ('<div class="card"><h3>Lageret</h3><ul class="kv">' + "".join(
+        f'<li><b>{E(k)}</b>: ' + (f'siste {E(str(v.get("last")))}, {v.get("entities")} instrumenter, {v.get("rows")} rader' if "last" in v else E(v.get("error", ""))) + '</li>'
+        for k, v in st.items()) + f'</ul><div class="src">Yahoo Finance daglige kurser, forsinket. Justert = utbytte reinvestert. Siste økt i lageret: {E(ov["prices"]["asof"])}.</div></div>')
+    pr = ov["prices"]
+    rows = "".join(
+        f'<tr><td>{link(r["code"])}</td><td>{E(str(r["first"]))}</td><td class="{"k" if r["stale"] else ""}">{E(str(r["last"]))}{" (stale)" if r["stale"] else ""}</td>'
+        f'<td>{r["missing_250"] if r["missing_250"] is not None else "–"}</td>'
+        f'<td style="white-space:normal">{"; ".join(f"{a}→{b} ({n})" for a, b, n in r["gaps"]) or ""}</td>'
+        f'<td style="white-space:normal">{"; ".join(f"{d} {v * 100:+.0f}%" for d, v in r["big_moves"]) or ""}</td></tr>'
+        for r in pr["rows"] if r["stale"] or r["missing_250"] or r["gaps"] or r["big_moves"])
+    prices = (f'<div class="card"><h3>Kurser: {pr["stocks"]} aksjer, {len(pr["stale"])} uten siste sluttkurs, {len(pr["with_gaps"])} med lange hull</h3>'
+              '<table class="odds"><thead><tr><th>Aksje</th><th>Første</th><th>Siste</th><th>Mangler av siste 250</th><th>Hull ≥ 20 økter (fra→til, n)</th>'
+              f'<th>Dagsbevegelser ≥ 25 % siste 60 økter</th></tr></thead><tbody>{rows or "<tr><td colspan=6 class=empty>none</td></tr>"}</tbody></table>'
+              '<div class="src">Bare aksjer med noe å melde vises. Et hull er økter der andre aksjer handlet. Store bevegelser er ikke feil i seg selv – '
+              'de er listet så de kan sjekkes mot en annen kilde.</div></div>')
+    fe = "".join(f'<tr><td>{E(f["feed"])}</td><td class="{"k" if f["status"] != "ok" else ""}">{E(f["status"])}</td><td>{E(_fmt_dt(f["fetched_at"]))}</td>'
+                 f'<td>{"–" if f["age_days"] is None else f["age_days"]}</td><td>{f["limit_days"]}</td><td>{"–" if f["items"] is None else f["items"]}</td><td class="src">{E(str(f.get("error") or ""))}</td></tr>'
+                 for f in ov["feeds"])
+    feeds = ('<div class="card"><h3>Feeds</h3><table class="odds"><thead><tr><th>Feed</th><th>Status</th><th>Hentet</th><th>Alder (d)</th><th>Grense</th><th>Rader</th><th></th></tr></thead>'
+             f'<tbody>{fe}</tbody></table><div class="src">Hentes av oq dashboard --refresh og kveldsoppgaven. Grensen er dager før feeden regnes som utdatert.</div></div>')
+    rp_rows = "".join(f'<tr><td>{link(r["code"])}</td><td class="{"k" if r["status"] != "ok" else ""}">{E(r["status"])}</td><td>{E(str(r["latest"] or "–"))[:60]}</td>'
+                      f'<td>{E(str(r["published"] or "–"))}</td><td style="white-space:normal">{E(", ".join(r["missing"]))}</td><td>{r["kill_rules"]} av {r["kill_texts"]}</td></tr>' for r in ov["reports"])
+    reports = ('<div class="card"><h3>Rapportleseren</h3><table class="odds"><thead><tr><th>Case</th><th>Status</th><th>Siste rapport lest</th><th>Publisert</th>'
+               f'<th>Rader ikke funnet</th><th>Kill-regler</th></tr></thead><tbody>{rp_rows or "<tr><td colspan=6 class=empty>no research-book cases</td></tr>"}</tbody></table>'
+               '<div class="src">Spesifikasjon per selskap i ~/osloquant-home/reports.yaml; test en ny med oq reports dryrun.</div></div>')
+    lg = ov["log"]
+    d = ov.get("dividends")
+    if d is None:
+        div = '<p class="empty">Not run. <code>oq data audit</code> checks every NewsWeb ex-dividend notice since 2010 against Yahoo\'s adjustments (64 calls, a few minutes).</p>'
+    else:
+        miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{E(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
+                       f'<td>{pct(m["yield"], 1, False)}</td><td><a href="{E(m["url"])}" target="_blank" rel="noopener">NewsWeb</a></td></tr>' for m in d["missed"])
+        div = (f'<p>{d["notices"]} ex-dividend notices with an amount since {E(d["since"])} on {d["stocks"]} stocks; <b>{len(d["missed"])}</b> with no Yahoo adjustment '
+               f'(yield above 0.3 %). Missed yield by stock (pct points): {E(", ".join(f"{k} {v * 100:.1f}" for k, v in list(d["missed_yield_by_code"].items())[:10]))}.</p>'
+               f'<details><summary>Every missed notice</summary><table class="odds"><thead><tr><th>Aksje</th><th>Ex-dato</th><th>Beløp</th><th>Kurs</th><th>Yield</th><th></th></tr></thead>'
+               f'<tbody>{miss}</tbody></table></details><div class="src">Fetched {E(_fmt_dt(d.get("fetched_at")))}. A missed dividend shows as a price drop in the adjusted series: '
+               'false risk signals that day and a lower total return for that stock-year. Lower bound: issuers that file ex-dates in other categories are not seen.</div>')
+    log_card = (f'<div class="grid2"><div class="card"><h3>Vurderingsloggen</h3><ul class="kv"><li><b>Rader</b>: {lg["rows"]}</li>'
+                f'<li><b>Kjede</b>: {"verifies" if lg["chain_ok"] else ("BROKEN" if lg["chain_ok"] is False else "empty")}</li>'
+                f'<li><b>Sist logget</b>: {E(_fmt_dt(lg["last_logged_at"]))}</li><li><b>Head</b>: {E(str(lg["head"] or "–"))}</li></ul>'
+                + ("".join(f'<div class="err">{E(x)}</div>' for x in lg["problems"]) if lg["problems"] else "") + '</div>'
+                f'<div class="card"><h3>Frosne testdata</h3><p>{"present" if ov["testdata"]["present"] else "<b>missing</b>"} – {E(ov["testdata"]["path"])}, prices to {E(ov["testdata"]["frozen_to"])}; '
+                f'{len(ov["testdata"]["files"])} files.</p><div class="src">The deterministic tests (odds, brackets, insider study, SATS reports) run on this copy and skip without it.</div></div></div>')
+    return page("Datahelse", "/health", head + store + prices + feeds + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
+                + f'<div class="src">Generated {E(_fmt_dt(ov["generated"]))}.</div>')

@@ -184,6 +184,14 @@ def create_app() -> Flask:
         ctx["errors"], ctx["form"] = errors, form
         return Response(rd.stock_page(code, ctx), status=400)
 
+    @app.get("/health")
+    def health():
+        from osloquant.dashboard import datahealth as dh
+        from osloquant.dashboard import odds as od
+
+        closes = od.long_closes()
+        return dh.page_html(dh.overview(closes, bk.cases(), closes.index[-1] if len(closes) else None))
+
     @app.get("/calibration")
     def calibration():
         check = jg.verify()
