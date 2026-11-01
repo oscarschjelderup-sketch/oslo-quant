@@ -176,18 +176,30 @@ def odds_table(odds: dict) -> str:
         return ""
     order = {BUY: 0, RISK: 1, INFO: 2}
     items = sorted(rows.items(), key=lambda kv: (order.get(kv[1].get("kind"), 3), kv[0]))
+    def rob(v: dict) -> str:
+        r = v.get("robustness") or {}
+        if not r:
+            return "<td>–</td><td>–</td><td>–</td>"
+        return (f'<td>{_pct((r.get("half_a") or {}).get("exc60"))}</td><td>{_pct((r.get("half_b") or {}).get("exc60"))}</td>'
+                f'<td>{html.escape(str(r.get("verdict", "")))}</td>')
+
     body = "".join(
         f'<tr><td>{html.escape(k)}</td><td><span class="chip {str(v.get("kind", "")).lower()}">{v.get("kind", "")}</span></td>'
         f'<td>{v.get("per_month") or 0:.1f}</td><td>{_pct(v.get("raw20"))}</td><td>{_pct(v.get("exc20"))}</td>'
-        f'<td>{_pct(v.get("exc60"))}</td><td>{_pct(v.get("hit20"), 0, False)}</td><td>{v.get("t20") or 0:.1f}</td></tr>'
+        f'<td>{_pct(v.get("exc60"))}</td><td>{_pct(v.get("hit20"), 0, False)}</td><td>{v.get("t20") or 0:.1f}</td>'
+        f'<td>{"–" if v.get("tc60") is None else format(v["tc60"], ".1f")}</td>{rob(v)}</tr>'
         for k, v in items
     )
     m = odds.get("measured", {})
+    split = str(m.get("split", "2018"))[:4]
     return (f'<h2>What these signals have meant</h2><div class="card"><table><thead><tr><th>Signal</th><th>Kind</th><th>Alerts / month</th>'
-            f'<th>Raw 20d</th><th>Excess 20d</th><th>Excess 60d</th><th>Hit 20d</th><th>t 20d</th></tr></thead><tbody>{body}</tbody></table>'
+            f'<th>Raw 20d</th><th>Excess 20d</th><th>Excess 60d</th><th>Hit 20d</th><th>t 20d</th><th>t 60d, monthly</th>'
+            f'<th>Exc 60d before {split}</th><th>from {split}</th><th>Verdict</th></tr></thead><tbody>{body}</tbody></table>'
             f'<div class="muted" style="margin-top:8px">Entry at the next open; excess = minus the equal-weighted universe over the same window; '
-            f'measured {m.get("from", "?")} to {m.get("to", "?")} on {m.get("stocks", "?")} stocks. A round trip costs ~{ROUND_TRIP_COST * 100:.1f}%, '
-            f'so a 20-day signal pays only if its raw return beats that.</div></div>')
+            f'measured {m.get("from", "?")} to {m.get("to", "?")} on {m.get("stocks", "?")} stocks – today\'s listed stocks only, so every '
+            f'figure is measured on survivors. A round trip costs ~{ROUND_TRIP_COST * 100:.1f}%, so a 20-day signal pays only if its raw '
+            f'return beats that. "t 20d" treats every event as independent; "t 60d, monthly" uses one mean per calendar month and is '
+            f'the one to trust. The verdict compares the two halves of the period.</div></div>')
 
 
 def render_html(P: dict[str, pd.DataFrame], alerts: list[Alert], book: list[dict], session: str, odds: dict | None = None,

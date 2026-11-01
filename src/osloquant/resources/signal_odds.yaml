@@ -5,6 +5,11 @@ measured:
   entry: next open
   excess: vs equal-weighted universe
   round_trip_cost: 0.005
+  t: t20/t60 treat events as independent; tc20/tc60 use one mean per calendar month
+  universe_note: today's listed stocks only (survivors); late listings enter on their
+    first bar
+  split: '2018-01-01'
+  listed_by: '2011-01-01'
   bracket:
     entry: next open
     target: entry x (1 + cost) + R
@@ -23,15 +28,38 @@ signals:
     exc10: 0.0008
     hit10: 0.4758
     t10: 0.6426
+    tc10: -0.2999
     raw20: 0.0144
     exc20: 0.0035
     hit20: 0.4819
     t20: 1.9562
+    tc20: 0.9017
     raw60: 0.0514
     exc60: 0.0128
     hit60: 0.5032
     t60: 3.8997
+    tc60: 1.271
     kind: BUY
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 1332.0
+        exc20: 0.0097
+        exc60: 0.0134
+        hit20: 0.5155
+      half_b:
+        events: 2083.0
+        exc20: -0.0002
+        exc60: 0.0124
+        hit20: 0.4613
+      survivors:
+        events: 2705.0
+        exc20: 0.0012
+        exc60: 0.0107
+        hit20: 0.4826
+      verdict: weak
     bracket:
       h20:
         target: 0.414
@@ -52,15 +80,38 @@ signals:
     exc10: -0.0
     hit10: 0.48
     t10: -0.0477
+    tc10: -0.1812
     raw20: 0.0147
     exc20: 0.0022
     hit20: 0.4835
     t20: 1.5024
+    tc20: 0.7344
     raw60: 0.0511
     exc60: 0.0109
     hit60: 0.497
     t60: 4.0513
+    tc60: 2.1534
     kind: BUY
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 2188.0
+        exc20: 0.0091
+        exc60: 0.0183
+        hit20: 0.5185
+      half_b:
+        events: 3244.0
+        exc20: -0.0025
+        exc60: 0.0062
+        hit20: 0.4594
+      survivors:
+        events: 4267.0
+        exc20: 0.0017
+        exc60: 0.0106
+        hit20: 0.4904
+      verdict: holds in both halves
     bracket:
       h20:
         target: 0.4196
@@ -81,15 +132,38 @@ signals:
     exc10: -0.0002
     hit10: 0.4713
     t10: -0.2495
+    tc10: -1.4683
     raw20: 0.0081
     exc20: 0.0003
     hit20: 0.4716
     t20: 0.2588
+    tc20: -0.301
     raw60: 0.0402
     exc60: 0.0056
     hit60: 0.4906
     t60: 2.5099
+    tc60: 1.4881
     kind: BUY
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 2034.0
+        exc20: 0.0037
+        exc60: 0.0088
+        hit20: 0.507
+      half_b:
+        events: 3430.0
+        exc20: -0.002
+        exc60: 0.0045
+        hit20: 0.4507
+      survivors:
+        events: 4707.0
+        exc20: -0.0013
+        exc60: 0.0015
+        hit20: 0.4732
+      verdict: weak
     bracket:
       h20:
         target: 0.3917
@@ -110,15 +184,38 @@ signals:
     exc10: 0.0008
     hit10: 0.4853
     t10: 0.8699
+    tc10: 0.2762
     raw20: 0.0143
     exc20: 0.0026
     hit20: 0.4945
     t20: 2.0215
+    tc20: 1.7184
     raw60: 0.0451
     exc60: 0.0084
     hit60: 0.4947
     t60: 3.8258
+    tc60: 2.5518
     kind: BUY
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 2268.0
+        exc20: -0.0015
+        exc60: 0.0002
+        hit20: 0.473
+      half_b:
+        events: 3611.0
+        exc20: 0.0053
+        exc60: 0.0128
+        hit20: 0.5102
+      survivors:
+        events: 4847.0
+        exc20: 0.0017
+        exc60: 0.0039
+        hit20: 0.4911
+      verdict: holds in both halves
     bracket:
       h20:
         target: 0.419
@@ -139,15 +236,38 @@ signals:
     exc10: 0.002
     hit10: 0.4935
     t10: 1.2427
+    tc10: 0.8338
     raw20: 0.0135
     exc20: 0.0003
     hit20: 0.4746
     t20: 0.1566
+    tc20: 0.6146
     raw60: 0.0426
     exc60: -0.0017
     hit60: 0.4737
     t60: -0.4301
+    tc60: 0.7484
     kind: INFO
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 685.0
+        exc20: 0.0051
+        exc60: 0.0053
+        hit20: 0.4831
+      half_b:
+        events: 1197.0
+        exc20: -0.0022
+        exc60: -0.0057
+        hit20: 0.469
+      survivors:
+        events: 1512.0
+        exc20: 0.0016
+        exc60: -0.0002
+        hit20: 0.4722
+      verdict: period-dependent
     bracket:
       h20:
         target: 0.4101
@@ -168,15 +288,38 @@ signals:
     exc10: -0.0029
     hit10: 0.4744
     t10: -2.1657
+    tc10: 1.2117
     raw20: 0.0106
     exc20: -0.0051
     hit20: 0.4658
     t20: -2.8197
+    tc20: 1.0702
     raw60: 0.0504
     exc60: -0.009
     hit60: 0.4539
     t60: -2.7092
+    tc60: -0.6259
     kind: RISK
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 1953.0
+        exc20: -0.0082
+        exc60: -0.0309
+        hit20: 0.4506
+      half_b:
+        events: 3049.0
+        exc20: -0.004
+        exc60: 0.0015
+        hit20: 0.4736
+      survivors:
+        events: 4056.0
+        exc20: -0.0023
+        exc60: -0.0027
+        hit20: 0.4773
+      verdict: period-dependent
     bracket:
       h20:
         target: 0.395
@@ -197,15 +340,38 @@ signals:
     exc10: -0.0028
     hit10: 0.4579
     t10: -1.8447
+    tc10: -1.3422
     raw20: 0.0046
     exc20: -0.0054
     hit20: 0.4543
     t20: -2.5128
+    tc20: -2.2682
     raw60: 0.0373
     exc60: -0.0042
     hit60: 0.4682
     t60: -1.0629
+    tc60: -0.9709
     kind: RISK
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 699.0
+        exc20: -0.0082
+        exc60: -0.0059
+        hit20: 0.4498
+      half_b:
+        events: 1196.0
+        exc20: -0.0031
+        exc60: -0.0022
+        hit20: 0.4593
+      survivors:
+        events: 1527.0
+        exc20: -0.0047
+        exc60: -0.0049
+        hit20: 0.4563
+      verdict: weak
     bracket:
       h20:
         target: 0.3546
@@ -226,15 +392,38 @@ signals:
     exc10: 0.0003
     hit10: 0.4694
     t10: 0.2712
+    tc10: 0.2502
     raw20: 0.0131
     exc20: 0.0002
     hit20: 0.4656
     t20: 0.1552
+    tc20: 0.4683
     raw60: 0.0432
     exc60: 0.0009
     hit60: 0.4637
     t60: 0.3887
+    tc60: 0.639
     kind: RISK
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 2164.0
+        exc20: 0.0037
+        exc60: 0.0056
+        hit20: 0.4827
+      half_b:
+        events: 3729.0
+        exc20: -0.0013
+        exc60: -0.0029
+        hit20: 0.4593
+      survivors:
+        events: 4589.0
+        exc20: 0.0009
+        exc60: 0.0036
+        hit20: 0.474
+      verdict: period-dependent
     bracket:
       h20:
         target: 0.3765
@@ -255,15 +444,38 @@ signals:
     exc10: -0.0021
     hit10: 0.4662
     t10: -1.3211
+    tc10: -1.6315
     raw20: 0.018
     exc20: -0.0011
     hit20: 0.4675
     t20: -0.5008
+    tc20: -1.9966
     raw60: 0.0399
     exc60: -0.0137
     hit60: 0.4575
     t60: -3.8639
+    tc60: -4.0631
     kind: RISK
+    robustness:
+      split: '2018-01-01'
+      listed_by: '2011-01-01'
+      survivor_stocks: 43
+      half_a:
+        events: 1237.0
+        exc20: -0.004
+        exc60: -0.0189
+        hit20: 0.4621
+      half_b:
+        events: 1992.0
+        exc20: -0.0009
+        exc60: -0.0134
+        hit20: 0.4674
+      survivors:
+        events: 2566.0
+        exc20: 0.001
+        exc60: -0.0075
+        hit20: 0.4755
+      verdict: holds in both halves
     bracket:
       h20:
         target: 0.4

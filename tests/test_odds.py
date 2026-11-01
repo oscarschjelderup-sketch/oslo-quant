@@ -132,3 +132,18 @@ def test_the_committed_signal_brackets_reproduce_from_the_frozen_prices():
     assert doc["measured"]["to"] == "2026-10-19" and doc["measured"]["bracket"]["round_trip_cost"] == 0.005
     for name, r in rows.items():
         assert doc["signals"][name]["bracket"] == {k: v for k, v in r.items() if k != "kind"}, name
+
+
+@needs_real
+def test_the_committed_signal_odds_reproduce_from_the_frozen_prices():
+    """exc/hit/clustered t and the half-period robustness in signal_odds.yaml, from the frozen prices to 19 Oct 2026."""
+    P = {k: v.loc[:"2026-10-19"] for k, v in tdata.load_panel().items()}
+    table = sg.scorecard(P)
+    rob = sg.robustness(P)
+    doc = yaml.safe_load(sg.odds_path().read_text(encoding="utf-8"))
+    assert doc["measured"]["split"] == sg.SPLIT and doc["measured"]["listed_by"] == sg.LISTED_BY
+    for name, row in table.iterrows():
+        s = doc["signals"][name]
+        for k in ("events", "exc20", "exc60", "hit20", "tc20", "tc60"):
+            assert s[k] == pytest.approx(round(float(row[k]), 4), abs=1e-4), (name, k)
+        assert s["robustness"] == rob[name], name

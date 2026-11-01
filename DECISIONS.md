@@ -252,3 +252,23 @@ Trader skill's budget method moved to long-term views:
   BUY row per stock) reduce the free paper sum for the next one.
 - The loss at the kill level is a floor, not a cap: a report or a gap can open the price below it. The form says so.
 - Paper only: nothing is bought, and no paper account is stepped.
+
+## D20. Signal odds carry their own doubt (night of 1–2 Nov 2026)
+
+The audit (`docs/natt/revisjon.md`) found three things the pooled odds hid: the t-statistics treated clustered events
+as independent (naive t 3.9–4.0 on the 60-day breakouts, 1.3–2.1 with one mean per month); the odds differ by period
+(the 20-day breakout excess was +0.9 % in 2010–2017 and about zero after); and the universe is today's survivors
+(equal-weighted it returned 19.5 %/yr against 11.6 %/yr for OSEBX, 2013–2026). So:
+
+- `scorecard()` adds `tc10/tc20/tc60`: t with one observation per calendar month. `robustness()` measures each
+  signal on the two halves (split 1 Jan 2018), on the stocks listed by 1 Jan 2011 (43 of 64), and gives a verdict:
+  "holds in both halves" when both halves have the sign of the pooled 60-day excess and |tc60| ≥ 2;
+  "period-dependent" when the halves disagree in sign; otherwise "weak". Three signals hold (Breakout 20d,
+  Rising channel entry, Falling channel entry); three are period-dependent (Golden cross, Breakdown below 60d low,
+  Drawdown 10 %); three are weak.
+- The odds file keeps all of it under `robustness`, and `write_odds` preserves the `bracket` results instead of
+  dropping them. The file is measured on the frozen test prices to 19 Oct 2026 (`oq signals score --frozen --end
+  2026-10-19 --write`), so a test reproduces every number in it; the live store had already drifted by one event.
+- Every signal on the dashboard shows one more line: the excess in both halves, on the survivors-from-the-start,
+  the clustered t and the verdict, with "only today's 64 stocks (survivors)". The public scorecard page gets the
+  same columns. A pooled number is never shown alone again.

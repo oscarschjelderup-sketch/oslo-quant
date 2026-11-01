@@ -1367,38 +1367,44 @@ def signals_brackets(
 @signals_app.command("score")
 def signals_score(
     start: str = typer.Option("2010-01-01", help="First session of the measurement."),
+    end: str | None = typer.Option(None, help="Last session of the measurement (default: the newest in the store)."),
+    frozen: bool = typer.Option(False, "--frozen", help="Measure on the frozen test prices (oq freeze-testdata) instead of the store, "
+                                                        "so the committed file reproduces in the tests."),
     write: bool = typer.Option(
         False, "--write", help="Update the odds file the alerts read (resources/signal_odds.yaml)."
     ),
 ) -> None:
-    """Measure every signal on the store's history: events, forward excess returns and hit rates."""
+    """Measure every signal on the store's history: events, forward excess returns, hit rates, month-clustered t, and
+    how the odds hold up on each half of the period and on the stocks listed from the start."""
     _setup()
     from rich.table import Table
 
     from osloquant import signals as sg
 
-    P = sg.load_panel(start=start)
+    if frozen:
+        from osloquant.dashboard import testdata
+
+        P = {k: v.loc[start:] for k, v in testdata.load_panel().items()}
+    else:
+        P = sg.load_panel(start=start)
+    if end:
+        P = {k: v.loc[:end] for k, v in P.items()}
     table = sg.scorecard(P)
+    robust = sg.robustness(P)
     t = Table(title=f"Signal scorecard {start} .. {P['close'].index[-1]:%Y-%m-%d}, {P['close'].shape[1]} stocks")
-    for col in ("signal", "kind", "events", "/month", "raw 20d", "exc 10d", "exc 20d", "exc 60d", "hit 20d", "t 20d"):
-        t.add_column(col, justify="right" if col not in ("signal", "kind") else "left")
+    for col in ("signal", "kind", "events", "raw 20d", "exc 20d", "exc 60d", "hit 20d", "t 20d", "tc 20d", "tc 60d",
+                "exc60 first half", "exc60 second half", "verdict"):
+        t.add_column(col, justify="right" if col not in ("signal", "kind", "verdict") else "left")
     for name, row in table.iterrows():
-        t.add_row(
-            name,
-            row["kind"],
-            f"{row['events']:.0f}",
-            f"{row['per_month']:.1f}",
-            _pct(row["raw20"], 2),
-            _pct(row["exc10"], 2),
-            _pct(row["exc20"], 2),
-            _pct(row["exc60"], 2),
-            _pct(row["hit20"], 0),
-            f"{row['t20']:.1f}",
-        )
+        r = robust[name]
+        t.add_row(name, row["kind"], f"{row['events']:.0f}", _pct(row["raw20"], 2), _pct(row["exc20"], 2), _pct(row["exc60"], 2),
+                  _pct(row["hit20"], 0), f"{row['t20']:.1f}", f"{row['tc20']:.1f}", f"{row['tc60']:.1f}",
+                  _pct(r["half_a"]["exc60"], 2), _pct(r["half_b"]["exc60"], 2), r["verdict"])
     console.print(t)
-    console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it.")
+    console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it. "
+                  f"tc = t with one mean per month; halves split at {sg.SPLIT}. The universe is today's survivors.")
     if write:
-        path = sg.write_odds(table, start, f"{P['close'].index[-1]:%Y-%m-%d}", P["close"].shape[1])
+        path = sg.write_odds(table, start, f"{P['close'].index[-1]:%Y-%m-%d}", P["close"].shape[1], robust=robust)
         console.print(f"odds written to {path}")
 
 

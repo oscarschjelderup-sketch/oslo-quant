@@ -172,20 +172,78 @@ def scorecard(P: dict[str, pd.DataFrame], horizons=HORIZONS) -> pd.DataFrame:
             row[f"exc{h}"] = float(exc.mean()) if len(exc) else np.nan
             row[f"hit{h}"] = float((exc > 0).mean()) if len(exc) else np.nan
             row[f"t{h}"] = float(exc.mean() / exc.std() * np.sqrt(len(exc))) if len(exc) > 2 and exc.std() > 0 else np.nan
+            row[f"tc{h}"] = clustered_t(exc)
         rows.append(row)
     return pd.DataFrame(rows).set_index("signal")
 
 
-def write_odds(table: pd.DataFrame, start: str, end: str, universe: int, path: Path | None = None) -> Path:
+def clustered_t(exc: pd.Series) -> float:
+    """t-statistic with one observation per calendar month: events cluster (many stocks fire in the same week), so
+    the naive t over all events overstates the evidence by a factor of two to three."""
+    if not len(exc):
+        return np.nan
+    bym = exc.groupby(exc.index.get_level_values(0).to_period("M")).mean()
+    return float(bym.mean() / bym.std(ddof=1) * np.sqrt(len(bym))) if len(bym) > 2 and bym.std(ddof=1) > 0 else np.nan
+
+
+SPLIT = "2018-01-01"           # the two halves the odds are also measured on
+LISTED_BY = "2011-01-01"       # "survivors": stocks with bars from the start, so no late listings flatter the odds
+
+
+def robustness(P: dict[str, pd.DataFrame], split: str = SPLIT, listed_by: str = LISTED_BY) -> dict[str, dict]:
+    """How the odds hold up: the same scorecard on each half of the period and on the stocks listed from the start,
+    plus a one-word verdict per signal (DECISIONS D20)."""
+    C = P["close"]
+    first = C.apply(lambda s: s.first_valid_index())
+    old = [c for c in C.columns if first[c] is not None and first[c] <= pd.Timestamp(listed_by)]
+    parts = {"half_a": {k: v.loc[:pd.Timestamp(split) - pd.Timedelta(days=1)] for k, v in P.items()},
+             "half_b": {k: v.loc[split:] for k, v in P.items()},
+             "survivors": {k: v[old] for k, v in P.items()}}
+    tables = {name: scorecard(part) for name, part in parts.items()}
+    full = scorecard(P)
+    out: dict[str, dict] = {}
+    for sig in full.index:
+        o = {"split": split, "listed_by": listed_by, "survivor_stocks": len(old)}
+        for name, t in tables.items():
+            r = t.loc[sig] if sig in t.index else None
+            o[name] = {k: (None if r is None or r[k] != r[k] else round(float(r[k]), 4)) for k in ("events", "exc20", "exc60", "hit20")}
+        a, b, f = o["half_a"]["exc60"], o["half_b"]["exc60"], full.loc[sig, "exc60"]
+        tc = full.loc[sig, "tc60"]
+        if a is None or b is None or f != f:
+            verdict = "too few events"
+        elif np.sign(a) != np.sign(b):
+            verdict = "period-dependent"
+        elif tc == tc and abs(tc) >= 2 and np.sign(a) == np.sign(f):
+            verdict = "holds in both halves"
+        else:
+            verdict = "weak"
+        o["verdict"] = verdict
+        out[sig] = o
+    return out
+
+
+def write_odds(table: pd.DataFrame, start: str, end: str, universe: int, path: Path | None = None,
+               robust: dict[str, dict] | None = None) -> Path:
+    """Write the odds file. Keys other tools add to a signal (``bracket`` from `oq signals brackets`) are kept."""
     path = path or odds_path()
-    doc = {
-        "measured": {"from": start, "to": end, "stocks": universe, "entry": "next open", "excess": "vs equal-weighted universe",
-                     "round_trip_cost": ROUND_TRIP_COST},
-        "signals": {
-            name: {k: (None if v != v else round(float(v), 4)) for k, v in row.items() if k != "kind"} | {"kind": row["kind"]}
-            for name, row in table.to_dict("index").items()
-        },
-    }
+    old = (yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None) or {}
+    old_sig = old.get("signals") or {}
+    measured = {"from": start, "to": end, "stocks": universe, "entry": "next open", "excess": "vs equal-weighted universe",
+                "round_trip_cost": ROUND_TRIP_COST,
+                "t": "t20/t60 treat events as independent; tc20/tc60 use one mean per calendar month",
+                "universe_note": "today's listed stocks only (survivors); late listings enter on their first bar"}
+    if robust:
+        measured.update(split=SPLIT, listed_by=LISTED_BY)
+    if old.get("measured", {}).get("bracket"):
+        measured["bracket"] = old["measured"]["bracket"]
+    doc = {"measured": measured, "signals": {}}
+    for name, row in table.to_dict("index").items():
+        entry = {k: (None if v != v else round(float(v), 4)) for k, v in row.items() if k != "kind"} | {"kind": row["kind"]}
+        if robust and name in robust:
+            entry["robustness"] = robust[name]
+        if "bracket" in old_sig.get(name, {}):
+            entry["bracket"] = old_sig[name]["bracket"]
+        doc["signals"][name] = entry
     path.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return path
 

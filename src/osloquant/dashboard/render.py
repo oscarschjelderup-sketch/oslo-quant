@@ -406,9 +406,31 @@ def bracket_line(signal: str) -> str:
     b = ((_odds().get("signals") or {}).get(signal) or {}).get("bracket") or {}
     h = b.get("h20")
     if not h or not h.get("events"):
-        return ""
+        return robustness_line(signal)
     return (f'<span class="bracket">Kjøpt på signalet: mål først {_p(h["target"])} · stopp først {_p(h["stop"])} · ingen {_p(h["neither"])} '
-            f'innen 20 dager, snitt {h["mean_R"]:+.2f} R etter 0,5 % kostnad (mål og stopp 2 × ATR, {_int(h["events"])} tilfeller)</span>')
+            f'innen 20 dager, snitt {h["mean_R"]:+.2f} R etter 0,5 % kostnad (mål og stopp 2 × ATR, {_int(h["events"])} tilfeller)</span>'
+            + robustness_line(signal))
+
+
+VERDICT_NO = {"holds in both halves": "holder i begge halvdeler", "period-dependent": "periodeavhengig", "weak": "svak",
+              "too few events": "for få tilfeller"}
+
+
+def robustness_line(signal: str) -> str:
+    """How the signal's odds held up: both halves of the period, the stocks listed from the start, and the month-clustered
+    t (DECISIONS D20). Shown under every signal so a pooled number is never read alone."""
+    sig = (_odds().get("signals") or {}).get(signal) or {}
+    r = sig.get("robustness")
+    if not r:
+        return ""
+    a, b, sv = r.get("half_a") or {}, r.get("half_b") or {}, r.get("survivors") or {}
+    tc = sig.get("tc60")
+    verdict = r.get("verdict", "")
+    cls = {"holds in both halves": "buy" if (sig.get("exc60") or 0) > 0 else "risk", "period-dependent": "warn-t", "weak": "", "too few events": ""}.get(verdict, "")
+    return (f'<span class="bracket">Holder det? 60 d meravkastning {pct(a.get("exc60"))} før {E(str(r.get("split", ""))[:4])} · '
+            f'{pct(b.get("exc60"))} etter · {pct(sv.get("exc60"))} på de {r.get("survivor_stocks", "?")} aksjene som var notert fra start · '
+            f't med månedsklynger {"–" if tc is None else format(tc, ".1f")} → <b class="{cls}">{E(VERDICT_NO.get(verdict, verdict))}</b>. '
+            'Bare dagens 64 aksjer (overlevere).</span>')
 
 
 def _n(a) -> str:
