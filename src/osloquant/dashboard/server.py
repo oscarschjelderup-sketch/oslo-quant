@@ -43,7 +43,8 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     alerts, sessions = td.signals_since(snap, last_seen or state.get("last_seen_session"))
     newest = [a for a in alerts if a.session == f"{snap.asof:%Y-%m-%d}"]
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
-    decisions = sorted(td.decisions(snap, cases, newest, today, watch) + td.report_items(cases, today), key=lambda i: (i.urgency, i.code))
+    decisions = sorted(td.decisions(snap, cases, newest, today, watch) + td.report_items(cases, today) + td.pre_report_items(cases, today),
+                       key=lambda i: (i.urgency, i.code))
     ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today),
                moves=td.target_moves(snap, cases), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
@@ -163,6 +164,7 @@ def create_app() -> Flask:
                 "kill": [k for k in f.get("kill", "").splitlines() if k.strip()], "horizon": f.get("horizon") or 12}
         errors = []
         form["consensus_source"] = (f.get("consensus_source") or "").strip()
+        form["ack_triggered"] = bool(f.get("ack_triggered"))
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))

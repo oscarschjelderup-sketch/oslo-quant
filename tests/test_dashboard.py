@@ -366,3 +366,44 @@ def test_consensus_target_needs_a_source_and_the_calibration_page_shows_benchmar
     page = client.get("/calibration").get_data(as_text=True)
     assert "Er jeg bedre enn referansene?" in page and "kursen står stille" in page
     assert "Oppgitt sannsynlighet mot det som skjedde" in page and "pending" in page       # no final call yet: plot withheld
+
+
+# ------------------------------------------------------------------------------------------------ before the report (night: D22)
+def test_a_report_in_ten_days_asks_for_a_view_logged_before_it(home):
+    from osloquant.dashboard import today as td
+
+    today = pd.Timestamp("2026-11-02")
+    hist = [{"kind": "judgement", "date": "2026-09-20", "logged_at": "2026-09-20T10:00:00Z", "rating": "BUY", "target": 54}]
+    c = bk.Case("XYZ", "Xyz", {"rating": "BUY", "target": 54}, "log #1", [{"date": "2026-11-12", "what": "Q3 2026 report"}], ["x"], None, hist)
+    items = td.pre_report_items([c], today)
+    assert len(items) == 1 and items[0].kind == "pre-report" and "12 Nov" in items[0].title and items[0].urgency == 1
+    c.history.append({"kind": "judgement", "date": "2026-10-20", "logged_at": "2026-10-20T10:00:00Z", "rating": "BUY", "target": 54})
+    assert td.pre_report_items([c], today) == []                                      # a view within 30 days of the report
+    far = bk.Case("XYZ", "Xyz", None, "log", [{"date": "2026-12-20", "what": "Q4 report"}], [], None, [])
+    assert td.pre_report_items([far], today) == []                                     # more than 10 days away
+    soon = bk.Case("XYZ", "Xyz", None, "log", [{"date": "2026-11-04", "what": "Q3 report"}], [], None, [])
+    assert td.pre_report_items([soon], today)[0].urgency == 0
+
+
+def test_a_buy_with_a_kill_criterion_already_triggered_needs_an_acknowledgement(app):
+    import json
+
+    client, snap = app
+    d = home_dir = jg.home() / "reports" / "BBB"
+    d.mkdir(parents=True)
+    (home_dir / "1.summary.json").write_text(json.dumps({"code": "BBB", "message_id": 1, "title": "BBB Q3 2026 report", "published": "2026-10-27T06:00:00Z",
+        "year": 2026, "quarter": 3, "url": "x", "pdf": "1.pdf", "figures": {}, "metrics": {}, "previous": None, "consensus": None, "case": {},
+        "kill": [{"criterion": "Gross margin below 40%", "metric": "gm", "op": "<", "threshold": 0.40, "now": 0.38, "previous": 0.41, "status": "triggered"}],
+        "analysed_at": "2026-10-27T07:00:00Z"}), encoding="utf-8")
+    page = client.get("/stock/BBB").get_data(as_text=True)
+    assert "allerede over streken" in page and 'name="ack_triggered"' in page
+    r = client.post("/stock/BBB/judge", data=GOOD)
+    assert r.status_code == 400 and "already over the line" in r.get_data(as_text=True)
+    assert not jg.log_path().exists() or jg.read_log() == []
+    r = client.post("/stock/BBB/judge", data={**GOOD, "ack_triggered": "1"})
+    assert r.status_code == 303
+    (row,) = jg.read_log()
+    assert row["triggered_at_entry"] and "Gross margin" in row["triggered_at_entry"][0]
+    assert "logget med utløst kill-kriterium" in client.get("/stock/BBB").get_data(as_text=True)
+    # a HOLD is not a bet on the case: no acknowledgement needed
+    assert client.post("/stock/BBB/judge", data={**GOOD, "rating": "HOLD"}).status_code == 303

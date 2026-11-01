@@ -288,3 +288,18 @@ the binary Brier score. Until the first horizon has passed the page says how man
 plot: nothing is calibrated against nothing. Below 20 final calls the page says the plot is noise.
 
 Found on the way: the calibration page crashed when every call was logged today (no price after the call yet). Fixed.
+
+## D22. Before the report: the view goes on record first, and a dead criterion is not logged unknowingly
+
+- **Pre-report item.** A research-book report date within 10 days with no judgement dated in the 30 days before it
+  puts "log your view before the report" on top of the front page (`today.pre_report_items`). A view logged after the
+  numbers is scored with hindsight; the calibration is only worth something if the view came first.
+- **Dry run of the report reader** (`oq reports dryrun CODE file.pdf --period 2026Q2`): what the spec finds, what it
+  misses, and for each missing row the lines in the PDF that might be it. For a company that has never reported as a
+  listed company there is no previous report on NewsWeb to test on; the dry run is how the spec is written from any
+  PDF the company has published (prospectus, an older interim) before the first real one.
+- **Inception check.** A BUY view on a company whose latest report reading already marks a kill criterion as
+  triggered is refused unless the box "I know" is ticked; the row then carries `triggered_at_entry` and the history
+  shows it. The case review found a criterion that had read "triggered" in every reading since the case was written,
+  with no check logged: a criterion that is already dead when the view is logged is either not a kill criterion or
+  not a BUY, and the log should say which the author chose. HOLD and SELL need no acknowledgement.

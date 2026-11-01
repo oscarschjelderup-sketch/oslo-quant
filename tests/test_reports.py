@@ -115,3 +115,15 @@ def test_real_consensus_release_parses(monkeypatch):
     c = rp.fetch_consensus("sats", 2026, 2)
     assert c["values"] == {"revenue": 1437.0, "ebitda": 609.0, "ebitda_pre16": 302.0, "profit": 181.0, "eps": 0.92, "members_k": 747.0}
     assert c["contributors"] == 7 and c["published"] == "2026-08-11 14:00"
+
+
+@needs_reports
+def test_dry_run_reports_found_missing_and_candidates():
+    pdf = tdata.default_dir() / "reports" / "SATS" / "679780.pdf"
+    r = rp.dry_run(pdf, SPEC, 2026, 2)
+    assert set(r["found"]) == set(SPEC["key"]) | {"pl_revenue", "pl_personnel"} and r["missing"] == []
+    assert r["income_statement_header"].startswith("Notes") and r["metrics"]["revenue_ltm"] == 5646
+    bad = {"key": {"revenue": "Total revenues", "members_k": "Number of members in thousands"}, "pl": {"revenue": "Revenue", "ebit": "Operating profit"}}
+    r = rp.dry_run(pdf, bad)
+    assert r["missing"] == ["members_k"] and any("Members" in c for c in r["candidates"]["members_k"])
+    assert r["found"]["pl_ebit"]["value"] == 318

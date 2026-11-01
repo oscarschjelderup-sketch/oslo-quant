@@ -458,6 +458,8 @@ def _position(r: dict) -> str:
     if not r.get("position_shares") and r.get("kill_level") is None:
         return ""
     kl = f'kill-nivå {r["kill_level"]:g}' if r.get("kill_level") is not None else ""
+    if r.get("triggered_at_entry"):
+        kl += (" · " if kl else "") + f'<span class="k">logget med utløst kill-kriterium ({len(r["triggered_at_entry"])})</span>'
     pos = (f'; papirposisjon {_int(r["position_shares"])} aksjer = NOK {_int(r["position_value"])}, tap ved kill-nivået NOK {_int(r["loss_at_kill"])} '
            f'(bindende: {E(r.get("sizing", {}).get("binding", "?"))})' if r.get("position_shares") else "")
     return f'<div class="src">{kl}{pos}</div>'
@@ -531,8 +533,24 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 <div style="grid-column:span 2"><label>Kilde og dato for konsensus (påkrevd hvis mål)</label><input name="consensus_source" placeholder="f.eks. selskapets IR-side, 2026-10-22" value="{val("consensus_source")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
 <label>Kill-kriterier (påkrevd, ett per linje)</label><textarea name="kill" required>{E(f.get("kill_text", kill_default))}</textarea>
+{ack_box(code, f)}
 {sizing_box(px, sz, val("position_shares"))}
 <button class="go" type="submit">Logg vurderingen</button></form></div>"""
+
+
+def ack_box(code: str, f: dict) -> str:
+    """Shown when the latest report reading has a kill criterion over the line: the view can still be logged, but only
+    knowingly, and the row records it (D22)."""
+    from osloquant.dashboard import book as bk
+
+    hits = bk.triggered_now(code)
+    if not hits:
+        return ""
+    items = "".join(f"<li>{E(h)}</li>" for h in hits)
+    checked = " checked" if f.get("ack_triggered") else ""
+    return (f'<div class="warn"><b>Et kill-kriterium er allerede over streken i siste rapport:</b><ul>{items}</ul>'
+            f'<label style="font-weight:600"><input type="checkbox" name="ack_triggered" value="1"{checked}> Jeg vet det – logg et BUY-syn likevel '
+            '(raden merkes «logget med utløst kill-kriterium»)</label></div>')
 
 
 def sizing_box(px: float, sz: dict | None, current: str = "") -> str:

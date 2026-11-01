@@ -1408,6 +1408,43 @@ def signals_score(
         console.print(f"odds written to {path}")
 
 
+# ------------------------------------------------------------------------------------------------ reports
+reports_app = typer.Typer(help="Quarterly reports: read a PDF with a company's spec before the real one arrives.", no_args_is_help=True)
+app.add_typer(reports_app, name="reports")
+
+
+@reports_app.command("dryrun")
+def reports_dryrun(
+    code: str = typer.Argument(..., help="Company code with a spec in ~/osloquant-home/reports.yaml"),
+    pdf: Path = typer.Argument(..., help="A report PDF to read (e.g. last quarter's, downloaded by hand)"),
+    period: str | None = typer.Option(None, help="Quarter the PDF covers, e.g. 2026Q2, to derive LTM metrics too"),
+) -> None:
+    """What the report reader finds in a PDF with the company's spec, what it misses, and candidate lines for the
+    missing rows – so reports.yaml is right before the report that matters."""
+    _setup()
+    from osloquant.dashboard import reports
+
+    spec = reports.specs().get(code.upper())
+    if not spec:
+        console.print(f"[red]no spec for {code.upper()} in {reports.spec_path()}[/red]")
+        raise typer.Exit(1)
+    y = q = None
+    if period:
+        y, q = int(period[:4]), int(period[-1])
+    r = reports.dry_run(pdf, spec, y, q)
+    console.print(f"{r['pdf']}: {r['pages']} pages; income-statement header: {r['income_statement_header'] or '[red]not found[/red]'}")
+    for k, f in r["found"].items():
+        console.print(f"  [green]found[/green] {k:<16} {f['value']:>10g}  p.{f['page']}  {f['checked']}")
+    for k in r["missing"]:
+        console.print(f"  [red]missing[/red] {k}")
+        for c in r["candidates"].get(k, []):
+            console.print(f"      {c}")
+    for k, v in (r.get("metrics") or {}).items():
+        console.print(f"  metric {k:<24} {v:.4f}")
+    if r["missing"]:
+        raise typer.Exit(2)
+
+
 # ------------------------------------------------------------------------------------------------ insiders and shorts
 insiders_app = typer.Typer(
     help="Primary-insider notifications (NewsWeb) and public short positions (Finanstilsynet): fetch and measure.",

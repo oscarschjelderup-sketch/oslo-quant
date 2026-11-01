@@ -389,6 +389,33 @@ def analyse(code: str, message_id: int, spec: dict, model: dict | None, kill_tex
             "consensus": consensus, "case": case, "kill": rows, "analysed_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
+def dry_run(pdf: Path, spec: dict, year: int | None = None, q: int | None = None) -> dict:
+    """Read a report PDF with a spec and say what was found, what was not, and for each missing row the lines that
+    might be it (same first word, with numbers) – to write ``reports.yaml`` for a new company before its report."""
+    figs = extract(pdf, spec)
+    lines = pdf_lines(pdf)
+    wanted = {**{k: v for k, v in (spec.get("key") or {}).items()}, **{f"pl_{k}": v for k, v in (spec.get("pl") or {}).items()}}
+    missing = {k: v for k, v in wanted.items() if k not in figs}
+    cands = {}
+    for key, label in missing.items():
+        words = [w.lower() for w in re.sub(r"[^A-Za-zÆØÅæøå]+", " ", label).split() if len(w) > 3]
+        scored = []
+        for pg, ln in lines:
+            if not re.search(r"\d", ln):
+                continue
+            low = ln.lower()
+            n = sum(w in low for w in words)
+            if n:
+                scored.append((-n, pg, ln))
+        cands[key] = [f"p.{pg}: {ln[:120]}" for _, pg, ln in sorted(scored)[:6]]
+    header = next((ln for pg, ln in lines if ln.lower().startswith(("notes ", "note ")) and len(pl_columns(ln)) >= 3), None)
+    out = {"pdf": pdf.name, "pages": max((pg for pg, _ in lines), default=0), "found": {k: {"value": f.value, "page": f.page, "checked": f.checked} for k, f in figs.items()},
+           "missing": list(missing), "candidates": cands, "income_statement_header": header}
+    if year and q:
+        out["metrics"] = {k: v["value"] for k, v in derive(figs, year, q).items() if v.get("value") is not None}
+    return out
+
+
 def summary_path(code: str, message_id: int) -> Path:
     return report_dir(code) / f"{message_id}.summary.json"
 

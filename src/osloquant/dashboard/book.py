@@ -158,6 +158,10 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
     problems = validate_form(form)
     if problems:
         raise ValueError("; ".join(problems))
+    already = triggered_now(code) if form["rating"] == "BUY" else []
+    if already and not form.get("ack_triggered"):
+        raise ValueError("already over the line in the latest report: " + "; ".join(already)
+                         + " – tick «I know» to log the view anyway; it is then recorded as logged with a kill criterion triggered")
     today = today or datetime.now().strftime("%Y-%m-%d")
     kl = form.get("kill_level")
     if kl not in (None, ""):
@@ -190,6 +194,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   bear=form.get("bear"), base=form.get("base"), bull=form.get("bull"),
                   p_bear=form.get("p_bear"), p_base=form.get("p_base"), p_bull=form.get("p_bull"),
                   kill=kill, kill_level=kl, thesis=form["rationale"].strip(), price_date=price_date, price_source=price_source,
+                  triggered_at_entry=already or None,
                   consensus_target=float(form["consensus_target"]) if form.get("consensus_target") not in (None, "") else None,
                   consensus_source=(form.get("consensus_source") or "").strip() or None,
                   source="dashboard", **pos)
@@ -199,6 +204,23 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
         _append_book_entry(code, name or code, today)
     mark_moved(code, row["seq"], today)
     return row
+
+
+def triggered_now(code: str) -> list[str]:
+    """Kill criteria the latest quarterly-report reading already marks as triggered (D22: a view should not be logged
+    with a dead criterion unknowingly)."""
+    from osloquant.dashboard import reports as rp
+
+    s = rp.latest(code)
+    if not s:
+        return []
+    out = []
+    for k in s.get("kill", []):
+        if k.get("status") == "triggered":
+            now, thr = k.get("now"), k.get("threshold")
+            val = f" ({now * 100:.1f} % vs {k.get('op', '')} {thr * 100:.1f} %)" if isinstance(now, (int, float)) and isinstance(thr, (int, float)) and abs(thr) < 5 else ""
+            out.append(f"{k['criterion'][:70]}{val}, {s['title'][:40]}")
+    return out
 
 
 def _append_book_entry(code: str, name: str, today: str) -> None:

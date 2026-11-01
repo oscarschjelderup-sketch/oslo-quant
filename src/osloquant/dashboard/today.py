@@ -125,6 +125,32 @@ def report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = REPORT_D
     return items
 
 
+PRE_REPORT_DAYS = 10          # a report this close asks for a view logged before it
+PRE_REPORT_FRESH = 30         # a view dated within this many days before the report counts as "before the report"
+_REPORT_WORDS = ("report", "rapport", "results", "resultat", "q1", "q2", "q3", "q4", "quarter", "kvartal", "interim", "half-year", "halvår")
+
+
+def pre_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = PRE_REPORT_DAYS) -> list[Item]:
+    """A research-book report date within ``days`` days and no judgement dated in the ``PRE_REPORT_FRESH`` days before
+    it: the view must be on record before the numbers come, or the calibration measures hindsight (D22)."""
+    items = []
+    for c in cases:
+        for ev in c.events:
+            d = pd.Timestamp(ev["date"])
+            if not (today <= d <= today + pd.Timedelta(days=days)) or not any(w in str(ev["what"]).lower() for w in _REPORT_WORDS):
+                continue
+            views = [r["date"] for r in c.history if r["kind"] == "judgement"]
+            fresh = [v for v in views if pd.Timestamp(v) >= d - pd.Timedelta(days=PRE_REPORT_FRESH)]
+            if fresh:
+                continue
+            last = max(views) if views else None
+            left = (d - today).days
+            items.append(Item(c.code, "pre-report", f"{c.name}: log your view before the report on {d:%d %b} ({left} d)",
+                              (f"The last view is from {last}; " if last else "No view is logged; ")
+                              + f"a view dated after the report would be scored with hindsight. {ev['what'][:70]}", 0 if left <= 3 else 1))
+    return items
+
+
 def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAYS) -> list[dict]:
     out = []
     for c in cases:
