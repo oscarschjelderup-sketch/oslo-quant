@@ -236,7 +236,7 @@ def events(items, side: str = "buy", sessions: pd.DatetimeIndex | None = None) -
 def study(P: dict[str, pd.DataFrame], items, horizons=STUDY_HORIZONS, cost: float = COST, start: str = "2010-01-01") -> dict:
     """Excess return after insider buys and sells: entry at the open of the entry session, exit at the close ``h``
     sessions later, minus the equal-weighted return of the 64 stocks over the same window; also after a round trip.
-    t-statistics use one average per calendar month (events in the same month are not independent)."""
+    Each horizon gets `excess_stats`: a two-way clustered t, a bootstrap interval, trimmed means and the stock shares."""
     C = P["close"].loc[start:]
     sessions = C.index
     cv, ov = C.to_numpy(dtype=float), P["open"].loc[start:].to_numpy(dtype=float)
@@ -249,7 +249,7 @@ def study(P: dict[str, pd.DataFrame], items, horizons=STUDY_HORIZONS, cost: floa
         res = {"events": int(len(ev)), "stocks": int(ev["code"].nunique()) if len(ev) else 0,
                "first": f"{ev['entry'].min():%Y-%m-%d}" if len(ev) else None, "last": f"{ev['entry'].max():%Y-%m-%d}" if len(ev) else None}
         for h in horizons:
-            ex, months = [], []
+            ex, days, codes = [], [], []
             for _, e in ev.iterrows():
                 i, j = int(e["entry_pos"]), col[e["code"]]
                 if i + h - 1 >= len(sessions) or not np.isfinite(ov[i, j]) or not np.isfinite(cv[i + h - 1, j]):
@@ -257,18 +257,40 @@ def study(P: dict[str, pd.DataFrame], items, horizons=STUDY_HORIZONS, cost: floa
                 raw = cv[i + h - 1, :] / ov[i, :] - 1
                 bench = np.nanmean(raw)
                 ex.append(raw[j] - bench)
-                months.append(f"{sessions[i]:%Y-%m}")
-            ex = np.array(ex)
-            if not len(ex):
+                days.append(sessions[i])
+                codes.append(e["code"])
+            if not ex:
                 res[f"h{h}"] = {"n": 0}
                 continue
-            by_month = pd.Series(ex).groupby(months).mean()
-            t = float(by_month.mean() / by_month.std(ddof=1) * np.sqrt(len(by_month))) if len(by_month) > 2 and by_month.std(ddof=1) > 0 else None
-            res[f"h{h}"] = {"n": int(len(ex)), "months": int(len(by_month)), "mean_excess": round(float(ex.mean()), 4),
-                            "median_excess": round(float(np.median(ex)), 4), "hit": round(float((ex > 0).mean()), 4),
-                            "net_of_cost": round(float(ex.mean() - cost), 4), "t_month": None if t is None else round(t, 2)}
+            res[f"h{h}"] = excess_stats(pd.Series(ex, index=pd.MultiIndex.from_arrays([days, codes])), h, cost)
         out[side] = res
     return out
+
+
+def excess_stats(exc: pd.Series, h: int, cost: float = COST) -> dict:
+    """The statistics one event series gets: event-weighted mean with its two-way clustered t and month-bootstrap
+    interval, the median, the trimmed and winsorised means, one vote per stock, and the share of the sum the two
+    largest stocks carry – because a mean carried by two names is not a market regularity (DECISIONS D23)."""
+    from osloquant.signals import boot_ci, cluster_t
+
+    x = exc.to_numpy(dtype=float)
+    n = len(x)
+    lo, hi = boot_ci(exc)
+    k = int(np.floor(0.05 * n))
+    srt = np.sort(x)
+    trimmed = float(srt[k:n - k].mean()) if n - 2 * k > 0 else float("nan")
+    w = np.clip(x, np.quantile(x, 0.01), np.quantile(x, 0.99)) if n >= 100 else x
+    by_stock = exc.groupby(exc.index.get_level_values(1)).sum()
+    total = float(x.sum())
+    top2 = float(by_stock.sort_values(ascending=False).head(2).sum() / total) if total > 0 else None
+    tc = cluster_t(exc, h)
+    return {"n": n, "months": int(exc.index.get_level_values(0).to_period("M").nunique()), "mean_excess": round(float(x.mean()), 4),
+            "median_excess": round(float(np.median(x)), 4), "hit": round(float((x > 0).mean()), 4), "net_of_cost": round(float(x.mean() - cost), 4),
+            "t_cluster": None if tc != tc else round(tc, 2), "ci_lo": None if lo != lo else round(lo, 4), "ci_hi": None if hi != hi else round(hi, 4),
+            "trimmed_5": None if trimmed != trimmed else round(trimmed, 4), "winsor_1": round(float(w.mean()), 4),
+            "mean_of_stock_means": round(float(exc.groupby(exc.index.get_level_values(1)).mean().mean()), 4),
+            "top2_stocks_share": None if top2 is None else round(top2, 3),
+            "top2_stocks": [str(c) for c in by_stock.sort_values(ascending=False).head(2).index]}
 
 
 # ------------------------------------------------------------------------------------------------ readers (pages)

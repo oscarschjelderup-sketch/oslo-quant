@@ -176,12 +176,16 @@ def odds_table(odds: dict) -> str:
         return ""
     order = {BUY: 0, RISK: 1, INFO: 2}
     items = sorted(rows.items(), key=lambda kv: (order.get(kv[1].get("kind"), 3), kv[0]))
+    labels = next((list((v.get("robustness") or {}).get("periods") or {}) for v in rows.values() if v.get("robustness")), [])
+
     def rob(v: dict) -> str:
         r = v.get("robustness") or {}
-        if not r:
-            return "<td>–</td><td>–</td><td>–</td>"
-        return (f'<td>{_pct((r.get("half_a") or {}).get("exc60"))}</td><td>{_pct((r.get("half_b") or {}).get("exc60"))}</td>'
-                f'<td>{html.escape(str(r.get("verdict", "")))}</td>')
+        if not r or "periods" not in r:
+            return "<td>–</td>" * (len(labels) + 2)
+        cells = "".join(f'<td>{_pct(r["periods"][lab].get("exc60"))}</td>' for lab in labels)
+        lo, hi = v.get("lo60"), v.get("hi60")
+        ci = f"[{lo * 100:+.1f}, {hi * 100:+.1f}]" if lo is not None and hi is not None else "–"
+        return f'{cells}<td>{ci}</td><td>{html.escape(str(r.get("grade60", "")))}</td>'
 
     body = "".join(
         f'<tr><td>{html.escape(k)}</td><td><span class="chip {str(v.get("kind", "")).lower()}">{v.get("kind", "")}</span></td>'
@@ -191,15 +195,16 @@ def odds_table(odds: dict) -> str:
         for k, v in items
     )
     m = odds.get("measured", {})
-    split = str(m.get("split", "2018"))[:4]
+    period_heads = "".join(f"<th>Exc 60d {html.escape(lab)}</th>" for lab in labels)
     return (f'<h2>What these signals have meant</h2><div class="card"><table><thead><tr><th>Signal</th><th>Kind</th><th>Alerts / month</th>'
-            f'<th>Raw 20d</th><th>Excess 20d</th><th>Excess 60d</th><th>Hit 20d</th><th>t 20d</th><th>t 60d, monthly</th>'
-            f'<th>Exc 60d before {split}</th><th>from {split}</th><th>Verdict</th></tr></thead><tbody>{body}</tbody></table>'
+            f'<th>Raw 20d</th><th>Excess 20d</th><th>Excess 60d</th><th>Hit 20d</th><th>t 20d, naive</th><th>t 60d, clustered</th>'
+            f'{period_heads}<th>95 % (60d)</th><th>Grade</th></tr></thead><tbody>{body}</tbody></table>'
             f'<div class="muted" style="margin-top:8px">Entry at the next open; excess = minus the equal-weighted universe over the same window; '
             f'measured {m.get("from", "?")} to {m.get("to", "?")} on {m.get("stocks", "?")} stocks – today\'s listed stocks only, so every '
             f'figure is measured on survivors. A round trip costs ~{ROUND_TRIP_COST * 100:.1f}%, so a 20-day signal pays only if its raw '
-            f'return beats that. "t 20d" treats every event as independent; "t 60d, monthly" uses one mean per calendar month and is '
-            f'the one to trust. The verdict compares the two halves of the period.</div></div>')
+            f'return beats that. "t 20d, naive" treats every event as independent; "t 60d, clustered" is two-way cluster-robust (time blocks '
+            f'x stock) and is the one to trust. 95 % = month-bootstrap interval. Grade A–D: same sign in all three sub-periods, interval '
+            f'excludes zero, no single stock carries a third of the sum (a placebo-band check is not run yet).</div></div>')
 
 
 def render_html(P: dict[str, pd.DataFrame], alerts: list[Alert], book: list[dict], session: str, odds: dict | None = None,

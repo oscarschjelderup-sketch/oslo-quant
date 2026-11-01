@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from osloquant import signals
 from osloquant.signals import BUY, INFO, RISK, Alert
@@ -155,7 +156,7 @@ def test_shipped_odds_file_covers_every_signal():
     assert set(signals.signal_frames(P)) <= set(odds.get("signals", {}))
 
 
-def test_scorecard_reports_clustered_t_and_robustness_per_half():
+def test_scorecard_reports_clustered_t_intervals_and_grades():
     rng = np.random.default_rng(5)
     n = 2600                                              # ~10 years from 2010
     frames = {c: 100 * np.exp(np.cumsum(rng.normal(0.0002, 0.02, n))) for c in ("A", "B", "C", "D")}
@@ -163,16 +164,42 @@ def test_scorecard_reports_clustered_t_and_robustness_per_half():
     for k in P:
         P[k].loc[P[k].index[:1500], "D"] = np.nan             # D is listed late: not a "survivor from the start"
     table = signals.scorecard(P)
-    assert {"tc20", "tc60"} <= set(table.columns)
-    rob = signals.robustness(P, split="2015-01-01", listed_by="2011-01-01")
-    for r in rob.values():
-        assert set(r) >= {"half_a", "half_b", "survivors", "verdict", "survivor_stocks"}
-        assert r["survivor_stocks"] == 3
-        assert r["verdict"] in ("holds in both halves", "period-dependent", "weak", "too few events")
-    # the clustered t never exceeds the naive one by much on independent noise, and is finite where events exist
+    assert {"tc20", "tc60", "lo20", "hi20", "lo60", "hi60", "bench20", "top60", "topshare60"} <= set(table.columns)
     row = table.loc["Breakout 20d high + volume"]
     if row["events"] > 10:
-        assert np.isfinite(row["tc20"])
+        assert np.isfinite(row["tc20"]) and row["lo20"] <= row["exc20"] <= row["hi20"]
+        assert row["raw20"] - row["exc20"] == pytest.approx(row["bench20"], abs=1e-12)
+    rob = signals.robustness(P, periods=(("2010-01-01", "2013-12-31"), ("2014-01-01", "2016-12-31"), ("2017-01-01", "2030-12-31")), listed_by="2011-01-01")
+    for r in rob.values():
+        assert set(r) >= {"periods", "survivors", "grade20", "grade60", "checks20", "checks60", "survivor_stocks"}
+        assert r["survivor_stocks"] == 3 and len(r["periods"]) == 3
+        assert r["grade60"] in "ABCD" and r["checks60"]["outside_placebo_band"] is None
+    # iid noise must not look stable: no signal gets an A on both horizons
+    assert not any(r["grade20"] == "A" and r["grade60"] == "A" for r in rob.values())
+
+
+def test_cluster_t_and_bootstrap_on_known_series():
+    idx = pd.MultiIndex.from_product([pd.bdate_range("2020-01-01", periods=240), ["A", "B"]])
+    rng = np.random.default_rng(0)
+    noise = pd.Series(rng.normal(0, 0.02, len(idx)), index=idx)
+    assert abs(signals.cluster_t(noise, 20)) < 3
+    shifted = noise + 0.05
+    assert signals.cluster_t(shifted, 20) > 5
+    lo, hi = signals.boot_ci(shifted)
+    assert lo < 0.05 < hi and hi - lo < 0.02
+    one = pd.Series([0.5, 0.0, 0.0], index=pd.MultiIndex.from_tuples([(pd.Timestamp("2020-01-02"), c) for c in "ABC"]))
+    code, share = signals.dominant_stock(one)
+    assert code == "A" and share == pytest.approx(1.0)
+    assert signals.grade({"a": True, "b": True, "c": True, "d": None}) == "A"
+    assert signals.grade({"a": True, "b": False, "c": True, "d": None}) == "B"
+    assert signals.grade({"a": False, "b": False, "c": False, "d": None}) == "D"
+
+
+def test_edge_does_not_fire_on_the_first_day_an_indicator_exists():
+    state = pd.DataFrame({"A": [False, True, True, False, True]})
+    valid = pd.DataFrame({"A": [False, True, True, True, True]})        # the indicator starts on day 2
+    assert list(signals._edge(state)["A"]) == [False, True, False, False, True]
+    assert list(signals._edge(state, valid)["A"]) == [False, False, False, False, True]
 
 
 def test_write_odds_keeps_bracket_results(tmp_path):
@@ -182,9 +209,9 @@ def test_write_odds_keeps_bracket_results(tmp_path):
     path.write_text(yaml.safe_dump({"measured": {"bracket": {"R": "2 x ATR"}},
                                     "signals": {"New 52-week high": {"exc20": 0.1, "bracket": {"h20": {"target": 0.4}}}}}), encoding="utf-8")
     table = pd.DataFrame([{"signal": "New 52-week high", "kind": BUY, "events": 3.0, "per_month": 1.0, "exc20": 0.001, "tc20": 0.5}]).set_index("signal")
-    signals.write_odds(table, "2010-01-01", "2026-10-19", 64, path=path, robust={"New 52-week high": {"verdict": "weak", "half_a": {}, "half_b": {}}})
+    signals.write_odds(table, "2010-01-01", "2026-10-19", 64, path=path, robust={"New 52-week high": {"grade60": "D", "periods": {}}})
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert doc["signals"]["New 52-week high"]["bracket"] == {"h20": {"target": 0.4}}
     assert doc["measured"]["bracket"] == {"R": "2 x ATR"}
-    assert doc["signals"]["New 52-week high"]["robustness"]["verdict"] == "weak"
+    assert doc["signals"]["New 52-week high"]["robustness"]["grade60"] == "D"
     assert doc["signals"]["New 52-week high"]["exc20"] == 0.001

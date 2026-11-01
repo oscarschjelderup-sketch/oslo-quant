@@ -91,9 +91,14 @@ def indicators(P: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     )
 
 
-def _edge(state: pd.DataFrame) -> pd.DataFrame:
-    """True on the first session a state holds (the state yesterday was False or unknown)."""
-    return state & ~state.shift(1).fillna(False).astype(bool)
+def _edge(state: pd.DataFrame, valid: pd.DataFrame | None = None) -> pd.DataFrame:
+    """True on the first session a state holds: the state yesterday was False *and known*. Without ``valid`` (the
+    indicator's non-NaN mask) the first day an indicator exists would count as an entry."""
+    prev = state.shift(1).fillna(False).astype(bool)
+    edge = state & ~prev
+    if valid is not None:
+        edge &= valid.shift(1).fillna(False).astype(bool)
+    return edge
 
 
 def signal_frames(P: dict[str, pd.DataFrame], ind: dict[str, pd.DataFrame] | None = None) -> dict[str, tuple[str, pd.DataFrame]]:
@@ -107,12 +112,12 @@ def signal_frames(P: dict[str, pd.DataFrame], ind: dict[str, pd.DataFrame] | Non
         "Breakout 60d high + volume": (BUY, (C > ind["hi60"]) & volconf),
         "Breakout 20d high + volume": (BUY, (C > ind["hi20"]) & volconf),
         "New 52-week high": (BUY, C > ind["hi250"]),
-        "Rising channel entry": (BUY, _edge(rising)),
+        "Rising channel entry": (BUY, _edge(rising, ind["slope"].notna() & ind["ma20"].notna())),
         "Golden cross MA 20/60": (INFO, (ind["ma20"] > ind["ma60"]) & (ind["ma20"].shift(1) <= ind["ma60"].shift(1))),
         "Breakdown below 60d low": (RISK, C < ind["lo60"]),
         "Death cross MA 20/60": (RISK, (ind["ma20"] < ind["ma60"]) & (ind["ma20"].shift(1) >= ind["ma60"].shift(1))),
-        "Drawdown 10% from 60d high": (RISK, _edge(ind["dd60"] < DRAWDOWN)),
-        "Falling channel entry": (RISK, _edge(falling)),
+        "Drawdown 10% from 60d high": (RISK, _edge(ind["dd60"] < DRAWDOWN, ind["dd60"].notna())),
+        "Falling channel entry": (RISK, _edge(falling, ind["slope"].notna() & ind["ma20"].notna())),
     }
     return {k: (kind, f.fillna(False).astype(bool)) for k, (kind, f) in frames.items()}
 
@@ -172,52 +177,121 @@ def scorecard(P: dict[str, pd.DataFrame], horizons=HORIZONS) -> pd.DataFrame:
             row[f"exc{h}"] = float(exc.mean()) if len(exc) else np.nan
             row[f"hit{h}"] = float((exc > 0).mean()) if len(exc) else np.nan
             row[f"t{h}"] = float(exc.mean() / exc.std() * np.sqrt(len(exc))) if len(exc) > 2 and exc.std() > 0 else np.nan
-            row[f"tc{h}"] = clustered_t(exc)
+            row[f"tc{h}"] = cluster_t(exc, h)
+            lo, hi = boot_ci(exc)
+            row[f"lo{h}"], row[f"hi{h}"] = lo, hi
+            row[f"bench{h}"] = float(raw.mean() - exc.mean()) if len(exc) else np.nan     # the universe's return over the same windows
+            code, share = dominant_stock(exc)
+            row[f"top{h}"], row[f"topshare{h}"] = code, share
         rows.append(row)
     return pd.DataFrame(rows).set_index("signal")
 
 
-def clustered_t(exc: pd.Series) -> float:
-    """t-statistic with one observation per calendar month: events cluster (many stocks fire in the same week), so
-    the naive t over all events overstates the evidence by a factor of two to three."""
-    if not len(exc):
+BOOT_N = 2000
+BOOT_SEED = 20261101
+
+
+def cluster_t(exc: pd.Series, h: int = 20) -> float:
+    """t of the event-weighted mean with a two-way cluster-robust variance (Cameron–Gelbach–Miller): time clusters of
+    ceil(h/21) months, stock clusters, minus their intersection. Events overlap in time (many stocks fire in the same
+    week; a 60-day window spans a quarter) and repeat in the same stocks; a naive t ignores both and a t of monthly
+    means weights thin months like full ones. ``exc`` is indexed by (session, code)."""
+    n = len(exc)
+    if n < 3:
         return np.nan
-    bym = exc.groupby(exc.index.get_level_values(0).to_period("M")).mean()
-    return float(bym.mean() / bym.std(ddof=1) * np.sqrt(len(bym))) if len(bym) > 2 and bym.std(ddof=1) > 0 else np.nan
+    e = exc.to_numpy(dtype=float) - float(exc.mean())
+    months = max(1, int(np.ceil(h / 21)))
+    t_idx = exc.index.get_level_values(0).to_period("M")
+    tkey = (t_idx.year * 12 + t_idx.month - 1) // months
+    skey = pd.factorize(exc.index.get_level_values(1))[0]
+
+    def v(keys) -> float:
+        return float(pd.Series(e).groupby(np.asarray(keys)).sum().pow(2).sum()) / n**2
+
+    var = v(tkey) + v(skey) - v(tkey.astype(np.int64) * 100003 + skey)
+    if not var > 0:
+        var = max(v(tkey), v(skey))
+    return float(exc.mean() / np.sqrt(var)) if var > 0 else np.nan
 
 
-SPLIT = "2018-01-01"           # the two halves the odds are also measured on
+def boot_ci(exc: pd.Series, n: int = BOOT_N, seed: int = BOOT_SEED, level: float = 0.95) -> tuple[float, float]:
+    """Month-block bootstrap interval for the event-weighted mean: months are resampled with replacement, the mean is
+    the resampled events' sum over their count. Fixed seed, so the file reproduces."""
+    if len(exc) < 3:
+        return np.nan, np.nan
+    g = exc.groupby(exc.index.get_level_values(0).to_period("M"))
+    sums, counts = g.sum().to_numpy(), g.count().to_numpy()
+    m = len(sums)
+    if m < 3:
+        return np.nan, np.nan
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, m, size=(n, m))
+    means = sums[idx].sum(axis=1) / counts[idx].sum(axis=1)
+    a = (1 - level) / 2
+    return float(np.quantile(means, a)), float(np.quantile(means, 1 - a))
+
+
+def dominant_stock(exc: pd.Series) -> tuple[str | None, float]:
+    """The stock that carries the largest share of the summed excess, and that share (sign-aware: a stock pulling the
+    other way counts as zero). 1/3 or more means one name drives the number."""
+    if not len(exc):
+        return None, np.nan
+    by = exc.groupby(exc.index.get_level_values(1)).sum()
+    total = float(exc.sum())
+    if total == 0:
+        return None, np.nan
+    share = (by / total).clip(lower=0)
+    code = share.idxmax()
+    return str(code), float(share.max())
+
+
+PERIODS = (("2010-01-01", "2015-12-31"), ("2016-01-01", "2020-12-31"), ("2021-01-01", "2030-12-31"))
 LISTED_BY = "2011-01-01"       # "survivors": stocks with bars from the start, so no late listings flatter the odds
+DOMINANT = 1 / 3
 
 
-def robustness(P: dict[str, pd.DataFrame], split: str = SPLIT, listed_by: str = LISTED_BY) -> dict[str, dict]:
-    """How the odds hold up: the same scorecard on each half of the period and on the stocks listed from the start,
-    plus a one-word verdict per signal (DECISIONS D20)."""
+def grade(checks: dict[str, bool | None]) -> str:
+    """A–D from the checks that could be run: A = all passed, B = all but one, C = all but two, D = fewer. A check that
+    could not be run does not count either way."""
+    done = [v for v in checks.values() if v is not None]
+    if not done:
+        return "D"
+    failed = sum(not v for v in done)
+    return "ABCD"[min(failed, 3)] if len(done) >= 3 else ("B" if failed == 0 else "ABCD"[min(failed + 1, 3)])
+
+
+def robustness(P: dict[str, pd.DataFrame], periods=PERIODS, listed_by: str = LISTED_BY) -> dict[str, dict]:
+    """How the odds hold up: the scorecard on three sub-periods and on the stocks listed from the start, and a grade
+    per horizon from three checks – same sign in every sub-period, bootstrap interval excludes zero, no stock carries
+    a third of the sum. A fourth check (a placebo band) is not run yet, so the grade says so (DECISIONS D20, D23)."""
     C = P["close"]
     first = C.apply(lambda s: s.first_valid_index())
     old = [c for c in C.columns if first[c] is not None and first[c] <= pd.Timestamp(listed_by)]
-    parts = {"half_a": {k: v.loc[:pd.Timestamp(split) - pd.Timedelta(days=1)] for k, v in P.items()},
-             "half_b": {k: v.loc[split:] for k, v in P.items()},
-             "survivors": {k: v[old] for k, v in P.items()}}
+    labels = [f"{a[:4]}-{min(b[:4], str(C.index[-1].year))}" for a, b in periods]
+    parts = {lab: {k: v.loc[a:b] for k, v in P.items()} for lab, (a, b) in zip(labels, periods, strict=True)}
+    parts["survivors"] = {k: v[old] for k, v in P.items()}
     tables = {name: scorecard(part) for name, part in parts.items()}
     full = scorecard(P)
     out: dict[str, dict] = {}
+    keep = ("events", "exc20", "exc60", "hit20", "tc20", "tc60")
     for sig in full.index:
-        o = {"split": split, "listed_by": listed_by, "survivor_stocks": len(old)}
-        for name, t in tables.items():
-            r = t.loc[sig] if sig in t.index else None
-            o[name] = {k: (None if r is None or r[k] != r[k] else round(float(r[k]), 4)) for k in ("events", "exc20", "exc60", "hit20")}
-        a, b, f = o["half_a"]["exc60"], o["half_b"]["exc60"], full.loc[sig, "exc60"]
-        tc = full.loc[sig, "tc60"]
-        if a is None or b is None or f != f:
-            verdict = "too few events"
-        elif np.sign(a) != np.sign(b):
-            verdict = "period-dependent"
-        elif tc == tc and abs(tc) >= 2 and np.sign(a) == np.sign(f):
-            verdict = "holds in both halves"
-        else:
-            verdict = "weak"
-        o["verdict"] = verdict
+        o: dict = {"periods": {}, "listed_by": listed_by, "survivor_stocks": len(old)}
+        for lab in labels:
+            r = tables[lab].loc[sig] if sig in tables[lab].index else None
+            o["periods"][lab] = {k: (None if r is None or r[k] != r[k] else round(float(r[k]), 4)) for k in keep}
+        r = tables["survivors"].loc[sig] if sig in tables["survivors"].index else None
+        o["survivors"] = {k: (None if r is None or r[k] != r[k] else round(float(r[k]), 4)) for k in keep}
+        for h in (20, 60):
+            f = full.loc[sig]
+            vals = [o["periods"][lab][f"exc{h}"] for lab in labels]
+            same_sign = None if any(v is None for v in vals) or f[f"exc{h}"] != f[f"exc{h}"] else all(np.sign(v) == np.sign(f[f"exc{h}"]) for v in vals)
+            lo, hi = f[f"lo{h}"], f[f"hi{h}"]
+            ci_ok = None if lo != lo else bool(lo > 0 or hi < 0)
+            share = f[f"topshare{h}"]
+            no_dom = None if share != share else bool(share < DOMINANT)
+            checks = {"same_sign_all_periods": same_sign, "interval_excludes_zero": ci_ok, "no_dominant_stock": no_dom, "outside_placebo_band": None}
+            o[f"checks{h}"] = checks
+            o[f"grade{h}"] = grade(checks)
         out[sig] = o
     return out
 
@@ -233,12 +307,15 @@ def write_odds(table: pd.DataFrame, start: str, end: str, universe: int, path: P
                 "t": "t20/t60 treat events as independent; tc20/tc60 use one mean per calendar month",
                 "universe_note": "today's listed stocks only (survivors); late listings enter on their first bar"}
     if robust:
-        measured.update(split=SPLIT, listed_by=LISTED_BY)
+        measured.update(periods=[f"{a[:4]}-{b[:4]}" for a, b in PERIODS], listed_by=LISTED_BY,
+                        grade="A–D from: same sign in all three sub-periods, month-bootstrap 95 % interval excludes zero, no stock carries "
+                              "a third of the sum; the placebo-band check is not run yet, so A means 3 of 3",
+                        tc="two-way cluster-robust t (time blocks of ceil(h/21) months x stock) of the event-weighted mean")
     if old.get("measured", {}).get("bracket"):
         measured["bracket"] = old["measured"]["bracket"]
     doc = {"measured": measured, "signals": {}}
     for name, row in table.to_dict("index").items():
-        entry = {k: (None if v != v else round(float(v), 4)) for k, v in row.items() if k != "kind"} | {"kind": row["kind"]}
+        entry = {k: (v if isinstance(v, str) else None if v is None or v != v else round(float(v), 4)) for k, v in row.items() if k != "kind"} | {"kind": row["kind"]}
         if robust and name in robust:
             entry["robustness"] = robust[name]
         if "bracket" in old_sig.get(name, {}):

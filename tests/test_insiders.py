@@ -63,6 +63,9 @@ def test_study_measures_excess_over_the_universe():
     expect = (1.002 ** 19 - 1) * 2 / 3                                             # excess over the equal-weighted three
     assert h["mean_excess"] == pytest.approx(expect, abs=1e-4) and h["hit"] == 1.0
     assert h["net_of_cost"] == pytest.approx(h["mean_excess"] - ins.COST, abs=1e-4)
+    assert h["top2_stocks"] == ["WIN"] and h["top2_stocks_share"] == pytest.approx(1.0)
+    assert h["mean_of_stock_means"] == pytest.approx(h["mean_excess"], abs=1e-4)      # one stock: the two means agree
+    assert h["ci_lo"] <= h["mean_excess"] <= h["ci_hi"] and h["t_cluster"] is not None
 
 
 def test_shorts_from_the_register_shape():

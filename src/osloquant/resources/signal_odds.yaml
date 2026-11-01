@@ -8,8 +8,16 @@ measured:
   t: t20/t60 treat events as independent; tc20/tc60 use one mean per calendar month
   universe_note: today's listed stocks only (survivors); late listings enter on their
     first bar
-  split: '2018-01-01'
+  periods:
+  - 2010-2015
+  - 2016-2020
+  - 2021-2030
   listed_by: '2011-01-01'
+  grade: 'A–D from: same sign in all three sub-periods, month-bootstrap 95 % interval
+    excludes zero, no stock carries a third of the sum; the placebo-band check is
+    not run yet, so A means 3 of 3'
+  tc: two-way cluster-robust t (time blocks of ceil(h/21) months x stock) of the event-weighted
+    mean
   bracket:
     entry: next open
     target: entry x (1 + cost) + R
@@ -28,38 +36,77 @@ signals:
     exc10: 0.0008
     hit10: 0.4758
     t10: 0.6426
-    tc10: -0.2999
+    tc10: 0.3579
+    lo10: -0.0029
+    hi10: 0.0043
+    bench10: 0.0057
+    top10: OKEA
+    topshare10: 1.2524
     raw20: 0.0144
     exc20: 0.0035
     hit20: 0.4819
     t20: 1.9562
-    tc20: 0.9017
+    tc20: 1.1853
+    lo20: -0.0015
+    hi20: 0.0089
+    bench20: 0.0109
+    top20: NEL
+    topshare20: 0.4979
     raw60: 0.0514
     exc60: 0.0128
     hit60: 0.5032
     t60: 3.8997
-    tc60: 1.271
+    tc60: 1.8128
+    lo60: 0.0018
+    hi60: 0.0254
+    bench60: 0.0385
+    top60: SOFF
+    topshare60: 0.2528
     kind: BUY
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 920.0
+          exc20: 0.0094
+          exc60: 0.0134
+          hit20: 0.5198
+          tc20: 1.8023
+          tc60: 1.8105
+        2016-2020:
+          events: 1053.0
+          exc20: 0.0059
+          exc60: 0.0122
+          hit20: 0.4826
+          tc20: 1.0356
+          tc60: 1.2695
+        2021-2026:
+          events: 1368.0
+          exc20: -0.0021
+          exc60: 0.0149
+          hit20: 0.4627
+          tc20: -0.4274
+          tc60: 0.9022
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 1332.0
-        exc20: 0.0097
-        exc60: 0.0134
-        hit20: 0.5155
-      half_b:
-        events: 2083.0
-        exc20: -0.0002
-        exc60: 0.0124
-        hit20: 0.4613
       survivors:
         events: 2705.0
         exc20: 0.0012
         exc60: 0.0107
         hit20: 0.4826
-      verdict: weak
+        tc20: 0.5144
+        tc60: 1.9519
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: D
+      checks60:
+        same_sign_all_periods: true
+        interval_excludes_zero: true
+        no_dominant_stock: true
+        outside_placebo_band: null
+      grade60: A
     bracket:
       h20:
         target: 0.414
@@ -80,38 +127,77 @@ signals:
     exc10: -0.0
     hit10: 0.48
     t10: -0.0477
-    tc10: -0.1812
+    tc10: -0.0277
+    lo10: -0.0031
+    hi10: 0.0032
+    bench10: 0.0065
+    top10: FRO
+    topshare10: 14.2532
     raw20: 0.0147
     exc20: 0.0022
     hit20: 0.4835
     t20: 1.5024
-    tc20: 0.7344
+    tc20: 0.9162
+    lo20: -0.002
+    hi20: 0.0066
+    bench20: 0.0125
+    top20: NEL
+    topshare20: 0.4573
     raw60: 0.0511
     exc60: 0.0109
     hit60: 0.497
     t60: 4.0513
-    tc60: 2.1534
+    tc60: 2.3065
+    lo60: 0.0027
+    hi60: 0.02
+    bench60: 0.0402
+    top60: MPCC
+    topshare60: 0.2291
     kind: BUY
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 1512.0
+          exc20: 0.009
+          exc60: 0.0173
+          hit20: 0.5217
+          tc20: 1.9584
+          tc60: 2.3585
+        2016-2020:
+          events: 1742.0
+          exc20: 0.0011
+          exc60: 0.0114
+          hit20: 0.4752
+          tc20: 0.2638
+          tc60: 1.4603
+        2021-2026:
+          events: 2180.0
+          exc20: -0.0016
+          exc60: 0.0089
+          hit20: 0.4653
+          tc20: -0.3864
+          tc60: 0.7622
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 2188.0
-        exc20: 0.0091
-        exc60: 0.0183
-        hit20: 0.5185
-      half_b:
-        events: 3244.0
-        exc20: -0.0025
-        exc60: 0.0062
-        hit20: 0.4594
       survivors:
         events: 4267.0
         exc20: 0.0017
         exc60: 0.0106
         hit20: 0.4904
-      verdict: holds in both halves
+        tc20: 0.7487
+        tc60: 2.4831
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: D
+      checks60:
+        same_sign_all_periods: true
+        interval_excludes_zero: true
+        no_dominant_stock: true
+        outside_placebo_band: null
+      grade60: A
     bracket:
       h20:
         target: 0.4196
@@ -132,38 +218,77 @@ signals:
     exc10: -0.0002
     hit10: 0.4713
     t10: -0.2495
-    tc10: -1.4683
+    tc10: -0.1087
+    lo10: -0.0032
+    hi10: 0.0027
+    bench10: 0.004
+    top10: FRO
+    topshare10: 2.4275
     raw20: 0.0081
     exc20: 0.0003
     hit20: 0.4716
     t20: 0.2588
-    tc20: -0.301
+    tc20: 0.1049
+    lo20: -0.0044
+    hi20: 0.0053
+    bench20: 0.0079
+    top20: AKER
+    topshare20: 3.5121
     raw60: 0.0402
     exc60: 0.0056
     hit60: 0.4906
     t60: 2.5099
-    tc60: 1.4881
+    tc60: 0.8411
+    lo60: -0.0039
+    hi60: 0.0166
+    bench60: 0.0346
+    top60: MPCC
+    topshare60: 0.6597
     kind: BUY
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 1231.0
+          exc20: 0.0045
+          exc60: 0.0162
+          hit20: 0.5238
+          tc20: 0.9565
+          tc60: 1.5474
+        2016-2020:
+          events: 1360.0
+          exc20: 0.0031
+          exc60: 0.0159
+          hit20: 0.4865
+          tc20: 0.5025
+          tc60: 1.2707
+        2021-2026:
+          events: 2272.0
+          exc20: -0.0068
+          exc60: -0.0045
+          hit20: 0.43
+          tc20: -1.8663
+          tc60: -0.5241
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 2034.0
-        exc20: 0.0037
-        exc60: 0.0088
-        hit20: 0.507
-      half_b:
-        events: 3430.0
-        exc20: -0.002
-        exc60: 0.0045
-        hit20: 0.4507
       survivors:
         events: 4707.0
         exc20: -0.0013
         exc60: 0.0015
         hit20: 0.4732
-      verdict: weak
+        tc20: -0.4712
+        tc60: 0.2701
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: D
+      checks60:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade60: D
     bracket:
       h20:
         target: 0.3917
@@ -178,57 +303,96 @@ signals:
         mean_R: -0.0363
         events: 5669
   Rising channel entry:
-    events: 6026.0
-    per_month: 30.0157
-    raw10: 0.0065
-    exc10: 0.0008
-    hit10: 0.4853
-    t10: 0.8699
-    tc10: 0.2762
-    raw20: 0.0143
-    exc20: 0.0026
-    hit20: 0.4945
-    t20: 2.0215
-    tc20: 1.7184
-    raw60: 0.0451
-    exc60: 0.0084
-    hit60: 0.4947
-    t60: 3.8258
-    tc60: 2.5518
+    events: 6001.0
+    per_month: 29.8911
+    raw10: 0.0064
+    exc10: 0.0007
+    hit10: 0.4849
+    t10: 0.7934
+    tc10: 0.5901
+    lo10: -0.0014
+    hi10: 0.003
+    bench10: 0.0057
+    top10: LSG
+    topshare10: 0.3912
+    raw20: 0.0142
+    exc20: 0.0024
+    hit20: 0.4944
+    t20: 1.8873
+    tc20: 1.3228
+    lo20: -0.0009
+    hi20: 0.0057
+    bench20: 0.0118
+    top20: HAUTO
+    topshare20: 0.2002
+    raw60: 0.0448
+    exc60: 0.0081
+    hit60: 0.4946
+    t60: 3.6848
+    tc60: 2.108
+    lo60: 0.0022
+    hi60: 0.014
+    bench60: 0.0366
+    top60: OET
+    topshare60: 0.1854
     kind: BUY
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 1487.0
+          exc20: -0.004
+          exc60: -0.0016
+          hit20: 0.4602
+          tc20: -1.0983
+          tc60: -0.2063
+        2016-2020:
+          events: 1633.0
+          exc20: 0.005
+          exc60: 0.0183
+          hit20: 0.5091
+          tc20: 1.3952
+          tc60: 2.0671
+        2021-2026:
+          events: 2370.0
+          exc20: 0.0051
+          exc60: 0.0076
+          hit20: 0.4987
+          tc20: 1.3622
+          tc60: 1.0206
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 2268.0
-        exc20: -0.0015
-        exc60: 0.0002
-        hit20: 0.473
-      half_b:
-        events: 3611.0
-        exc20: 0.0053
-        exc60: 0.0128
-        hit20: 0.5102
       survivors:
-        events: 4847.0
-        exc20: 0.0017
-        exc60: 0.0039
-        hit20: 0.4911
-      verdict: holds in both halves
+        events: 4827.0
+        exc20: 0.0015
+        exc60: 0.0036
+        hit20: 0.4913
+        tc20: 0.8227
+        tc60: 1.1117
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: true
+        outside_placebo_band: null
+      grade20: C
+      checks60:
+        same_sign_all_periods: false
+        interval_excludes_zero: true
+        no_dominant_stock: true
+        outside_placebo_band: null
+      grade60: B
     bracket:
       h20:
-        target: 0.419
-        stop: 0.3461
-        neither: 0.2349
-        mean_R: 0.0326
-        events: 5955
+        target: 0.4187
+        stop: 0.3457
+        neither: 0.2356
+        mean_R: 0.0329
+        events: 5930
       h60:
-        target: 0.5459
-        stop: 0.4349
-        neither: 0.0192
+        target: 0.5461
+        stop: 0.435
+        neither: 0.0189
         mean_R: 0.0681
-        events: 5831
+        events: 5807
   Golden cross MA 20/60:
     events: 1916.0
     per_month: 9.5436
@@ -236,38 +400,77 @@ signals:
     exc10: 0.002
     hit10: 0.4935
     t10: 1.2427
-    tc10: 0.8338
+    tc10: 1.2181
+    lo10: -0.0011
+    hi10: 0.0055
+    bench10: 0.0071
+    top10: HEX
+    topshare10: 0.4341
     raw20: 0.0135
     exc20: 0.0003
     hit20: 0.4746
     t20: 0.1566
-    tc20: 0.6146
+    tc20: 0.1414
+    lo20: -0.0042
+    hi20: 0.005
+    bench20: 0.0132
+    top20: HEX
+    topshare20: 2.7859
     raw60: 0.0426
     exc60: -0.0017
     hit60: 0.4737
     t60: -0.4301
-    tc60: 0.7484
+    tc60: -0.4989
+    lo60: -0.0098
+    hi60: 0.0067
+    bench60: 0.0443
+    top60: ARCH
+    topshare60: 0.9845
     kind: INFO
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 488.0
+          exc20: 0.0088
+          exc60: 0.0134
+          hit20: 0.5021
+          tc20: 1.9935
+          tc60: 1.8945
+        2016-2020:
+          events: 561.0
+          exc20: -0.0018
+          exc60: -0.0025
+          hit20: 0.4603
+          tc20: -0.3654
+          tc60: -0.3331
+        2021-2026:
+          events: 816.0
+          exc20: -0.0022
+          exc60: -0.0119
+          hit20: 0.476
+          tc20: -0.6193
+          tc60: -1.4771
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 685.0
-        exc20: 0.0051
-        exc60: 0.0053
-        hit20: 0.4831
-      half_b:
-        events: 1197.0
-        exc20: -0.0022
-        exc60: -0.0057
-        hit20: 0.469
       survivors:
         events: 1512.0
         exc20: 0.0016
         exc60: -0.0002
         hit20: 0.4722
-      verdict: period-dependent
+        tc20: 0.6037
+        tc60: -0.0447
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: D
+      checks60:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade60: D
     bracket:
       h20:
         target: 0.4101
@@ -288,38 +491,77 @@ signals:
     exc10: -0.0029
     hit10: 0.4744
     t10: -2.1657
-    tc10: 1.2117
+    tc10: -1.0869
+    lo10: -0.0086
+    hi10: 0.0019
+    bench10: 0.0042
+    top10: BORR
+    topshare10: 0.5879
     raw20: 0.0106
     exc20: -0.0051
     hit20: 0.4658
     t20: -2.8197
-    tc20: 1.0702
+    tc20: -1.1483
+    lo20: -0.0141
+    hi20: 0.0028
+    bench20: 0.0157
+    top20: BORR
+    topshare20: 0.3658
     raw60: 0.0504
     exc60: -0.009
     hit60: 0.4539
     t60: -2.7092
-    tc60: -0.6259
+    tc60: -1.1476
+    lo60: -0.0233
+    hi60: 0.0056
+    bench60: 0.0594
+    top60: ARCH
+    topshare60: 0.3236
     kind: RISK
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 1421.0
+          exc20: -0.0128
+          exc60: -0.0466
+          hit20: 0.4325
+          tc20: -1.8012
+          tc60: -2.4013
+        2016-2020:
+          events: 1578.0
+          exc20: -0.0018
+          exc60: -0.0024
+          hit20: 0.4759
+          tc20: -0.1803
+          tc60: -0.1546
+        2021-2026:
+          events: 1947.0
+          exc20: -0.0038
+          exc60: 0.0103
+          hit20: 0.4709
+          tc20: -0.5004
+          tc60: 1.0187
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 1953.0
-        exc20: -0.0082
-        exc60: -0.0309
-        hit20: 0.4506
-      half_b:
-        events: 3049.0
-        exc20: -0.004
-        exc60: 0.0015
-        hit20: 0.4736
       survivors:
         events: 4056.0
         exc20: -0.0023
         exc60: -0.0027
         hit20: 0.4773
-      verdict: period-dependent
+        tc20: -0.5274
+        tc60: -0.3186
+      checks20:
+        same_sign_all_periods: true
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: C
+      checks60:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: true
+        outside_placebo_band: null
+      grade60: C
     bracket:
       h20:
         target: 0.395
@@ -340,38 +582,77 @@ signals:
     exc10: -0.0028
     hit10: 0.4579
     t10: -1.8447
-    tc10: -1.3422
+    tc10: -1.8567
+    lo10: -0.0059
+    hi10: 0.0005
+    bench10: 0.0042
+    top10: FRO
+    topshare10: 0.1744
     raw20: 0.0046
     exc20: -0.0054
     hit20: 0.4543
     t20: -2.5128
-    tc20: -2.2682
+    tc20: -2.6803
+    lo20: -0.0099
+    hi20: -0.001
+    bench20: 0.0101
+    top20: FRO
+    topshare20: 0.145
     raw60: 0.0373
     exc60: -0.0042
     hit60: 0.4682
     t60: -1.0629
-    tc60: -0.9709
+    tc60: -1.2442
+    lo60: -0.0121
+    hi60: 0.0038
+    bench60: 0.0415
+    top60: ARCH
+    topshare60: 0.4539
     kind: RISK
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 502.0
+          exc20: -0.0053
+          exc60: -0.0035
+          hit20: 0.4703
+          tc20: -2.0386
+          tc60: -0.4745
+        2016-2020:
+          events: 556.0
+          exc20: -0.0087
+          exc60: -0.0023
+          hit20: 0.4402
+          tc20: -1.6505
+          tc60: -0.3415
+        2021-2026:
+          events: 834.0
+          exc20: -0.0021
+          exc60: -0.0037
+          hit20: 0.4547
+          tc20: -0.5444
+          tc60: -0.5097
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 699.0
-        exc20: -0.0082
-        exc60: -0.0059
-        hit20: 0.4498
-      half_b:
-        events: 1196.0
-        exc20: -0.0031
-        exc60: -0.0022
-        hit20: 0.4593
       survivors:
         events: 1527.0
         exc20: -0.0047
         exc60: -0.0049
         hit20: 0.4563
-      verdict: weak
+        tc20: -2.2214
+        tc60: -1.3092
+      checks20:
+        same_sign_all_periods: true
+        interval_excludes_zero: true
+        no_dominant_stock: true
+        outside_placebo_band: null
+      grade20: A
+      checks60:
+        same_sign_all_periods: true
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade60: C
     bracket:
       h20:
         target: 0.3546
@@ -386,106 +667,184 @@ signals:
         mean_R: -0.0283
         events: 1870
   Drawdown 10% from 60d high:
-    events: 5970.0
-    per_month: 29.7367
-    raw10: 0.0058
-    exc10: 0.0003
-    hit10: 0.4694
-    t10: 0.2712
-    tc10: 0.2502
-    raw20: 0.0131
+    events: 5916.0
+    per_month: 29.4677
+    raw10: 0.006
+    exc10: 0.0004
+    hit10: 0.4699
+    t10: 0.4242
+    tc10: 0.3898
+    lo10: -0.002
+    hi10: 0.0028
+    bench10: 0.0056
+    top10: NOD
+    topshare10: 0.8267
+    raw20: 0.0132
     exc20: 0.0002
-    hit20: 0.4656
-    t20: 0.1552
-    tc20: 0.4683
-    raw60: 0.0432
+    hit20: 0.4652
+    t20: 0.1598
+    tc20: 0.1245
+    lo20: -0.0033
+    hi20: 0.0039
+    bench20: 0.013
+    top20: AKRBP
+    topshare20: 2.6797
+    raw60: 0.0434
     exc60: 0.0009
-    hit60: 0.4637
-    t60: 0.3887
-    tc60: 0.639
+    hit60: 0.4633
+    t60: 0.3863
+    tc60: 0.2596
+    lo60: -0.0054
+    hi60: 0.0073
+    bench60: 0.0425
+    top60: AKRBP
+    topshare60: 2.0892
     kind: RISK
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 1546.0
+          exc20: 0.007
+          exc60: 0.0102
+          hit20: 0.4957
+          tc20: 1.7197
+          tc60: 1.0638
+        2016-2020:
+          events: 1627.0
+          exc20: -0.0044
+          exc60: 0.0022
+          hit20: 0.4459
+          tc20: -1.1636
+          tc60: 0.2393
+        2021-2026:
+          events: 2582.0
+          exc20: -0.0003
+          exc60: -0.0033
+          hit20: 0.4589
+          tc20: -0.1071
+          tc60: -0.443
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 2164.0
-        exc20: 0.0037
-        exc60: 0.0056
-        hit20: 0.4827
-      half_b:
-        events: 3729.0
-        exc20: -0.0013
-        exc60: -0.0029
-        hit20: 0.4593
       survivors:
-        events: 4589.0
-        exc20: 0.0009
-        exc60: 0.0036
-        hit20: 0.474
-      verdict: period-dependent
+        events: 4548.0
+        exc20: 0.001
+        exc60: 0.0034
+        hit20: 0.4745
+        tc20: 0.52
+        tc60: 0.8844
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: D
+      checks60:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade60: D
     bracket:
       h20:
-        target: 0.3765
-        stop: 0.3433
-        neither: 0.2802
-        mean_R: -0.0081
-        events: 5867
+        target: 0.3768
+        stop: 0.3426
+        neither: 0.2806
+        mean_R: -0.0072
+        events: 5817
       h60:
-        target: 0.5159
-        stop: 0.4569
-        neither: 0.0271
-        mean_R: 0.021
-        events: 5747
+        target: 0.5169
+        stop: 0.4563
+        neither: 0.0268
+        mean_R: 0.0228
+        events: 5705
   Falling channel entry:
-    events: 3309.0
-    per_month: 16.4822
-    raw10: 0.0052
-    exc10: -0.0021
-    hit10: 0.4662
-    t10: -1.3211
-    tc10: -1.6315
-    raw20: 0.018
-    exc20: -0.0011
-    hit20: 0.4675
-    t20: -0.5008
-    tc20: -1.9966
-    raw60: 0.0399
-    exc60: -0.0137
-    hit60: 0.4575
-    t60: -3.8639
-    tc60: -4.0631
+    events: 3290.0
+    per_month: 16.3876
+    raw10: 0.0053
+    exc10: -0.0019
+    hit10: 0.4664
+    t10: -1.2291
+    tc10: -1.2019
+    lo10: -0.0055
+    hi10: 0.0015
+    bench10: 0.0072
+    top10: SOFF
+    topshare10: 0.3663
+    raw20: 0.0181
+    exc20: -0.0009
+    hit20: 0.4687
+    t20: -0.4014
+    tc20: -0.3159
+    lo20: -0.0064
+    hi20: 0.0047
+    bench20: 0.019
+    top20: FRO
+    topshare20: 1.2162
+    raw60: 0.0402
+    exc60: -0.0135
+    hit60: 0.458
+    t60: -3.7866
+    tc60: -1.8934
+    lo60: -0.023
+    hi60: -0.0045
+    bench60: 0.0537
+    top60: ARCH
+    topshare60: 0.35
     kind: RISK
     robustness:
-      split: '2018-01-01'
+      periods:
+        2010-2015:
+          events: 896.0
+          exc20: -0.008
+          exc60: -0.0238
+          hit20: 0.4379
+          tc20: -1.225
+          tc60: -1.338
+        2016-2020:
+          events: 976.0
+          exc20: 0.0052
+          exc60: -0.0219
+          hit20: 0.4907
+          tc20: 1.0597
+          tc60: -1.6131
+        2021-2026:
+          events: 1256.0
+          exc20: 0.0006
+          exc60: 0.0022
+          hit20: 0.4715
+          tc20: 0.1462
+          tc60: 0.2274
       listed_by: '2011-01-01'
       survivor_stocks: 43
-      half_a:
-        events: 1237.0
-        exc20: -0.004
-        exc60: -0.0189
-        hit20: 0.4621
-      half_b:
-        events: 1992.0
-        exc20: -0.0009
-        exc60: -0.0134
-        hit20: 0.4674
       survivors:
-        events: 2566.0
+        events: 2552.0
         exc20: 0.001
         exc60: -0.0075
-        hit20: 0.4755
-      verdict: holds in both halves
+        hit20: 0.4766
+        tc20: 0.3161
+        tc60: -0.9143
+      checks20:
+        same_sign_all_periods: false
+        interval_excludes_zero: false
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade20: D
+      checks60:
+        same_sign_all_periods: false
+        interval_excludes_zero: true
+        no_dominant_stock: false
+        outside_placebo_band: null
+      grade60: C
     bracket:
       h20:
-        target: 0.4
-        stop: 0.3411
-        neither: 0.2589
-        mean_R: 0.015
-        events: 3275
+        target: 0.4016
+        stop: 0.3405
+        neither: 0.2579
+        mean_R: 0.0176
+        events: 3257
       h60:
-        target: 0.5229
-        stop: 0.4441
-        neither: 0.033
-        mean_R: 0.0417
-        events: 3213
+        target: 0.5243
+        stop: 0.4432
+        neither: 0.0326
+        mean_R: 0.0441
+        events: 3195

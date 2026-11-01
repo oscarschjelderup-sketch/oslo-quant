@@ -15,6 +15,10 @@ measured:
     other: 262
     unknown: 207
     subscription: 55
+  t: 't_cluster: two-way cluster-robust t (time blocks of ceil(h/21) months x stock)
+    of the event-weighted mean; ci: month-bootstrap 95 % interval; trimmed_5 drops
+    5 % in each tail; top2_stocks_share: share of the summed excess in the two largest
+    stocks'
 results:
   buy:
     events: 1585
@@ -28,7 +32,16 @@ results:
       median_excess: -0.0029
       hit: 0.4885
       net_of_cost: -0.0027
-      t_month: 1.29
+      t_cluster: 0.63
+      ci_lo: -0.0047
+      ci_hi: 0.0093
+      trimmed_5: -0.0006
+      winsor_1: 0.0006
+      mean_of_stock_means: -0.0022
+      top2_stocks_share: 1.149
+      top2_stocks:
+      - AKRBP
+      - PROT
     h60:
       n: 1538
       months: 198
@@ -36,7 +49,16 @@ results:
       median_excess: -0.0024
       hit: 0.4902
       net_of_cost: 0.002
-      t_month: 2.41
+      t_cluster: 0.72
+      ci_lo: -0.0083
+      ci_hi: 0.0226
+      trimmed_5: -0.0014
+      winsor_1: 0.004
+      mean_of_stock_means: -0.0023
+      top2_stocks_share: 1.381
+      top2_stocks:
+      - AKRBP
+      - NOD
     h120:
       n: 1510
       months: 196
@@ -44,7 +66,16 @@ results:
       median_excess: -0.01
       hit: 0.4748
       net_of_cost: 0.0108
-      t_month: 2.67
+      t_cluster: 1.03
+      ci_lo: -0.0089
+      ci_hi: 0.0404
+      trimmed_5: -0.0055
+      winsor_1: 0.0084
+      mean_of_stock_means: 0.0068
+      top2_stocks_share: 0.876
+      top2_stocks:
+      - MPCC
+      - AKRBP
     h250:
       n: 1462
       months: 188
@@ -52,7 +83,16 @@ results:
       median_excess: -0.0355
       hit: 0.4528
       net_of_cost: 0.0501
-      t_month: 2.81
+      t_cluster: 1.77
+      ci_lo: 0.0069
+      ci_hi: 0.1074
+      trimmed_5: -0.0102
+      winsor_1: 0.0387
+      mean_of_stock_means: 0.0537
+      top2_stocks_share: 0.738
+      top2_stocks:
+      - AKRBP
+      - MPCC
   sell:
     events: 421
     stocks: 56
@@ -65,7 +105,16 @@ results:
       median_excess: -0.0087
       hit: 0.4399
       net_of_cost: -0.0074
-      t_month: -1.06
+      t_cluster: -0.44
+      ci_lo: -0.012
+      ci_hi: 0.0074
+      trimmed_5: -0.0042
+      winsor_1: -0.0026
+      mean_of_stock_means: -0.0027
+      top2_stocks_share: null
+      top2_stocks:
+      - EQNR
+      - DNO
     h60:
       n: 412
       months: 155
@@ -73,7 +122,16 @@ results:
       median_excess: -0.008
       hit: 0.483
       net_of_cost: -0.0038
-      t_month: 0.06
+      t_cluster: 0.12
+      ci_lo: -0.0196
+      ci_hi: 0.0227
+      trimmed_5: -0.0024
+      winsor_1: 0.0012
+      mean_of_stock_means: -0.0009
+      top2_stocks_share: 4.846
+      top2_stocks:
+      - BWLPG
+      - DNO
     h120:
       n: 410
       months: 153
@@ -81,7 +139,16 @@ results:
       median_excess: -0.0076
       hit: 0.478
       net_of_cost: -0.0018
-      t_month: 0.13
+      t_cluster: 0.19
+      ci_lo: -0.0245
+      ci_hi: 0.0299
+      trimmed_5: -0.0041
+      winsor_1: 0.0026
+      mean_of_stock_means: -0.0215
+      top2_stocks_share: 4.414
+      top2_stocks:
+      - PROT
+      - EQNR
     h250:
       n: 390
       months: 146
@@ -89,4 +156,13 @@ results:
       median_excess: -0.0714
       hit: 0.4256
       net_of_cost: -0.0044
-      t_month: 0.68
+      t_cluster: 0.02
+      ci_lo: -0.044
+      ci_hi: 0.0505
+      trimmed_5: -0.0199
+      winsor_1: -0.002
+      mean_of_stock_means: -0.0434
+      top2_stocks_share: 66.843
+      top2_stocks:
+      - PROT
+      - OKEA

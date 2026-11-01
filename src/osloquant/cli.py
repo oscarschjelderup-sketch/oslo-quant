@@ -1337,6 +1337,7 @@ def signals_digest(
 @signals_app.command("brackets")
 def signals_brackets(
     write: bool = typer.Option(False, "--write", help="Add the outcomes to resources/signal_odds.yaml (next to the excess returns)."),
+    frozen: bool = typer.Option(False, "--frozen", help="Measure on the frozen test prices, so the committed file reproduces in the tests."),
 ) -> None:
     """Every signal as a trade: target first, stop first or neither (2 x ATR, after the round trip), over the same
     period as the measured odds."""
@@ -1349,7 +1350,12 @@ def signals_brackets(
 
     doc = yaml.safe_load(sg.odds_path().read_text(encoding="utf-8")) or {}
     start, end = str(doc.get("measured", {}).get("from", odds.START)), str(doc.get("measured", {}).get("to"))
-    P = sg.load_panel(start=start)
+    if frozen:
+        from osloquant.dashboard import testdata
+
+        P = {k: v.loc[start:] for k, v in testdata.load_panel().items()}
+    else:
+        P = sg.load_panel(start=start)
     rows = odds.signal_brackets(P, end=end if end != "None" else None)
     t = Table(title=f"Signal brackets {start} .. {end}: R = {odds.R_MULT:g} x ATR(20), round trip {odds.COST * 100:.1f} %")
     for col in ("signal", "kind", "events", "target 20d", "stop 20d", "neither 20d", "mean R 20d", "target 60d", "stop 60d", "mean R 60d"):
@@ -1392,17 +1398,17 @@ def signals_score(
     table = sg.scorecard(P)
     robust = sg.robustness(P)
     t = Table(title=f"Signal scorecard {start} .. {P['close'].index[-1]:%Y-%m-%d}, {P['close'].shape[1]} stocks")
-    for col in ("signal", "kind", "events", "raw 20d", "exc 20d", "exc 60d", "hit 20d", "t 20d", "tc 20d", "tc 60d",
-                "exc60 first half", "exc60 second half", "verdict"):
-        t.add_column(col, justify="right" if col not in ("signal", "kind", "verdict") else "left")
+    labels = list(next(iter(robust.values()))["periods"]) if robust else []
+    for col in ("signal", "kind", "events", "exc 20d", "95 %", "tc 20d", "grade", "exc 60d", "95 %", "tc 60d", *[f"60d {lab}" for lab in labels], "top stock", "grade"):
+        t.add_column(col, justify="right" if col not in ("signal", "kind", "grade", "top stock") else "left")
     for name, row in table.iterrows():
         r = robust[name]
-        t.add_row(name, row["kind"], f"{row['events']:.0f}", _pct(row["raw20"], 2), _pct(row["exc20"], 2), _pct(row["exc60"], 2),
-                  _pct(row["hit20"], 0), f"{row['t20']:.1f}", f"{row['tc20']:.1f}", f"{row['tc60']:.1f}",
-                  _pct(r["half_a"]["exc60"], 2), _pct(r["half_b"]["exc60"], 2), r["verdict"])
+        t.add_row(name, row["kind"], f"{row['events']:.0f}", _pct(row["exc20"], 2), f"[{row['lo20'] * 100:+.2f}, {row['hi20'] * 100:+.2f}]",
+                  f"{row['tc20']:.1f}", r["grade20"], _pct(row["exc60"], 2), f"[{row['lo60'] * 100:+.2f}, {row['hi60'] * 100:+.2f}]", f"{row['tc60']:.1f}",
+                  *[_pct(r["periods"][lab]["exc60"], 2) for lab in labels], f"{row['top60']} {row['topshare60'] * 100:.0f}%", r["grade60"])
     console.print(t)
-    console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it. "
-                  f"tc = t with one mean per month; halves split at {sg.SPLIT}. The universe is today's survivors.")
+    console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it. tc = two-way cluster-robust t "
+                  "(time blocks x stock); 95 % = month-bootstrap interval; grade A–D from sign in all periods, interval, no dominant stock. Survivors only.")
     if write:
         path = sg.write_odds(table, start, f"{P['close'].index[-1]:%Y-%m-%d}", P["close"].shape[1], robust=robust)
         console.print(f"odds written to {path}")
@@ -1468,6 +1474,7 @@ def insiders_backfill(start_year: int = typer.Option(2010, help="First year to f
 def insiders_study(
     write: bool = typer.Option(False, "--write", help="Write resources/insider_study.yaml (aggregate numbers only)."),
     end: str | None = typer.Option(None, help="Last session to use (default: the newest in the store)."),
+    frozen: bool = typer.Option(False, "--frozen", help="Use the frozen test prices and insider cache, so the committed file reproduces in the tests."),
 ) -> None:
     """Did insider buys (and sells) on Oslo Børs since 2010 come before excess returns? Reclassifies the cached
     notifications with the current rules first."""
@@ -1478,20 +1485,29 @@ def insiders_study(
     from osloquant import signals as sg
     from osloquant.dashboard import insiders
 
-    doc = insiders.reclassify()
-    P = sg.load_panel(start="2010-01-01")
+    if frozen:
+        from osloquant.dashboard import testdata
+
+        doc = testdata.load_json("insiders")
+        for it in doc["items"].values():
+            it["side"], it["why"] = insiders.classify(it["title"], it.get("body", ""), it.get("issuer"))
+        P = testdata.load_panel()
+    else:
+        doc = insiders.reclassify()
+        P = sg.load_panel(start="2010-01-01")
     if end:
         P = {k: v.loc[:end] for k, v in P.items()}
     res = insiders.study(P, doc["items"].values())
     t = Table(title=f"Insider trades on Oslo Børs, excess return vs the 64 stocks (entry next open after publication), to {P['close'].index[-1]:%Y-%m-%d}")
-    for col in ("side", "horizon", "events", "months", "mean", "median", "positive", "net of 0.5 %", "t (monthly)"):
+    for col in ("side", "horizon", "events", "mean", "95 %", "t (2-way)", "median", "trimmed 5 %", "1 vote/stock", "top-2 share", "positive", "net of 0.5 %"):
         t.add_column(col, justify="left" if col == "side" else "right")
     for side, r in res.items():
         for h in insiders.STUDY_HORIZONS:
             x = r.get(f"h{h}") or {}
             if x.get("n"):
-                t.add_row(side, f"{h}d", str(x["n"]), str(x["months"]), _pct(x["mean_excess"], 2), _pct(x["median_excess"], 2),
-                          _pct(x["hit"], 0), _pct(x["net_of_cost"], 2), str(x["t_month"]))
+                ci = f"[{x['ci_lo'] * 100:+.2f}, {x['ci_hi'] * 100:+.2f}]" if x.get("ci_lo") is not None else "–"
+                t.add_row(side, f"{h}d", str(x["n"]), _pct(x["mean_excess"], 2), ci, str(x["t_cluster"]), _pct(x["median_excess"], 2),
+                          _pct(x["trimmed_5"], 2), _pct(x["mean_of_stock_means"], 2), _pct(x["top2_stocks_share"], 0), _pct(x["hit"], 0), _pct(x["net_of_cost"], 2))
     console.print(t)
     if write:
         from collections import Counter
@@ -1500,7 +1516,9 @@ def insiders_study(
         out = {"measured": {"from": "2010-01-01", "to": f"{P['close'].index[-1]:%Y-%m-%d}", "stocks": int(P["close"].shape[1]),
                             "source": "Oslo Børs NewsWeb category 1102 (primary insiders), classified from the notification text",
                             "entry": "next open after publication (Oslo time)", "excess": "vs the equal-weighted 64 stocks",
-                            "round_trip_cost": insiders.COST, "notifications": dict(counts)},
+                            "round_trip_cost": insiders.COST, "notifications": dict(counts),
+                            "t": "t_cluster: two-way cluster-robust t (time blocks of ceil(h/21) months x stock) of the event-weighted mean; "
+                                 "ci: month-bootstrap 95 % interval; trimmed_5 drops 5 % in each tail; top2_stocks_share: share of the summed excess in the two largest stocks"},
                "results": res}
         path = sg.odds_path().parent / "insider_study.yaml"
         path.write_text(yaml.safe_dump(out, sort_keys=False, allow_unicode=True), encoding="utf-8")

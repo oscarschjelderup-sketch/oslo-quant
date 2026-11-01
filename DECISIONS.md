@@ -303,3 +303,30 @@ Found on the way: the calibration page crashed when every call was logged today 
   shows it. The case review found a criterion that had read "triggered" in every reading since the case was written,
   with no check logged: a criterion that is already dead when the view is logged is either not a kill criterion or
   not a BUY, and the log should say which the author chose. HOLD and SELL need no acknowledgement.
+
+## D23. The statistics behind the odds were wrong in kind; corrected
+
+The quant review (`docs/natt/ideer-kvant.md`) found that both yaml files printed a t-statistic of the mean of
+monthly means next to an event-weighted mean – a statistic of a different number, inflated by thin months (insider
+buys, 60 sessions: t 2.41 shown for a +0.70 % mean whose own cluster-robust t is 0.72). Corrected as follows:
+
+- **One t:** `signals.cluster_t` – the event-weighted mean over a two-way cluster-robust standard error
+  (Cameron–Gelbach–Miller: time blocks of ceil(h/21) months, stock, minus the intersection). Used for `tc10/20/60` in
+  `scorecard` and for `t_cluster` in the insider study. The naive `t20` stays in the file, labelled naive.
+- **An interval on every number:** `signals.boot_ci` – month-block bootstrap of the event-weighted mean, 2,000
+  resamples, fixed seed; `lo/hi` per horizon in both files and on every badge.
+- **Three sub-periods** (2010–15, 2016–20, 2021–26) instead of two halves, and the survivors-from-the-start column.
+- **The dominant stock:** the share of the summed excess one stock carries (`top60`, `topshare60`); for insiders the
+  two largest stocks' share, the trimmed and winsorised means and one vote per stock.
+- **A grade A–D per signal and horizon** from three checks that can be run tonight – same sign in all three periods,
+  interval excludes zero, no stock carries a third of the sum – with the fourth (a two-way placebo band, idea 8 in
+  `ideer.md`) marked "not run". On the frozen data to 19 Oct 2026, at 60 sessions: Breakout 60d A, Breakout 20d A,
+  Rising channel B, the rest C or D; at 20 sessions only the death cross is A (a −0.5 % effect). "Risk signals carry
+  more information" is withdrawn as a general claim: the breakdown signal's −0.9 % is −4.7 % in 2010–15 and +1.0 %
+  in 2021–26.
+- **Chips are grey** unless the grade is A and (for buys) the raw 20-day return beat the round trip. Colour must not
+  say more than the odds do.
+- `_edge` no longer fires on the first day an indicator exists (98 phantom entries in the channel and drawdown
+  signals). Event counts changed slightly; the brackets were re-measured.
+- `docs/dashboard/insider-study.md` carries a correction section and the new table. Both files are regenerated from
+  the frozen data (`--frozen`), and the tests reproduce every number.

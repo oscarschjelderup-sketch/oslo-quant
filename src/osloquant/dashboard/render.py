@@ -176,7 +176,7 @@ def stock_page(code: str, ctx: dict) -> str:
             ("RSI 14", f'{st["rsi"]:.0f}' if st.get("rsi") is not None else "–"), ("MA20 / MA60", f'{st["ma20"]:.2f} / {st["ma60"]:.2f}' if st.get("ma60") else "–"),
             ("Trend", sg.trend_words(st)), ("YTD", pct(ctx.get("ytd")))]
     keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v)}</li>" for k, v in keys) + '</ul><div class="src">Computed from the store\'s daily bars (delayed).</div>'
-    sig = "".join(f'<div class="alert"><b>{E(a.kind)}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {"buy" if (a.exc60 or 0) > 0 else "risk"} odds">'
+    sig = "".join(f'<div class="alert"><b>{E(a.kind)}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {chip_class(a)} odds">'
                   f'{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span><span class="d">{E(a.detail)}{bracket_line(a.signal)}</span></div>'
                   for a in ctx["alerts"]) or '<p class="empty">no signal in the last 10 sessions</p>'
     news = ctx.get("news")
@@ -218,10 +218,12 @@ def insider_study_line(side: str = "buy") -> str:
         return ""
     m = _insider_study().get("measured") or {}
     word = "kjøp" if side == "buy" else "salg"
-    return (f'<div class="src" style="white-space:normal">Innsideres {word} på Oslo Børs {E(str(m.get("from")))}–{E(str(m.get("to")))}: '
-            f'{pct(h["mean_excess"])} meravkastning mot snittet av de 64 aksjene over 60 handelsdager i snitt, median {pct(h["median_excess"])}, '
-            f'positiv i {_p(h["hit"])} av {_int(h["n"])} tilfeller (t = {h.get("t_month")} på månedssnitt). Se docs/dashboard/insider-study.md – '
-            'en historisk gjennomsnittsrate, ikke et råd.</div>')
+    ci = f'[{h["ci_lo"] * 100:+.1f}, {h["ci_hi"] * 100:+.1f}]' if h.get("ci_lo") is not None else "–"
+    top = f'; de to største aksjene bærer {_p(h["top2_stocks_share"])} av summen' if h.get("top2_stocks_share") is not None else ""
+    return (f'<div class="src" style="white-space:normal">Innsideres {word} på Oslo Børs {E(str(m.get("from")))}–{E(str(m.get("to")))}, 60 handelsdager: '
+            f'snitt {pct(h["mean_excess"])} mot de 64 aksjene {ci} (95 %), median {pct(h["median_excess"])}, trimmet 5 % {pct(h.get("trimmed_5"))}, '
+            f'positiv i {_p(h["hit"])} av {_int(h["n"])} tilfeller, t {h.get("t_cluster")} med klynger på måned × aksje{top}. '
+            'Se docs/dashboard/insider-study.md – ikke en fordel man kan handle på.</div>')
 
 
 def insider_block(code: str, ins: dict | None) -> str:
@@ -412,25 +414,41 @@ def bracket_line(signal: str) -> str:
             + robustness_line(signal))
 
 
-VERDICT_NO = {"holds in both halves": "holder i begge halvdeler", "period-dependent": "periodeavhengig", "weak": "svak",
-              "too few events": "for få tilfeller"}
+GRADE_NO = {"A": "stabil (3 av 3 sjekker)", "B": "2 av 3 sjekker", "C": "1 av 3 sjekker", "D": "ustabil (0 av 3)"}
 
 
 def robustness_line(signal: str) -> str:
-    """How the signal's odds held up: both halves of the period, the stocks listed from the start, and the month-clustered
-    t (DECISIONS D20). Shown under every signal so a pooled number is never read alone."""
+    """How the signal's odds held up: raw return and the universe's over the same window, the 95 % interval, the
+    two-way clustered t, three sub-periods, the survivors, the dominant stock, and a grade (DECISIONS D20, D23)."""
     sig = (_odds().get("signals") or {}).get(signal) or {}
     r = sig.get("robustness")
-    if not r:
+    if not r or "periods" not in r:
         return ""
-    a, b, sv = r.get("half_a") or {}, r.get("half_b") or {}, r.get("survivors") or {}
-    tc = sig.get("tc60")
-    verdict = r.get("verdict", "")
-    cls = {"holds in both halves": "buy" if (sig.get("exc60") or 0) > 0 else "risk", "period-dependent": "warn-t", "weak": "", "too few events": ""}.get(verdict, "")
-    return (f'<span class="bracket">Holder det? 60 d meravkastning {pct(a.get("exc60"))} før {E(str(r.get("split", ""))[:4])} · '
-            f'{pct(b.get("exc60"))} etter · {pct(sv.get("exc60"))} på de {r.get("survivor_stocks", "?")} aksjene som var notert fra start · '
-            f't med månedsklynger {"–" if tc is None else format(tc, ".1f")} → <b class="{cls}">{E(VERDICT_NO.get(verdict, verdict))}</b>. '
-            'Bare dagens 64 aksjer (overlevere).</span>')
+    per = " · ".join(f'{E(lab)} {pct(v.get("exc60"))}' for lab, v in r["periods"].items())
+    sv = (r.get("survivors") or {}).get("exc60")
+    lo, hi, tc = sig.get("lo60"), sig.get("hi60"), sig.get("tc60")
+    ci = f"[{lo * 100:+.1f}, {hi * 100:+.1f}]" if lo is not None and hi is not None else "–"
+    top = f'{E(str(sig.get("top60") or "–"))} bærer {_p(sig.get("topshare60"))} av summen' if sig.get("topshare60") is not None else ""
+    g60, g20 = r.get("grade60", "?"), r.get("grade20", "?")
+    cls = "buy" if g60 == "A" and (sig.get("exc60") or 0) > 0 else "risk" if g60 == "A" else "warn-t" if g60 == "B" else ""
+    return (f'<span class="bracket">60 d: aksjen {pct(sig.get("raw60"))}, de 64 i samme vindu {pct(sig.get("bench60"))}, meravkastning {pct(sig.get("exc60"))} '
+            f'{ci} (95 %), t {"–" if tc is None else format(tc, ".1f")} med klynger på tid × aksje · per periode {per} · '
+            f'{r.get("survivor_stocks", "?")} aksjer notert fra start {pct(sv)} · {top} → '
+            f'<b class="{cls}">grad {E(g60)} – {E(GRADE_NO.get(g60, ""))}</b> (20 d: {E(g20)}). Bare dagens 64 aksjer (overlevere); '
+            'placebo-bånd ikke kjørt ennå.</span>')
+
+
+def chip_class(a) -> str:
+    """Green only when the signal's raw 20-day return beat the round trip and its 60-day grade is A; red when the grade
+    is A on the risk side; otherwise neutral – the colour must not say more than the odds do (DECISIONS D23)."""
+    sig = (_odds().get("signals") or {}).get(a.signal) or {}
+    g = (sig.get("robustness") or {}).get("grade60")
+    raw20, cost = sig.get("raw20"), (_odds().get("measured") or {}).get("round_trip_cost", 0.005)
+    if g == "A" and (sig.get("exc60") or 0) > 0 and raw20 is not None and raw20 > cost:
+        return "buy"
+    if g == "A" and (sig.get("exc60") or 0) < 0:
+        return "risk"
+    return ""
 
 
 def _n(a) -> str:
