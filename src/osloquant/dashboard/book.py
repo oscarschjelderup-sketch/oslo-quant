@@ -5,6 +5,8 @@ home directory (``~/osloquant-home``), never in the repository.
   for older entries, the view it was added with.
 - ``judgements.jsonl`` (osloquant.judgements) holds every view as an append-only, hash-chained row. The current view
   of a company is its newest judgement; the yaml view is used only when the log has none for that code.
+- Two analysts write views (D31): Oscar's are the current view and drive everything that sizes, warns or asks for a
+  decision; Claude's (``analyst: claude`` rows) are kept on the case as ``claude_view`` and shown beside his.
 - ``watchlist.yaml`` holds companies followed without a case. Writing a judgement on a watched company moves it into
   the research book (the watchlist entry is kept, marked as moved, so the history of what was watched stays).
 
@@ -35,7 +37,9 @@ class Case:
     events: list[dict] = field(default_factory=list)
     kill: list[str] = field(default_factory=list)
     model: dict | None = None         # {"xlsx": path, "map": path} of the toolkit case, for the reverse DCF
-    history: list[dict] = field(default_factory=list)   # every judgement and kill check, oldest first
+    history: list[dict] = field(default_factory=list)   # Oscar's judgements and kill checks, oldest first
+    claude_view: dict | None = None   # Claude's newest judgement on the company (D31)
+    claude_history: list[dict] = field(default_factory=list)
 
 
 def _yaml_view(e: dict) -> dict | None:
@@ -47,25 +51,54 @@ def _yaml_view(e: dict) -> dict | None:
             "thesis": e.get("thesis")}
 
 
+def _split(rows: list[dict], code: str) -> tuple[list[dict], list[dict]]:
+    mine = [r for r in rows if r.get("code") == code]
+    return [r for r in mine if jg.analyst_of(r) == jg.DEFAULT_ANALYST], [r for r in mine if jg.analyst_of(r) == "claude"]
+
+
 def cases() -> list[Case]:
-    """Every company in the research book with its current view and full history."""
+    """Every company in the research book with Oscar's current view and history, and Claude's newest view."""
     book = sg.load_book()
     rows = jg.read_log()
     out = []
     codes = [e["code"] for e in book]
     for e in book:
-        hist = [r for r in rows if r.get("code") == e["code"]]
+        hist, chist = _split(rows, e["code"])
         js = [r for r in hist if r["kind"] == "judgement"]
+        cj = [r for r in chist if r["kind"] == "judgement"]
         view = js[-1] if js else _yaml_view(e)
-        src = f"log #{js[-1]['seq']}" if js else "researchbook.yaml"
+        src = f"log #{js[-1]['seq']}" if js else ("researchbook.yaml" if view else "–")
         kill = list((view or {}).get("kill") or e.get("kill", []))
-        out.append(Case(e["code"], e.get("name", e["code"]), view, src, list(e.get("events", [])), kill, e.get("model"), hist))
+        out.append(Case(e["code"], e.get("name", e["code"]), view, src, list(e.get("events", [])), kill, e.get("model"), hist,
+                        cj[-1] if cj else None, chist))
     # judgements logged for codes that are not (yet) in the yaml book still count as cases
     for code in sorted({r["code"] for r in rows if r["kind"] == "judgement"} - set(codes)):
-        hist = [r for r in rows if r.get("code") == code]
+        hist, chist = _split(rows, code)
         js = [r for r in hist if r["kind"] == "judgement"]
-        out.append(Case(code, js[-1].get("name") or code, js[-1], f"log #{js[-1]['seq']}", [], list(js[-1].get("kill") or []), None, hist))
+        cj = [r for r in chist if r["kind"] == "judgement"]
+        named = (js or cj)[-1]
+        out.append(Case(code, named.get("name") or code, js[-1] if js else None, f"log #{js[-1]['seq']}" if js else "–", [],
+                        list(js[-1].get("kill") or []) if js else [], None, hist, cj[-1] if cj else None, chist))
     return out
+
+
+def log_claude_view(code: str, name: str, view: dict, price: float, price_date: str, price_source: str, today: str | None = None) -> dict:
+    """Append Claude's view on a company (``analyst: claude``). It needs the same fields as Oscar's – rating, target,
+    bear/base/bull with probabilities, kill criteria, a rationale – and is scored the same way; it never becomes the
+    research book's current view (D31)."""
+    today = today or datetime.now().strftime("%Y-%m-%d")
+    missing = [k for k in ("rating", "target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill", "thesis") if view.get(k) in (None, "", [])]
+    if missing:
+        raise ValueError(f"Claude's view on {code} lacks {', '.join(missing)}")
+    fields = dict(code=code, name=name, date=today, price=round(float(price), 4), rating=view["rating"], target=float(view["target"]),
+                  horizon_months=int(view.get("horizon_months", 12)), bear=float(view["bear"]), base=float(view["base"]), bull=float(view["bull"]),
+                  p_bear=float(view["p_bear"]), p_base=float(view["p_base"]), p_bull=float(view["p_bull"]), kill=[str(k) for k in view["kill"]],
+                  thesis=str(view["thesis"]).strip(), price_date=price_date, price_source=price_source, analyst="claude",
+                  case_file=view.get("case_file"), source=view.get("source", "light case (oq case)"))
+    row = jg.append("judgement", fields)
+    if code not in [e["code"] for e in sg.load_book()]:
+        _append_book_entry(code, name or code, today)
+    return row
 
 
 def case(code: str) -> Case | None:
@@ -136,6 +169,8 @@ def validate_form(form: dict) -> list[str]:
         problems.append("the view must be BUY, HOLD or SELL")
     if form.get("consensus_target") not in (None, "") and not (form.get("consensus_source") or "").strip():
         problems.append("a consensus target needs its source and date")
+    if form.get("claude_exists") and form.get("saw_claude") not in ("yes", "no"):
+        problems.append("say whether you had read Claude's view on the company before writing this (it decides how the view is scored)")
     for k in ("target", "bear", "base", "bull"):
         if form.get(k) is not None and form[k] != "" and float(form[k]) <= 0:
             problems.append(f"{k} must be a positive price")
@@ -198,6 +233,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   triggered_at_entry=already or None,
                   consensus_target=float(form["consensus_target"]) if form.get("consensus_target") not in (None, "") else None,
                   consensus_source=(form.get("consensus_source") or "").strip() or None,
+                  saw_claude={"yes": True, "no": False}.get(form.get("saw_claude")) if form.get("claude_exists") else None,
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()

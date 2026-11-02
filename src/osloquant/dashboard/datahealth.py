@@ -84,7 +84,7 @@ def report_health(cases) -> list[dict]:
         found = set((s or {}).get("figures") or {})
         out.append({"code": c.code, "spec": bool(spec), "latest": (s or {}).get("title"), "published": (s or {}).get("published", "")[:10] or None,
                     "missing": sorted(wanted - found) if s else sorted(wanted), "kill_rules": len((spec or {}).get("kill") or []),
-                    "kill_texts": len(c.kill),
+                    "kill_texts": len(c.kill), "oscar_view": bool(c.view),
                     "status": "no spec" if not spec else ("no report read" if not s else ("rows missing" if wanted - found else "ok"))})
     return out
 
@@ -201,7 +201,7 @@ def problems(ov: dict) -> list[str]:
         if f["status"] != "ok":
             out.append(f"feed {f['feed']}: {f['status']}" + (f" ({f['age_days']} d old, limit {f['limit_days']})" if f["age_days"] is not None else ""))
     for r in ov["reports"]:
-        if r["status"] != "ok":
+        if r["status"] != "ok" and r.get("oscar_view", True):
             out.append(f"report reader {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
     lg = ov["log"]
     if lg["chain_ok"] is False or lg["problems"]:

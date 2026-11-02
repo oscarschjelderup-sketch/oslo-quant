@@ -416,3 +416,31 @@ such repeats across the open views (`jg.fingerprint`), as a question for the nex
 shared number can be a coincidence, but it should be one the author has noticed. It reads only the views; nothing is
 written. Norges Bank's calendar (D26) was re-read on 2 Nov from the policy-rate-decisions page, which lists the full
 published schedule – ten dates through December 2027 – so the resource file now holds all of them.
+
+## D31. Two analysts: Oscar and Claude, scored apart
+
+Oscar wants many companies to follow, not two. Writing ten views himself at once would make them thin; having Claude
+write them into his log would make the calibration measure Claude. So the log gets a second analyst. A row's
+`analyst` field says whose it is; a row without it is Oscar's, so no existing row changes and the hash chain holds.
+Everything that sizes, warns, nags or counts as "the research book's view" stays Oscar's: `latest_by_code()` and
+`Case.view` read his rows only, the pre-report and post-report items skip companies only Claude covers, the reader
+warnings on the data-health page are for his cases. Claude's newest view sits on the case as `claude_view`.
+
+The calibration's headline numbers are Oscar's. Claude's are scored the same way under `by_analyst`, the two are put
+side by side on the companies both cover (`head_to_head`), and Oscar's views on those companies are split by the
+answer to a required question in the form – had he read Claude's view before writing? – into blind and anchored.
+Claude's view is folded on the stock page so it can be read after, not before.
+
+Claude's views come from a light case (`oq case build`): the store's Yahoo statements, the reporting currency from
+Yahoo's quote summary (cached once per stock), FX from the store, LTM figures where four consecutive quarters exist,
+multiples against the sector group's medians computed the same way, and one line on what the price asks for – the
+value-driver formula solved for growth for operating companies, the justified P/B solved for ROE for banks and
+insurers. The cost of capital per sector group and the long-run growth are round numbers marked EST. A case says
+when Yahoo's quarters lag the newest report, when net debt is missing, when a currency has no NOK rate. Claude also
+reads the company's own latest report announcement on NewsWeb before writing; the figures quoted in a view come
+from there or from the case, never from memory.
+
+Claude's ratings follow one rule: BUY when the 12-month target is 10 % or more above the price, SELL when it is 10 %
+or more below, HOLD between. The first ten (2 Nov 2026): EQNR, AKRBP, MOWI, DNB, GJF, FRO, KOG, YAR, NOD, ORK –
+eight sector groups. SUBC was dropped before logging: its merger with Saipem is close to completion and the share
+may stop trading in Oslo inside the horizon, which would leave the view unscorable.

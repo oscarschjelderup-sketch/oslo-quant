@@ -1570,6 +1570,64 @@ def insiders_study(
 
 
 # ------------------------------------------------------------------------------------------------ judgement log
+case_app = typer.Typer(help="Light cases: one page per company from the store, and Claude's views on them (DECISIONS D31).", no_args_is_help=True)
+app.add_typer(case_app, name="case")
+
+
+@case_app.command("build")
+def case_build(
+    codes: str = typer.Argument(..., help="Comma-separated codes, e.g. EQNR,MOWI,DNB."),
+    refresh: bool = typer.Option(False, "--refresh", help="Re-record the statements of these codes from Yahoo and fetch missing reporting "
+                                                           "currencies for their sector groups (one request per stock not yet known)."),
+) -> None:
+    """Build the light case for each code and write it to ~/osloquant-home/cases/<CODE>.json."""
+    _setup()
+    from osloquant.dashboard import lightcase as lc
+    from osloquant.dashboard import market as mk
+
+    wanted = _codes(codes) or []
+    snap = mk.snapshot()
+    if refresh:
+        from osloquant.domain import BalanceSheet, CashFlowStatement, IncomeStatement
+
+        groups = {snap.group(c) for c in wanted}
+        lc.fetch_currencies(sorted(c for c in snap.names if snap.group(c) in groups))
+        for schema in (IncomeStatement, BalanceSheet, CashFlowStatement):
+            console.print(f"{schema.__name__}: {schema.record_data(provider='yahoo', codes=wanted, force_update=True, sleeping_time=0.8)}")
+    for code in wanted:
+        try:
+            c = lc.build(code, snap=snap)
+        except ValueError as e:
+            console.print(f"[yellow]{code}: {e}[/yellow]")
+            continue
+        console.print(f"[bold]{code}[/bold] {c['currency']['reporting']} · {c['reverse']['reads']}")
+        for w in c["warnings"]:
+            console.print(f"  [yellow]{w}[/yellow]")
+
+
+@case_app.command("log")
+def case_log(
+    code: str = typer.Argument(..., help="Stock code."),
+    file: Path = typer.Option(..., "--file", help="YAML with rating, target, bear, base, bull, p_bear, p_base, p_bull, kill (list), thesis."),
+) -> None:
+    """Log Claude's view on a company (analyst: claude) at the store's last close. It is scored like Oscar's and shown
+    beside his, never as the research book's current view."""
+    _setup()
+    import yaml
+
+    from osloquant.dashboard import book as bk
+    from osloquant.dashboard import market as mk
+
+    code = code.upper().removesuffix(".OL")
+    view = yaml.safe_load(file.read_text(encoding="utf-8"))
+    snap = mk.snapshot()
+    lp = mk.last_price(snap, code)
+    if not lp:
+        raise typer.BadParameter(f"no price for {code} in the store")
+    row = bk.log_claude_view(code, snap.names.get(code, code), view, lp[0], f"{lp[1]:%Y-%m-%d}", mk.PRICE_SOURCE)
+    console.print(f"logged #{row['seq']} {code} {row['rating']} TP {row['target']:g} at {row['price']:g} (Claude), head {row['hash'][:16]}")
+
+
 book_app = typer.Typer(
     help="The judgement log: every call written down when made, never edited, scored later (calibration).",
     no_args_is_help=True,

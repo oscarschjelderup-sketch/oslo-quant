@@ -64,7 +64,7 @@ def decisions(snap: mk.Snapshot, cases: list[bk.Case], alerts: list[sg.Alert], t
     for c in cases:
         lp = mk.last_price(snap, c.code)
         v = c.view
-        for ev in c.events:
+        for ev in c.events if (v or c.kill) else []:
             d = pd.Timestamp(ev["date"])
             if today - pd.Timedelta(days=EVENT_LOOKBACK) <= d <= today and not _since_view(c, d):
                 items.append(Item(c.code, "kill-check", f"{c.name}: {ev['what'][:70]}",
@@ -135,6 +135,8 @@ def pre_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = PRE_
     it: the view must be on record before the numbers come, or the calibration measures hindsight (D22)."""
     items = []
     for c in cases:
+        if not c.view and c.claude_view:
+            continue                     # a company only Claude has a view on: listed on the coverage page, not nagged here
         for ev in c.events:
             d = pd.Timestamp(ev["date"])
             if not (today <= d <= today + pd.Timedelta(days=days)) or not any(w in str(ev["what"]).lower() for w in _REPORT_WORDS):

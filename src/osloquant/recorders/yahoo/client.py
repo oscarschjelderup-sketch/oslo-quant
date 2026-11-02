@@ -149,3 +149,9 @@ def fetch_statement(symbol: str, kind: str, period: str) -> pd.DataFrame:
 
 def clear_statement_cache() -> None:
     _statement_cache.clear()
+
+
+def fetch_info(symbol: str) -> dict:
+    """Yahoo's quote summary for ``symbol`` (reporting currency, share count, ...); empty when Yahoo has none."""
+    info = _with_retries(f"info {symbol}", lambda: _ticker(symbol).info)
+    return dict(info or {})

@@ -55,6 +55,8 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
 
     ctx["insiders"] = ins.recent(set(codes), days=7)
     ctx["shorts_moved"] = ins.short_moves(codes, days=7)
+    ctx["coverage"] = {"n": len(cases), "claude": sum(bool(c.claude_view) for c in cases),
+                       "only_claude": sum(bool(c.claude_view) and not c.view for c in cases)}
     ctx["portfolio"] = pf.exposure(cases, {c.code: snap.group(c.code) for c in cases}, sizing.config())
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
@@ -80,11 +82,54 @@ def stock_context(code: str) -> dict:
         kill, why = od.kill_level(c.view)
         if kill:
             case_odds = od.case_odds(code, float(c.view["target"]), kill, why)
-    return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code),
+    from osloquant.dashboard import lightcase as lcm
+
+    return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
                 odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code))
+
+
+def coverage_rows(cases, snap, today: pd.Timestamp) -> list[dict]:
+    """One row per company with a view from either analyst, for the coverage page."""
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import lightcase as lcm
+
+    nxt: dict = {}
+    for e in cal.events(cases, today=today, days=200):
+        if e.get("code") and e["kind"] in ("report", "case") and e["code"] not in nxt:
+            nxt[e["code"]] = e
+    out = []
+    for c in cases:
+        if not (c.view or c.claude_view):
+            continue
+        lp = mk.last_price(snap, c.code)
+        px = lp[0] if lp else None
+
+        def v(view, px=px):
+            if not view or not view.get("target"):
+                return None
+            return {"rating": view.get("rating"), "target": float(view["target"]), "date": view.get("date"),
+                    "since": px / view["price"] - 1 if px and view.get("price") else None, "to_tp": float(view["target"]) / px - 1 if px else None}
+        lc = lcm.load(c.code)
+        out.append({"code": c.code, "name": c.name, "group": snap.group(c.code), "price": px, "oscar": v(c.view), "claude": v(c.claude_view),
+                    "reads": _short_read(lc), "next": nxt.get(c.code)})
+    return sorted(out, key=lambda r: (r["group"], r["code"]))
+
+
+def _short_read(lc: dict | None) -> str | None:
+    if not lc:
+        return None
+    rv = lc["reverse"]
+    if lc["financial"]:
+        return None if rv.get("implied_roe") is None else f"ROE {rv['implied_roe'] * 100:.0f} % for good (har {(rv.get('actual_roe') or 0) * 100:.0f} %)"
+    g, vs = rv.get("implied_g"), rv.get("ev_vs_no_growth")
+    if vs is not None and vs < 0:
+        return f"fallende resultat (EV {vs * 100:.0f} % under null-vekst)"
+    if g is None:
+        return "høyere marginer, ikke vekst" if rv.get("roic") is not None and rv["roic"] < rv["wacc_est"] else "–"
+    return f"{g * 100:+.1f} %/år vekst for alltid"
 
 
 def _sizing(code: str) -> dict | None:
@@ -168,6 +213,8 @@ def create_app() -> Flask:
         errors = []
         form["consensus_source"] = (f.get("consensus_source") or "").strip()
         form["ack_triggered"] = bool(f.get("ack_triggered"))
+        form["claude_exists"] = bool(f.get("claude_exists"))
+        form["saw_claude"] = f.get("saw_claude") or None
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))
@@ -210,7 +257,15 @@ def create_app() -> Flask:
         kills = [r for r in rows if r["kind"] == "kill_check"]
         rel = jg.reliability(rows, table=table) if len(table) else None
         fp = jg.fingerprint([dict(c.view, code=c.code) for c in bk.cases() if c.view])
-        return rd.calibration_page(table, summary, check, kills, rel, fp)
+        return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table))
+
+    @app.get("/coverage")
+    def coverage():
+        snap = mk.snapshot()
+        today = pd.Timestamp.now().normalize()
+        rows = coverage_rows(bk.cases(), snap, today)
+        table = jg.calibration()[0] if any(r["claude"] and r["oscar"] for r in rows) else pd.DataFrame()
+        return rd.coverage_page(rows, today, jg.head_to_head(table) if len(table) else None)
 
     def _watch(msg=None, status=200):
         snap = mk.snapshot()

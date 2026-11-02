@@ -15,6 +15,12 @@ prices, so dividends count), the excess over OSEBX and over the equal-weighted u
 was right, how far the price is from the target, whether it stayed inside the bear-bull band and, with
 probabilities, a three-way Brier score of the scenario closest to the outcome. A call younger than its horizon
 is scored provisionally and marked so.
+
+Two analysts write to the same log (DECISIONS D31): Oscar and Claude. A row's ``analyst`` field says whose it is; a
+row without one is Oscar's, so every row written before the field existed keeps its meaning and its hash. The
+research book's "current view" and everything that sizes, warns or nags is Oscar's; Claude's views are scored on
+the same terms and shown next to his, never in his place. Oscar's rows record whether he had seen Claude's view on
+the company before writing (``saw_claude``), so a view anchored on the model can be told from a blind one.
 """
 
 from __future__ import annotations
@@ -32,6 +38,8 @@ LOG_FILE = "judgements.jsonl"
 GENESIS = "0" * 64
 KINDS = ("judgement", "kill_check", "note")
 RATINGS = ("BUY", "HOLD", "SELL")
+ANALYSTS = ("oscar", "claude")
+DEFAULT_ANALYST = "oscar"
 REQUIRED = {
     "judgement": ("code", "date", "price", "rating", "target", "horizon_months"),
     "kill_check": ("code", "date", "criterion", "breached", "action"),
@@ -89,9 +97,16 @@ def verify(path: Path | None = None) -> Verification:
     return Verification(not problems, len(rows), prev if rows else GENESIS, problems)
 
 
+def analyst_of(row: dict) -> str:
+    """Whose row this is: the ``analyst`` field, or Oscar for rows written before the field existed."""
+    return row.get("analyst") or DEFAULT_ANALYST
+
+
 def _validate(kind: str, fields: dict) -> None:
     if kind not in KINDS:
         raise ValueError(f"kind must be one of {KINDS}")
+    if fields.get("analyst") is not None and fields["analyst"] not in ANALYSTS:
+        raise ValueError(f"analyst must be one of {ANALYSTS}")
     missing = [k for k in REQUIRED[kind] if fields.get(k) in (None, "")]
     if missing:
         raise ValueError(f"a {kind} needs {', '.join(missing)}")
@@ -126,14 +141,16 @@ def append(kind: str, fields: dict, path: Path | None = None, now: datetime | No
     return row
 
 
-def judgements(rows: list[dict] | None = None) -> list[dict]:
+def judgements(rows: list[dict] | None = None, analyst: str | None = None) -> list[dict]:
+    """Judgement rows, all of them or one analyst's."""
     rows = read_log() if rows is None else rows
-    return [r for r in rows if r["kind"] == "judgement"]
+    return [r for r in rows if r["kind"] == "judgement" and (analyst is None or analyst_of(r) == analyst)]
 
 
-def latest_by_code(rows: list[dict] | None = None) -> dict[str, dict]:
+def latest_by_code(rows: list[dict] | None = None, analyst: str = DEFAULT_ANALYST) -> dict[str, dict]:
+    """The newest judgement per company, by default Oscar's (the research book's current view)."""
     out: dict[str, dict] = {}
-    for r in judgements(rows):
+    for r in judgements(rows, analyst):
         out[r["code"]] = r
     return out
 
@@ -212,7 +229,8 @@ def score(j: dict, prices: Prices, asof: pd.Timestamp, kills: list[dict]) -> dic
     end = min(asof, horizon_end)
     final = asof >= horizon_end
     code = j["code"]
-    out = {"seq": j["seq"], "code": code, "date": j["date"], "rating": j["rating"], "price": j["price"], "target": j["target"],
+    out = {"seq": j["seq"], "analyst": analyst_of(j), "saw_claude": j.get("saw_claude"), "code": code, "date": j["date"], "rating": j["rating"],
+           "price": j["price"], "target": j["target"],
            "bear": j.get("bear"), "bull": j.get("bull"), "horizon_end": f"{horizon_end:%Y-%m-%d}", "scored_to": f"{end:%Y-%m-%d}",
            "final": final, "days": int((end - start).days)}
     adj_s, adj_e = prices.price_on(prices.adjusted, code, start), prices.price_on(prices.adjusted, code, end)
@@ -262,7 +280,7 @@ def score(j: dict, prices: Prices, asof: pd.Timestamp, kills: list[dict]) -> dic
         nearest = int(np.argmin([abs(raw[1] - v) for v in vals]))
         out["scenario_hit"] = ["bear", "base", "bull"][nearest]
         out["brier"] = float(sum((p - (1.0 if i == nearest else 0.0)) ** 2 for i, p in enumerate(probs)))
-    mine = [k for k in kills if k["code"] == code and start <= pd.Timestamp(k["date"]) <= end]
+    mine = [k for k in kills if k["code"] == code and analyst_of(k) == analyst_of(j) and start <= pd.Timestamp(k["date"]) <= end]
     out["kill_checks"] = len(mine)
     out["kills_breached"] = sum(bool(k["breached"]) for k in mine)
     out["kills_acted"] = sum(bool(k["breached"]) and str(k.get("action", "")).lower() not in ("held", "none", "nothing", "ignored") for k in mine)
@@ -280,7 +298,9 @@ def calibration(rows: list[dict] | None = None, prices: Prices | None = None, as
     prices = prices or load_prices(start=first - pd.Timedelta(days=10))
     asof = asof or pd.Timestamp.now().normalize()
     table = pd.DataFrame([score(j, prices, asof, kills) for j in js])
-    scored = table[table.get("status", pd.Series(dtype=str)).isin(["final", "provisional"])] if "status" in table else table.iloc[0:0]
+    scored_all = table[table.get("status", pd.Series(dtype=str)).isin(["final", "provisional"])] if "status" in table else table.iloc[0:0]
+    # the headline numbers are Oscar's: he is the one being measured; Claude's are under by_analyst
+    scored = scored_all[scored_all["analyst"] == DEFAULT_ANALYST] if len(scored_all) else scored_all
     final = scored[scored["status"] == "final"] if len(scored) else scored
 
     def stats(t: pd.DataFrame) -> dict:
@@ -303,7 +323,16 @@ def calibration(rows: list[dict] | None = None, prices: Prices | None = None, as
             d["n_consensus"] = int(len(bc))
         return d
 
+    by_analyst = {}
+    for a in ANALYSTS:
+        sa = scored_all[scored_all["analyst"] == a] if len(scored_all) else scored_all
+        by_analyst[a] = {"judgements": sum(analyst_of(j) == a for j in js), "final": stats(sa[sa["status"] == "final"] if len(sa) else sa),
+                         "all_scored": stats(sa)}
+    mine = scored[scored["code"].isin(set(table.loc[table["analyst"] == "claude", "code"]))] if len(scored) else scored
+    blind = mine[mine["saw_claude"] == False] if len(mine) and "saw_claude" in mine else mine.iloc[0:0]  # noqa: E712
+    seen = mine[mine["saw_claude"] == True] if len(mine) and "saw_claude" in mine else mine.iloc[0:0]  # noqa: E712
     summary = {"judgements": len(js), "asof": f"{asof:%Y-%m-%d}", "final": stats(final), "all_scored": stats(scored),
+               "by_analyst": by_analyst, "oscar_blind": stats(blind), "oscar_saw_claude": stats(seen),
                "kill_checks": len(kills), "kills_breached": sum(bool(k["breached"]) for k in kills),
                "kills_acted": sum(bool(k["breached"]) and str(k.get("action", "")).lower() not in ("held", "none", "nothing", "ignored") for k in kills),
                "log_head": verify().head if rows is None else None}
@@ -311,7 +340,7 @@ def calibration(rows: list[dict] | None = None, prices: Prices | None = None, as
 
 
 def reliability(rows: list[dict] | None = None, table: pd.DataFrame | None = None, prices: Prices | None = None,
-                asof: pd.Timestamp | None = None, edges=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0001)) -> dict:
+                asof: pd.Timestamp | None = None, edges=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0001), analyst: str | None = DEFAULT_ANALYST) -> dict:
     """Stated scenario probabilities against what happened, for final calls: every (probability, happened) pair of
     bear/base/bull, bucketed by the stated probability. The Brier score is the mean squared gap; a perfectly
     calibrated forecaster has the realised share equal to the stated probability in every bucket."""
@@ -323,6 +352,8 @@ def reliability(rows: list[dict] | None = None, table: pd.DataFrame | None = Non
     pending = 0
     for _, r in table.iterrows():
         j = by_seq.get(r["seq"], {})
+        if analyst is not None and analyst_of(j) != analyst:
+            continue
         probs = [j.get(k) for k in ("p_bear", "p_base", "p_bull")]
         if any(p is None for p in probs):
             continue
@@ -340,6 +371,26 @@ def reliability(rows: list[dict] | None = None, table: pd.DataFrame | None = Non
     brier = float(np.mean([(x["p"] - float(x["happened"])) ** 2 for x in pairs])) if pairs else None
     return {"pairs": pairs, "buckets": buckets, "pending_calls": pending, "final_calls": len({x["seq"] for x in pairs}),
             "brier_binary": brier}
+
+
+def head_to_head(table: pd.DataFrame) -> dict:
+    """Oscar against Claude on the companies both have a scored view on: per company, each analyst's newest scored
+    view – how far the price is from its target, and whether its direction was right so far."""
+    if not len(table) or "analyst" not in table or "status" not in table:
+        return {"rows": [], "n": 0}
+    t = table[table["status"].isin(["final", "provisional"])]
+    both = set(t.loc[t["analyst"] == "oscar", "code"]) & set(t.loc[t["analyst"] == "claude", "code"])
+    rows = []
+    for code in sorted(both):
+        o = t[(t["code"] == code) & (t["analyst"] == "oscar")].sort_values("seq").iloc[-1]
+        c = t[(t["code"] == code) & (t["analyst"] == "claude")].sort_values("seq").iloc[-1]
+        rows.append({"code": code, "oscar": {k: o.get(k) for k in ("rating", "target", "date", "vs_target", "direction_hit", "status")},
+                     "claude": {k: c.get(k) for k in ("rating", "target", "date", "vs_target", "direction_hit", "status")},
+                     "closer": "oscar" if abs(o["vs_target"]) < abs(c["vs_target"]) else "claude" if abs(c["vs_target"]) < abs(o["vs_target"]) else "tie",
+                     "agree": o["rating"] == c["rating"]})
+    n = len(rows)
+    return {"rows": rows, "n": n, "oscar_closer": sum(r["closer"] == "oscar" for r in rows), "claude_closer": sum(r["closer"] == "claude" for r in rows),
+            "agree": sum(r["agree"] for r in rows)}
 
 
 def fingerprint(views: list[dict] | None = None) -> dict:
