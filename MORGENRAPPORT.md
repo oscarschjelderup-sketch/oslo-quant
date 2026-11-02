@@ -50,6 +50,6 @@ Revisjon: `docs/natt/revisjon.md`. Idéliste (43 skårede): `docs/natt/ideer.md`
 - Bare I (syn eldre enn siste rapport, D29) står igjen på `natt-i-stale` (60d7f3a + denne rapporten) med grønn delkjøring, ikke full suite.
   Kjør i worktree'en `PYTHONPATH=src ../oslo-quant/.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider` på `natt-i-stale`;
   er den grønn: `git branch -f natt-2026-11-02 natt-i-stale`.
-- Idé 25 (malspor: samme kursmål/sannsynligheter i flere caser – begge åpne syn har TP 54) var neste; patch-skript
+- Idé 25 (malspor: samme kursmål/sannsynligheter i flere caser) var neste; patch-skript
   ligger i scratchpad (`natt_j_patch.py`), ikke kjørt. D30 ikke skrevet.
 - Natt-dashbordet kjører på http://127.0.0.1:8063 med H-koden (kan stoppes); main på 8060 er urørt.
