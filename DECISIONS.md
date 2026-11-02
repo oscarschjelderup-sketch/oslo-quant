@@ -478,3 +478,46 @@ beat the index by about eight points a year in the test period. The risk-free ra
 from the rates feed. The view-weighted funds (Claude's, and Oscar's once he has three views) cannot be backtested
 and say so; they exist to be judged forward. `oq funds build` recomputes and caches; `--write` records a rebalance.
 Nothing trades; paper money.
+
+## D34. Research reports on the stock page, and a report is not a decision
+
+The Equity Research Toolkit now writes a full report per company and edition; its builder copies the PDF, the
+estimates snapshot and a meta file into `~/osloquant-home/cases/reports_pdf/<CODE>/` (private). The stock page
+lists the editions (date, kind, rating, target, DCF value, price and date, pages, whether the build gate passed)
+and opens the PDF from the dashboard; with two editions it shows the latest estimates against the previous ones,
+line by line. A report's target does **not** change the research book: when the newest report is dated after the
+view and its target or rating differs, the front page lists it as a decision ("report-tp") until a judgement is
+logged on or after the report date – also a judgement that keeps the old target. Reason: the model is an input;
+the judgement log must record that Oscar chose, not that a build happened. Rapporter 2026-11-02, part 1.
+
+## D35. «Før du kjøper»: one page before the form, numbers and quotes only
+
+A page per stock (`/stock/<code>/pretrade`) that collects, in this order, what the market prices in against the
+view (the toolkit model's reverse DCF, the light case's implied growth), the outcome odds at 3, 6 and 12 months,
+the scenarios with the strongest arguments against buying, the dated events before the horizon, the position size
+at the maximum loss with the exposure already in the same sector group, and a four-point checklist. Nothing on it is
+written for the occasion: every line is a number from a named source or a quotation from the case, the latest
+report reading, Claude's view, the light case or a risk signal, in a fixed order of strength (a kill criterion over
+the line first, the case's own bear value last). The checklist gates the link to the form in the browser only – a
+view can still be logged without it, but the ticks are written on the row (`checklist`), so the calibration can
+later split views with and without the page. Rapporter 2026-11-02, part 2.
+
+## D36. Learning blocks: per-case Brier and an error-pattern report built from rules
+
+The calibration page gets the Brier score and the stated-probability-against-outcome points per case, and a
+report of error patterns: for every scored call, rules on the log and the price path say whether it was early (a
+drawdown of 15 % or more against the call first), late out (the kill level crossed with no judgement or check
+within ten sessions), a kill criterion ignored (breached and held), never checked (90 days without a kill check),
+anchored to guidance (a word match in the rationale, labelled as a question) or herded (target within 5 % of a
+logged consensus). The counts are shown among the wrong calls and among all calls. With two of Oscar's rows the
+report is a structure, not a finding; it is built now so that the rows accumulate against it. Nothing in it reads
+the text beyond the labelled word match. Rapporter 2026-11-02, part 3.
+
+## D37. Data health names the disagreements between sources per case
+
+The data-health page adds a table per research-book case: the age of the view, the light case's build date and
+its price against the store's last close, the newest report's date and target, the model file's date, and the
+issues in words – a report target that differs from the view, a report dated after the view with no new
+judgement, a model file older than the newest report, a light case built at a price more than 10 % from today's,
+no coming date in the book. The front-page problem list carries them. The rule: no number is read off one source
+without knowing that another source says something else. Rapporter 2026-11-02, part 4.

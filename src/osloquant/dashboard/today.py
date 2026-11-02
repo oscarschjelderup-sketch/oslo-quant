@@ -190,6 +190,24 @@ def post_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = POS
     return items
 
 
+def report_tp_items(cases: list[bk.Case], today: pd.Timestamp) -> list[Item]:
+    """A research report (reports_pdf) newer than the view whose target or rating differs from it, with no judgement
+    logged since the report: the report does not change the research book – a decision does."""
+    from osloquant.dashboard import reportpdf as rpdf
+
+    items = []
+    for c in cases:
+        if not c.view:
+            continue
+        m = rpdf.tp_mismatch(rpdf.latest(c.code), c.view, c.history)
+        if m:
+            items.append(Item(c.code, "report-tp", f"{c.name}: rapporten av {m['report_date']} sier {m['report_tp']:g} ({m['report_rating'] or '–'}), "
+                              f"vurderingen din {m['view_tp']:g} ({m['view_rating'] or '–'}, {m['view_date']})",
+                              f"Avvik {m['diff'] * 100:+.0f} %. Les rapporten ({m['file']}) og logg en ny vurdering – også om du holder på {m['view_tp']:g}; "
+                              "skriv i begrunnelsen hvorfor du avviker fra eller følger rapporten.", 1))
+    return items
+
+
 def merge_items(*groups: list[Item]) -> list[Item]:
     """One list, most urgent first; a code with a post-report item drops its 'moved 10 %' re-assess item, since the
     post-report item already asks for the same thing with the better reason."""

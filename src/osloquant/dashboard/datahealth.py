@@ -12,6 +12,7 @@ import json
 import re
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pandas as pd
 
@@ -185,8 +186,85 @@ def dividend_audit_cached() -> dict | None:
     return fd.read(AUDIT_FILE)
 
 
+CASE_VIEW_AGE = 120        # days before a view is flagged as old on this page (the horizon rule lives in today.py)
+CASE_PRICE_GAP = 0.10      # a light case built at a price this far from the store's last close is stale
+
+
+def case_health(cases, closes: pd.DataFrame | None = None, today: pd.Timestamp | None = None) -> list[dict]:
+    """Per research-book case with a view: the age of the view, the light case and the model file, and the places
+    where two sources disagree – the report's target against the view, the light case's price against the store, a
+    report dated after the view with no new judgement, a model file older than the newest report."""
+    from osloquant.dashboard import lightcase as lcm
+    from osloquant.dashboard import reportpdf as rpdf
+    from osloquant.dashboard import reports as rp
+
+    today = today or pd.Timestamp.now().normalize()
+    out = []
+    for c in cases:
+        v = c.view
+        if not v:
+            continue
+        issues = []
+        vdate = pd.Timestamp(str(v.get("date"))[:10]) if v.get("date") else None
+        age = (today - vdate).days if vdate is not None else None
+        if age is not None and age > CASE_VIEW_AGE:
+            issues.append(f"synet er {age} dager gammelt")
+        last_px = None
+        if closes is not None and c.code in closes and closes[c.code].dropna().size:
+            last_px = float(closes[c.code].dropna().iloc[-1])
+        lc = lcm.load(c.code)
+        lc_built, lc_gap = None, None
+        if lc:
+            lc_built = str(lc.get("built_at", ""))[:10]
+            lp = lc.get("price")
+            if isinstance(lp, dict):
+                lp = next((lp[k] for k in ("close", "value", "price", "last") if isinstance(lp.get(k), (int, float))), None)
+            if isinstance(lp, (int, float)) and lp and last_px:
+                lc_gap = last_px / float(lp) - 1
+                if abs(lc_gap) > CASE_PRICE_GAP:
+                    issues.append(f"lett case bygget på kurs {float(lp):.2f}, lageret sier {last_px:.2f} ({lc_gap * 100:+.0f} %)")
+        else:
+            issues.append("ingen lett case (oq case build)")
+        ents = rpdf.entries(c.code)
+        rep = ents[0] if ents else None
+        mm = rpdf.tp_mismatch(rep, v, c.history)
+        if mm:
+            issues.append(f"rapporten {mm['report_date']} sier kursmål {mm['report_tp']:g}, synet {mm['view_tp']:g}")
+        s = rp.latest(c.code)
+        if s and vdate is not None and pd.Timestamp(str(s.get("published", ""))[:10]) > vdate and not any(
+                r["kind"] == "judgement" and str(r.get("date", ""))[:10] >= str(s.get("published", ""))[:10] for r in c.history):
+            issues.append(f"rapportleseren har Q{s.get('quarter')} {s.get('year')} ({str(s.get('published', ''))[:10]}) – nyere enn synet, ingen ny vurdering")
+        model_date = None
+        if c.model and c.model.get("xlsx"):
+            p = Path(str(c.model["xlsx"])).expanduser()
+            if p.exists():
+                model_date = datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d")
+                if rep and rep["date"] > model_date:
+                    issues.append(f"modellfilen i research book er fra {model_date}, rapporten fra {rep['date']}")
+            else:
+                issues.append("modellfilen i research book finnes ikke")
+        from osloquant.dashboard import calendar as cal
+
+        future = [e for e in c.events if pd.Timestamp(e["date"]) >= today]
+        if not future and not any(e.get("code") == c.code for e in cal.events([c], today=today, days=200)):
+            issues.append("ingen kommende dato i research book eller finanskalenderen")
+        # price reconciliation at entry (ideer.md #24): the row's price against the store's close on its price date
+        pdate = str(v.get("price_date") or v.get("date") or "")[:10]
+        if closes is not None and c.code in closes and pdate and v.get("price"):
+            ser = closes[c.code].dropna()
+            on = ser[ser.index <= pd.Timestamp(pdate)]
+            if len(on) and abs(float(on.index[-1].strftime("%Y-%m-%d") == pdate) - 1) < 0.5:
+                close = float(on.iloc[-1])
+                if abs(close / float(v["price"]) - 1) > 0.01:
+                    issues.append(f"synet er logget til kurs {float(v['price']):.2f}, lagerets sluttkurs {pdate} er {close:.2f} ({(close / float(v['price']) - 1) * 100:+.1f} %)")
+        out.append({"code": c.code, "name": c.name, "view_date": str(v.get("date") or "")[:10], "view_age": age, "lightcase_built": lc_built,
+                    "lightcase_gap": lc_gap, "report_date": rep["date"] if rep else None, "report_tp": rep["tp"] if rep else None,
+                    "model_date": model_date, "issues": issues})
+    return out
+
+
 def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> dict:
-    return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(),
+    return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(), "cases": case_health(cases, closes),
             "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(),
             "generated": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
 
@@ -213,6 +291,9 @@ def problems(ov: dict) -> list[str]:
         out.append(f"{len(d['missed'])} ex-dividend notices with no Yahoo adjustment ({', '.join(list(d['missed_yield_by_code'])[:5])})")
     if not ov["testdata"]["present"]:
         out.append("frozen test data missing: the deterministic tests will skip")
+    for ch in ov.get("cases") or []:
+        for i in ch["issues"]:
+            out.append(f"{ch['code']}: {i}")
     return out
 
 
@@ -253,6 +334,19 @@ def page_html(ov: dict) -> str:
     reports = ('<div class="card"><h3>Rapportleseren</h3><table class="odds"><thead><tr><th>Case</th><th>Status</th><th>Siste rapport lest</th><th>Publisert</th>'
                f'<th>Rader ikke funnet</th><th>Kill-regler</th></tr></thead><tbody>{rp_rows or "<tr><td colspan=6 class=empty>no research-book cases</td></tr>"}</tbody></table>'
                '<div class="src">Spesifikasjon per selskap i ~/osloquant-home/reports.yaml; test en ny med oq reports dryrun.</div></div>')
+    def _case_row(r: dict) -> str:
+        age = f' ({r["view_age"]} d)' if r["view_age"] is not None else ""
+        gap = f' ({r["lightcase_gap"] * 100:+.0f} %)' if r["lightcase_gap"] is not None else ""
+        tp = f' (TP {r["report_tp"]:g})' if isinstance(r.get("report_tp"), (int, float)) else ""
+        return (f'<tr><td>{link(r["code"])}</td><td>{E(r["view_date"])}{age}</td><td>{E(r["lightcase_built"] or "–")}{gap}</td>'
+                f'<td>{E(r["report_date"] or "–")}{tp}</td><td>{E(r["model_date"] or "–")}</td>'
+                f'<td style="white-space:normal" class="{"k" if r["issues"] else ""}">{E("; ".join(r["issues"]) or "ok")}</td></tr>')
+
+    ch_rows = "".join(_case_row(r) for r in ov.get("cases") or [])
+    cases_html = ('<div class="card"><h3>Caser: alder og avvik mellom kilder</h3><table class="odds"><thead><tr><th>Case</th><th>Syn (alder)</th><th>Lett case (kurs mot lageret)</th>'
+                  f'<th>Siste rapport (kursmål)</th><th>Modellfil</th><th>Avvik</th></tr></thead><tbody>{ch_rows or "<tr><td colspan=6 class=empty>ingen case med syn</td></tr>"}</tbody></table>'
+                  '<div class="src">Synet: vurderingsloggen. Lett case: cases/&lt;KODE&gt;.json (Yahoo-regnskap). Rapport: cases/reports_pdf. Modellfil: regnearket research book peker på. '
+                  'Et avvik er ikke en feil – det er et sted du ikke skal lese av ett tall uten å vite om det andre.</div></div>')
     lg = ov["log"]
     d = ov.get("dividends")
     if d is None:
@@ -273,5 +367,5 @@ def page_html(ov: dict) -> str:
                 + ("".join(f'<div class="err">{E(x)}</div>' for x in lg["problems"]) if lg["problems"] else "") + '</div>'
                 f'<div class="card"><h3>Frosne testdata</h3><p>{"present" if ov["testdata"]["present"] else "<b>missing</b>"} – {E(ov["testdata"]["path"])}, prices to {E(ov["testdata"]["frozen_to"])}; '
                 f'{len(ov["testdata"]["files"])} files.</p><div class="src">The deterministic tests (odds, brackets, insider study, SATS reports) run on this copy and skip without it.</div></div></div>')
-    return page("Datahelse", "/health", head + store + prices + feeds + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
+    return page("Datahelse", "/health", head + cases_html + store + prices + feeds + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
                 + f'<div class="src">Generated {E(_fmt_dt(ov["generated"]))}.</div>')

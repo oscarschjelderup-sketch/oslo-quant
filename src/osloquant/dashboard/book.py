@@ -234,6 +234,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   consensus_target=float(form["consensus_target"]) if form.get("consensus_target") not in (None, "") else None,
                   consensus_source=(form.get("consensus_source") or "").strip() or None,
                   saw_claude={"yes": True, "no": False}.get(form.get("saw_claude")) if form.get("claude_exists") else None,
+                  checklist=[k for k in str(form.get("checklist") or "").split(",") if k] or None,
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()

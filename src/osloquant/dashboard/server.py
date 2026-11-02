@@ -44,7 +44,7 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     newest = [a for a in alerts if a.session == f"{snap.asof:%Y-%m-%d}"]
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
     decisions = td.merge_items(td.decisions(snap, cases, newest, today, watch), td.report_items(cases, today), td.pre_report_items(cases, today),
-                               td.post_report_items(cases, today))
+                               td.post_report_items(cases, today), td.report_tp_items(cases, today))
     ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today),
                moves=td.target_moves(snap, cases, today), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
@@ -87,8 +87,12 @@ def stock_context(code: str) -> dict:
 
     today = pd.Timestamp.now().normalize()
     nxt = next((e for e in cal.events([c] if c else [], today=today, days=200) if e.get("code") == code and e["kind"] in ("report", "case")), None)
+    from osloquant.dashboard import reportpdf as rpdf
+
+    ents = rpdf.entries(code)
+    reports_html = rpdf.block_html(code, ents, rpdf.revision(ents), rpdf.tp_mismatch(ents[0] if ents else None, c.view if c else None, c.history if c else None))
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
-                next_event=nxt, today=today,
+                next_event=nxt, today=today, reports_html=reports_html,
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -185,6 +189,25 @@ def create_app() -> Flask:
             abort(404)
         return send_file(p, mimetype="application/pdf")
 
+    @app.get("/reports/<code>/<fname>")
+    def report_file(code, fname):
+        from osloquant.dashboard import reportpdf as rpdf
+
+        if not code.isalnum() or not rpdf.safe_name(fname):
+            abort(404)
+        p = rpdf.folder(code) / fname
+        if not p.exists() or p.parent != rpdf.folder(code):
+            abort(404)
+        return send_file(p, mimetype="application/pdf")
+
+    @app.get("/stock/<code>/pretrade")
+    def pretrade_page(code):
+        from osloquant.dashboard import pretrade as pt
+
+        if not code.isalnum():
+            abort(404)
+        return pt.page_html(pt.context(code))
+
     @app.get("/")
     def home():
         return rd.today_page(today_context())
@@ -206,6 +229,8 @@ def create_app() -> Flask:
         ctx = stock_context(code)
         if request.args.get("logged"):
             ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
+        if request.args.get("checklist"):
+            ctx["form"] = {"checklist": ",".join(k for k in request.args["checklist"].split(",") if k.replace("_", "").isalnum())}
         return rd.stock_page(code.upper(), ctx)
 
     @app.post("/stock/<code>/judge")
@@ -221,6 +246,7 @@ def create_app() -> Flask:
         form["ack_triggered"] = bool(f.get("ack_triggered"))
         form["claude_exists"] = bool(f.get("claude_exists"))
         form["saw_claude"] = f.get("saw_claude") or None
+        form["checklist"] = ",".join(k for k in (f.get("checklist") or "").split(",") if k.replace("_", "").isalnum())
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))
@@ -263,7 +289,13 @@ def create_app() -> Flask:
         kills = [r for r in rows if r["kind"] == "kill_check"]
         rel = jg.reliability(rows, table=table) if len(table) else None
         fp = jg.fingerprint([dict(c.view, code=c.code) for c in bk.cases() if c.view])
-        return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table))
+        from osloquant.dashboard import learn
+
+        learn_html = ""
+        if len(table):
+            prices = jg.load_prices(start=min(pd.Timestamp(j["date"]) for j in jg.judgements(rows)) - pd.Timedelta(days=10))
+            learn_html = learn.by_case_html(learn.by_case(table, rel)) + learn.patterns_html(learn.error_patterns(rows, table, prices))
+        return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")
     def funds_page():

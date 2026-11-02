@@ -166,7 +166,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
     banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {asof:%A %d %b} – eldre enn siste virkedag ({expected:%d %b}). '
               'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
     urgency_word = {0: "Gjør først", 1: "I dag", 2: "Kan vente"}
-    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10}
+    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10, "report-tp": 15}
     total_min = sum(minutes.get(i.kind, 5) for i in dec)
     if dec:
         summary = (f'<p style="margin:0 0 8px"><b>{len(dec)} ting, omtrent {total_min} minutter, i denne rekkefølgen:</b> '
@@ -394,7 +394,8 @@ def stock_page(code: str, ctx: dict) -> str:
     main = [head, msgs, f'<div class="card">{ctx["chart"]}</div>', case_columns(c, px, lc), key_figures(lc, px)]
     parts = ['<div class="report"><div>' + "\n".join(main) + '</div>' + view_rail(c, px, ctx["price_label"], lc, ctx.get("next_event"), ctx.get("today")) + '</div>',
              f'<div class="grid2"><div><h2>Teknisk</h2>{keyhtml}</div><div><h2>Aktive signaler (10 økter)</h2>{sig}</div></div>',
-             f'<h2>Børsmeldinger og nyheter</h2><div class="card">{nhtml}</div>', insider_block(code, ctx.get("insiders"))]
+             f'<h2>Børsmeldinger og nyheter</h2><div class="card">{nhtml}</div>', insider_block(code, ctx.get("insiders")),
+             ctx.get("reports_html", "")]
     if c and (c.view or c.history):
         parts.append(case_block(c, px, ctx.get("rdcf")))
         parts.append(report_block(code, ctx.get("report")))
@@ -759,7 +760,12 @@ def judge_form(code: str, name: str, px: float, label: str, f: dict, c, sz: dict
     val = lambda k, d="": E(str(f.get(k, d) if f.get(k, d) is not None else ""))  # noqa: E731
     sel = lambda opt: " selected" if (f.get("rating") or v.get("rating")) == opt else ""  # noqa: E731
     kill_default = "\n".join(c.kill) if c and not f else ""
-    return f"""<h2>Ny vurdering</h2><div class="card"><form class="judge" method="post" action="/stock/{E(code)}/judge">
+    ck = str(f.get("checklist") or "")
+    pre = (f'<div class="ok">Sjekklisten fra «Før du kjøper» er krysset av ({E(ck.replace(",", ", "))}) og skrives på raden.</div>' if ck else
+           f'<div class="warn"><b>Skal du kjøpe?</b> Gå via <a href="/stock/{E(code)}/pretrade">Før du kjøper</a> først: hva markedet priser inn, oddsene, '
+           'motargumentene, hendelsene før horisonten, posisjonsstørrelsen og sjekklisten – på én side. Et syn uten sjekkliste kan logges, men merkes slik.</div>')
+    return f"""<h2 id="judge">Ny vurdering</h2><div class="card">{pre}<form class="judge" method="post" action="/stock/{E(code)}/judge">
+<input type="hidden" name="checklist" value="{E(ck)}">
 <div class="src">Writes one new row to the judgement log (~/osloquant-home/judgements.jsonl) and, if {E(code)} is not in the research book, adds it.
 Nothing earlier can be changed: a new view is a new row. Date = today; price = the last close {px:.2f} ({E(label)}).</div>
 <input type="hidden" name="name" value="{E(name)}">
@@ -866,7 +872,7 @@ def fingerprint_block(fp: dict | None) -> str:
 
 
 def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict], rel: dict | None = None, fp: dict | None = None,
-                     h2h: dict | None = None) -> str:
+                     h2h: dict | None = None, learn_html: str = "") -> str:
     body = ['<h1>Kalibrering</h1><div class="sub">What I said, what happened, how far off. Calls younger than their horizon are provisional and are not evidence.</div>']
     chain = "verifies" if check.ok else "BROKEN: " + "; ".join(check.problems[:3])
     body.append(f'<div class="src">Judgement log: {check.rows} rows, chain {E(chain)}, head {check.head[:16]}.</div>')
@@ -885,6 +891,7 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
     body.append(analysts_block(summary, h2h))
     if rel is not None:
         body.append(reliability_block(rel))
+    body.append(learn_html)
     body.append(fingerprint_block(fp))
     if len(table):
         rows = "".join(
