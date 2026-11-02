@@ -82,9 +82,13 @@ def stock_context(code: str) -> dict:
         kill, why = od.kill_level(c.view)
         if kill:
             case_odds = od.case_odds(code, float(c.view["target"]), kill, why)
+    from osloquant.dashboard import calendar as cal
     from osloquant.dashboard import lightcase as lcm
 
+    today = pd.Timestamp.now().normalize()
+    nxt = next((e for e in cal.events([c] if c else [], today=today, days=200) if e.get("code") == code and e["kind"] in ("report", "case")), None)
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
+                next_event=nxt, today=today,
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),

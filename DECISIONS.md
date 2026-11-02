@@ -444,3 +444,17 @@ Claude's ratings follow one rule: BUY when the 12-month target is 10 % or more a
 or more below, HOLD between. The first ten (2 Nov 2026): EQNR, AKRBP, MOWI, DNB, GJF, FRO, KOG, YAR, NOD, ORK –
 eight sector groups. SUBC was dropped before logging: its merger with Saipem is close to completion and the share
 may stop trading in Oslo inside the horizon, which would leave the view unscorable.
+
+## D32. The pages look like a research front page, not an app
+
+Oscar put a Capital IQ profile and a DNB Markets note side by side with the dashboard and asked for the same ease:
+one light theme, dense but legible, every block with a heading and a source line. So: one theme (light; the
+automatic dark mode is gone – it made screenshots and the real screen disagree), a teal rule under every section
+heading, thin lines instead of cards, tabular numbers, and the stock page laid out as a note's first page – the
+name and the thesis on the left, the view large on the right ("BUY · TP: NOK 54 (+23 %)") with the summary facts,
+the capital structure from the light case and the next event; under the chart the investment case in three columns
+(downside = the kill criteria, our view, upside = the bull value), then key figures with years as columns and LTM
+last. The chart draws the cone from the last close to the view's bear, target and bull at the end of the horizon,
+as the note does. Two things the note has that the page does not: estimates by year – we show history and LTM only
+and never invent an "e" column – and consensus, which is licensed; the consensus target stays a field Oscar fills
+in by hand with its source. The right rail shows Oscar's view only; Claude's stays folded below (D31).

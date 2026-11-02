@@ -10,43 +10,103 @@ from functools import lru_cache
 import pandas as pd
 
 from osloquant import signals as sg
-from osloquant.signals_page import CSS as BASE_CSS
 
 E = html.escape
 
-CSS = BASE_CSS + """
-nav.top { display:flex; gap:4px; flex-wrap:wrap; align-items:center; margin:-4px 0 16px; padding-bottom:10px; border-bottom:1px solid var(--line); }
-nav.top a { padding:6px 12px; border-radius:8px; color:var(--text); text-decoration:none; font-weight:600; font-size:14px; }
-nav.top a.on { background:var(--accent); color:var(--card); }
-nav.top .brand { font-weight:800; margin-right:12px; color:var(--accent); }
+CSS = """
+:root { --bg:#ffffff; --panel:#f6f8f9; --text:#1a2126; --muted:#5c6770; --line:#d9e0e5; --accent:#0f7c7c; --accent-dark:#0b5c5c;
+        --accent-pale:#dcefed; --buy:#0b7a4b; --buy-bg:#e3f3ea; --risk:#b3261e; --risk-bg:#fbe9e7; --info:#1f5f99; --info-bg:#e8f0fa;
+        --gold:#9a6700; --gold-bg:#fff4d6; }
+* { box-sizing:border-box; }
+html { background:var(--bg); }
+body { margin:0; background:var(--bg); color:var(--text); font:13.5px/1.45 "Segoe UI",Arial,Helvetica,sans-serif; font-variant-numeric:tabular-nums; }
+.wrap { max-width:1320px; margin:0 auto; padding:0 22px 44px; }
+nav.top { display:flex; gap:2px; align-items:center; margin:0 -22px 18px; padding:0 22px; background:var(--accent-dark); min-height:40px; }
+nav.top a { padding:10px 12px; color:#e8f3f2; text-decoration:none; font-weight:600; font-size:13px; border-bottom:3px solid transparent; }
+nav.top a:hover { background:rgba(255,255,255,0.08); }
+nav.top a.on { background:#fff; color:var(--accent-dark); }
+nav.top .brand { font-weight:700; margin-right:16px; color:#fff; font-size:14px; letter-spacing:0.2px; }
 nav.top form { margin-left:auto; display:flex; gap:6px; }
-nav.top input { padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); width:110px; }
-a { color:var(--info); }
-.src { color:var(--muted); font-size:11.5px; }
-.decide { border:2px solid var(--risk); }
-.decide h2 { margin-top:0; color:var(--risk); }
+nav.top input { padding:5px 9px; border:1px solid var(--accent-pale); border-radius:3px; background:#fff; color:var(--text); width:150px; font:inherit; }
+a { color:var(--info); text-decoration:none; } a:hover { text-decoration:underline; }
+h1 { font-size:30px; font-weight:400; color:var(--accent); margin:6px 0 2px; letter-spacing:-0.2px; }
+h1 .code { font-size:15px; color:var(--muted); font-weight:400; margin-left:8px; }
+h2 { font-size:15px; font-weight:700; color:var(--accent); margin:26px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--accent); }
+h3 { font-size:13px; font-weight:700; color:var(--accent); margin:0 0 6px; padding-bottom:3px; border-bottom:1px solid var(--line); }
+.sub { color:var(--muted); margin:0 0 12px; font-size:13px; }
+.lead { font-size:16.5px; line-height:1.4; color:#2a3338; max-width:820px; margin:10px 0 6px; }
+.card { background:var(--bg); padding:4px 0 10px; margin-bottom:8px; }
+.card + .card { margin-top:4px; }
+.src { color:var(--muted); font-size:11px; line-height:1.4; margin-top:6px; }
+.foot { color:var(--muted); font-size:11.5px; margin-top:30px; padding-top:10px; border-top:1px solid var(--line); line-height:1.5; }
+.empty { color:var(--muted); font-style:italic; }
+.code { color:var(--muted); font-weight:500; }
+.price { font-size:28px; font-weight:700; margin:4px 0 0; color:var(--text); } .price small { font-size:13px; font-weight:600; margin-left:10px; }
+.up { color:var(--buy); } .down { color:var(--risk); } .muted { color:var(--muted); font-size:12.5px; }
+/* report layout: main column and a right rail, as a sell-side front page */
+.report { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:30px; align-items:start; }
+@media (max-width:980px) { .report { grid-template-columns:1fr; } }
+.rail .box { border-top:2px solid var(--accent); padding:8px 0 10px; margin-bottom:12px; }
+.rail h4 { margin:0 0 6px; font-size:11.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.4px; }
+.rail .view-big { font-size:30px; font-weight:400; color:var(--accent); line-height:1.05; }
+.rail .view-tp { font-size:19px; color:var(--accent); margin:2px 0 8px; }
+.rail .view-none { font-size:15px; color:var(--muted); margin:2px 0 8px; }
+table.facts { width:100%; font-size:12.5px; border-collapse:collapse; }
+table.facts td { padding:3px 0; border-top:1px solid var(--line); vertical-align:top; }
+table.facts td:first-child { color:var(--text); text-align:left; } table.facts td:last-child { text-align:right; font-weight:600; }
+table.facts tr:first-child td { border-top:0; }
+.cols3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; } @media (max-width:980px) { .cols3 { grid-template-columns:1fr; } }
+.cols3 ul { margin:4px 0 0; padding-left:18px; } .cols3 li { margin:4px 0; }
+.cols3 .mid { background:var(--panel); padding:8px 12px 10px; }
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:26px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:18px; }
+.cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:18px; }
+/* tables: thin rules, tabular numbers, years as columns */
+table { width:100%; border-collapse:collapse; font-size:12.5px; }
+th, td { text-align:right; padding:4px 7px; border-top:1px solid var(--line); vertical-align:top; }
+th { color:var(--text); font-weight:700; border-top:0; border-bottom:1px solid var(--accent); background:transparent; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
+table.odds td, table.odds th { text-align:right; } table.odds td:first-child, table.odds th:first-child { text-align:left; }
+table.odds th.grp { text-align:center; }
+table.keyfig td:first-child { font-weight:500; } table.keyfig tr.sep td { border-top:2px solid var(--line); }
+table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
+.heat td { text-align:right; } .heat td:first-child, .heat td:nth-child(2) { text-align:left; }
+/* the decision box */
+.decide { border:1px solid var(--risk); border-left:6px solid var(--risk); padding:10px 16px 12px; margin:6px 0 10px; }
+.decide h2 { margin-top:0; color:var(--risk); border-bottom-color:var(--risk-bg); }
 .item { padding:9px 0; border-top:1px solid var(--line); } .item:first-of-type { border-top:0; }
-.item .why { color:var(--muted); font-size:13px; }
-.tag { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:6px; margin-right:6px; text-transform:uppercase; }
-.tag.u0 { background:var(--risk-bg); color:var(--risk); } .tag.u1 { background:#fff4d6; color:#8a5a00; } .tag.u2 { background:var(--info-bg); color:var(--info); }
-.heat td { text-align:right; font-variant-numeric:tabular-nums; } .heat td:first-child, .heat td:nth-child(2) { text-align:left; }
-.sector { margin-bottom:14px; } .sector h3 { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.driver { font-size:12.5px; color:var(--muted); font-weight:400; }
-form.judge label { display:block; font-size:13px; font-weight:600; margin:8px 0 3px; }
-form.judge input, form.judge select, form.judge textarea { width:100%; padding:7px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); font:inherit; }
+.item .why { color:var(--muted); font-size:12.5px; }
+.tag { display:inline-block; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:2px; margin-right:6px; text-transform:uppercase; letter-spacing:0.3px; }
+.tag.u0 { background:var(--risk); color:#fff; } .tag.u1 { background:var(--gold-bg); color:var(--gold); } .tag.u2 { background:var(--info-bg); color:var(--info); }
+/* chips, alerts, lists */
+.chips { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 0; }
+.chip { display:inline-block; padding:2px 9px; border-radius:2px; font-size:11.5px; font-weight:700; }
+.chip.buy { background:var(--buy-bg); color:var(--buy); } .chip.risk { background:var(--risk-bg); color:var(--risk); }
+.chip.info { background:var(--info-bg); color:var(--info); } .chip.plain { background:var(--panel); color:var(--text); }
+.alert { display:grid; grid-template-columns:56px 1fr auto; gap:4px 10px; padding:7px 0; border-top:1px solid var(--line); align-items:start; }
+.alert:first-of-type { border-top:0; } .alert .d { grid-column:2 / 4; color:var(--muted); font-size:12px; }
+.alert b { font-size:13px; } .odds { font-size:11.5px; white-space:nowrap; }
+.kv { margin:4px 0 0; padding:0; list-style:none; } .kv li { padding:3px 0; border-top:1px solid var(--line); font-size:12.5px; } .kv li:first-child { border-top:0; }
+details { margin-top:6px; } summary { cursor:pointer; color:var(--muted); font-size:12.5px; }
+details ul { margin:6px 0 0 18px; padding:0; font-size:12.5px; color:var(--muted); }
+details.card summary { color:var(--text); }
+.news li { margin:4px 0; } ul.news { padding-left:18px; margin:4px 0; }
+.ladder { margin:10px 0 2px; } .ladder svg { width:100%; height:72px; display:block; }
+.sector { margin-bottom:18px; } .sector h3 { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.driver { font-size:12px; color:var(--muted); font-weight:400; margin-bottom:4px; }
+.bracket { display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
+.t { color:var(--buy); font-weight:700; } .k { color:var(--risk); font-weight:700; } .warn-t { color:var(--gold); }
+.err { background:var(--risk-bg); color:var(--risk); padding:8px 12px; border-left:4px solid var(--risk); margin:8px 0; }
+.ok { background:var(--buy-bg); color:var(--buy); padding:8px 12px; border-left:4px solid var(--buy); margin:8px 0; }
+.warn { background:var(--gold-bg); color:#6b4a00; padding:8px 12px; border-left:4px solid var(--gold); margin:8px 0; font-size:13px; }
+.warn ul { margin:4px 0 0; padding-left:18px; }
+/* the judgement form */
+form.judge label { display:block; font-size:12.5px; font-weight:600; margin:8px 0 3px; }
+form.judge input, form.judge select, form.judge textarea { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:2px; background:#fff; color:var(--text); font:inherit; }
 form.judge textarea { min-height:70px; }
-.row3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .row4 { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-button.go { margin-top:12px; padding:9px 18px; border:0; border-radius:8px; background:var(--accent); color:var(--card); font-weight:700; cursor:pointer; }
-.err { background:var(--risk-bg); color:var(--risk); padding:8px 12px; border-radius:8px; margin:8px 0; }
-.ok { background:var(--buy-bg); color:var(--buy); padding:8px 12px; border-radius:8px; margin:8px 0; }
-.news li { margin:4px 0; } .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:14px; }
-.warn { background:#fff4d6; color:#7a5200; padding:8px 12px; border-radius:8px; margin:8px 0; font-size:13.5px; }
-@media (prefers-color-scheme: dark) { .warn { background:#3a2f12; color:#f2d48a; } }
-table.odds td, table.odds th { text-align:right; font-variant-numeric:tabular-nums; } table.odds td:first-child, table.odds th:first-child { text-align:left; }
-table.odds th.grp { text-align:center; border-bottom:1px solid var(--line); }
-.t { color:var(--buy); font-weight:700; } .k { color:var(--risk); font-weight:700; }
-.bracket { display:block; font-size:12px; color:var(--muted); margin-top:2px; }
-.warn-t { color:#b07800; } @media (prefers-color-scheme: dark) { .warn-t { color:#f2c45a; } }
+.row3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; } .row4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+button.go { margin-top:12px; padding:9px 20px; border:0; border-radius:2px; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; font:inherit; }
+button.go:hover { background:var(--accent-dark); }
 """
 
 NAV = [("/", "I dag"), ("/coverage", "Dekning"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
@@ -199,20 +259,130 @@ def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> s
 
 
 # ------------------------------------------------------------------------------------------------ Aksjeside
+def _fact_rows(rows: list[tuple[str, str]]) -> str:
+    return '<table class="facts">' + "".join(f'<tr><td>{E(k)}</td><td>{v}</td></tr>' for k, v in rows if v not in (None, "")) + '</table>'
+
+
+def _nok(v, unit=1e9, d=1) -> str:
+    return "–" if v is None else f"{v / unit:,.{d}f}".replace(",", " ")
+
+
+def view_rail(c, px: float, price_label: str, lc: dict | None, next_event: dict | None, today=None) -> str:
+    """The right rail of a stock page, as on a sell-side front page: the view (rating and target) large, the summary
+    facts, the capital structure from the light case, and the next event. Oscar's view only – Claude's stays folded
+    below the fold until Oscar has written his own (D31)."""
+    v = (c.view if c else None) or {}
+    out = ['<aside class="rail">']
+    if v.get("target"):
+        tp = float(v["target"])
+        up = tp / px - 1
+        out.append(f'<div class="box"><div class="view-big">{E(v.get("rating", "?"))}</div><div class="view-tp">TP: NOK {tp:g} <span class="{cls(up)}">({up * 100:+.0f} %)</span></div>'
+                   + _fact_rows([("Kurs (siste sluttkurs)", f'{px:.2f}'), ("Kursmål (12 mnd)", f'{tp:g}'), ("Opp-/nedside", f'<span class="{cls(up)}">{pct(up, 0)}</span>'),
+                                 ("Bear / bull", f'{v["bear"]:g} / {v["bull"]:g}' if v.get("bear") and v.get("bull") else None),
+                                 ("Sannsynlighet bear / base / bull", f'{v["p_bear"]:.0%} / {v["p_base"]:.0%} / {v["p_bull"]:.0%}' if v.get("p_bear") is not None else None),
+                                 ("Horisont", f'{v.get("horizon_months", 12)} mnd'), ("Syn fra", f'{E(str(v.get("date")))} <span class="src">({E(c.view_source)})</span>'),
+                                 ("Kill-nivå", f'{v["kill_level"]:g}' if v.get("kill_level") else None),
+                                 ("Konsensus kursmål", f'{float(v["consensus_target"]):g} <span class="src">({E(str(v.get("consensus_source", "")))})</span>' if v.get("consensus_target") else None)])
+                   + '<div class="src">Ditt syn (EST). Kurs: ' + E(price_label) + '.</div></div>')
+    else:
+        out.append('<div class="box"><div class="view-none">Ingen vurdering fra deg ennå</div>'
+                   '<div class="src">Les den lette casen, skriv ditt syn i skjemaet nederst, og les Claudes etterpå.' + (' Claude har et syn (foldet lenger ned).' if c and c.claude_view else '') + '</div></div>')
+    if lc:
+        m, b, pr = lc["multiples"], lc["balance"], lc["profit"]
+        cur = lc["currency"]["reporting"]
+        out.append('<div class="box"><h4>Kapitalstruktur</h4>' + _fact_rows([
+            ("Markedsverdi (NOK mrd)", _nok(lc.get("mcap_nok"))), ("Aksjer (m)", _nok(lc.get("shares"), 1e6, 1)),
+            (f"Netto gjeld ({cur} m)", _nok(b.get("net_debt"), 1e6, 0)), (f"EV ({cur} m)", _nok(m.get("ev"), 1e6, 0) if m.get("ev") else None),
+            ("EV/EBIT (LTM)", f'{m["ev_ebit"]:.1f}x' if m.get("ev_ebit") else None), ("P/E (LTM)", f'{m["pe"]:.1f}x' if m.get("pe") else None),
+            ("P/B", f'{m["pb"]:.2f}x' if m.get("pb") else None), ("FCF-yield", pct(m.get("fcf_yield"), 1, False) if m.get("fcf_yield") is not None else None),
+            ("Rapporteringsvaluta", E(cur) + (f' · {E(cur)}NOK {lc["currency"]["fx"]:.3f}' if lc["currency"].get("fx") and cur != "NOK" else ""))])
+            + f'<div class="src">Yahoo-regnskap via lageret, kvartaler til {E(str(lc.get("quarters_through")))}; LTM = {E(str(pr["ebit"]["period"]))}.</div></div>')
+    if next_event:
+        d = next_event["date"]
+        days = f' ({(d - today).days} d)' if today is not None else ''
+        out.append(f'<div class="box"><h4>Neste hendelse</h4><div><b>{d:%d %b %Y}</b>{days}<br>{E(next_event["what"])}</div><div class="src">{E(next_event["source"])}</div></div>')
+    out.append('</aside>')
+    return "".join(out)
+
+
+def case_columns(c, px: float, lc: dict | None) -> str:
+    """Three columns under the chart: downside (kill criteria), the case (thesis and what the price asks for), upside
+    (the bull value and its weight) – the investment-case overview of a report, from our own numbers."""
+    v = (c.view if c else None) or {}
+    if not v.get("target") and not lc:
+        return ""
+    kills = "".join(f"<li>{E(k)}</li>" for k in (c.kill if c else [])) or '<li class="empty">ingen kill-kriterier logget</li>'
+    thesis = E(v.get("thesis") or "") or '<span class="empty">ingen begrunnelse logget</span>'
+    reads = f'<p><b>Hva prisen krever:</b> {E(lc["reverse"]["reads"])}</p>' if lc else ''
+    bull = (f'<p><b>Bull NOK {v["bull"]:g}</b> ({pct(v["bull"] / px - 1, 0)}), vekt {v["p_bull"]:.0%}.</p>' if v.get("bull") and v.get("p_bull") is not None else
+            f'<p><b>Bull NOK {v["bull"]:g}</b> ({pct(v["bull"] / px - 1, 0)}).</p>' if v.get("bull") else '<p class="empty">ingen bull-verdi</p>')
+    bear = (f'<p><b>Bear NOK {v["bear"]:g}</b> ({pct(v["bear"] / px - 1, 0)}), vekt {v["p_bear"]:.0%}.</p>' if v.get("bear") and v.get("p_bear") is not None else
+            f'<p><b>Bear NOK {v["bear"]:g}</b> ({pct(v["bear"] / px - 1, 0)}).</p>' if v.get("bear") else '')
+    return ('<h2>Investeringscase</h2><div class="cols3">'
+            f'<div><h3>Nedside – kill-kriterier</h3>{bear}<ul>{kills}</ul><div class="src">Brytes ett, er caset brutt – sjekk og logg.</div></div>'
+            f'<div class="mid"><h3>Vårt syn</h3><p>{thesis}</p>{reads}<div class="src">Synet er ditt (EST); «hva prisen krever» er regnet fra lett case.</div></div>'
+            f'<div><h3>Oppside</h3>{bull}<div class="src">Bull-verdien er synets eget anslag (EST).</div></div></div>')
+
+
+def key_figures(lc: dict | None, px: float) -> str:
+    """Years as columns and LTM last, as in a report's estimates table – historical and LTM only, no estimates."""
+    if not lc or not lc.get("annual"):
+        return ""
+    cur = lc["currency"]["reporting"]
+    years = lc["annual"]
+    pr, m, r = lc["profit"], lc["multiples"], lc["returns"]
+    ltm = {"revenue": pr["revenue"]["value"], "ebit": pr["ebit"]["value"], "net_income": pr["net_income"]["value"], "fcf": pr["fcf"]["value"],
+           "net_debt": lc["balance"].get("net_debt")}
+    mn = lambda v: "–" if v is None else f"{v / 1e6:,.0f}".replace(",", " ")  # noqa: E731
+    mg = lambda e, rv: "–" if not e or not rv else f"{e / rv * 100:.1f} %"  # noqa: E731
+    head = "".join(f"<th>{a['year']}</th>" for a in years) + f'<th class="ltm">{E(str(pr["ebit"]["period"] or "LTM")).replace("LTM to ", "LTM ")}</th>'
+    rows = []
+    for label, key in (("Omsetning", "revenue"), ("EBIT", "ebit"), ("Resultat", "net_income"), ("Fri kontantstrøm", "fcf"), ("Netto gjeld", "net_debt")):
+        rows.append(f'<tr><td>{label} ({E(cur)} m)</td>' + "".join(f"<td>{mn(a.get(key))}</td>" for a in years) + f'<td class="ltm">{mn(ltm.get(key))}</td></tr>')
+    rows.append('<tr><td>EBIT-margin</td>' + "".join(f"<td>{mg(a.get('ebit'), a.get('revenue'))}</td>" for a in years) + f'<td class="ltm">{mg(ltm["ebit"], ltm["revenue"])}</td></tr>')
+    if years and years[0].get("revenue"):
+        g = "".join(f"<td>{'–' if i == 0 or not years[i - 1].get('revenue') or not a.get('revenue') else format(a['revenue'] / years[i - 1]['revenue'] - 1, '+.1%').replace('%', ' %')}</td>"
+                    for i, a in enumerate(years))
+        rows.append(f'<tr><td>Omsetningsvekst</td>{g}<td class="ltm"></td></tr>')
+    blank = "<td></td>" * len(years)
+    val = [("P/E", f'{m["pe"]:.1f}x' if m.get("pe") else "–"), ("P/B", f'{m["pb"]:.2f}x' if m.get("pb") else "–")]
+    if not lc["financial"]:
+        val.insert(1, ("EV/EBIT", f'{m["ev_ebit"]:.1f}x' if m.get("ev_ebit") else "–"))
+        val.append(("FCF-yield", pct(m.get("fcf_yield"), 1, False) if m.get("fcf_yield") is not None else "–"))
+    val.append(("ROE", pct(r.get("roe"), 0, False) if r.get("roe") is not None else "–"))
+    if r.get("roic") is not None:
+        val.append(("ROIC", pct(r.get("roic"), 0, False)))
+    first = True
+    for label, x in val:
+        rows.append(f'<tr{" class=sep" if first else ""}><td>{label} ved kurs {px:.2f}</td>{blank}<td class="ltm">{x}</td></tr>')
+        first = False
+    pe = lc.get("peers") or {}
+    peer = (f' Sektormedian: P/E {pe["pe"]:.1f}x' if pe.get("pe") else "") + (f', EV/EBIT {pe["ev_ebit"]:.1f}x' if pe.get("ev_ebit") else "") + (f', P/B {pe["pb"]:.2f}x' if pe.get("pb") else "")
+    return (f'<h2>Nøkkeltall</h2><table class="keyfig"><thead><tr><th>Årsslutt des</th>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table>'
+            f'<div class="src">Kilde: Yahoo Finance årsregnskap og kvartaler via oslo-quant-lageret (forsinket), i {E(cur)}; LTM = siste fire kvartaler. '
+            f'Ingen estimater vises – synets egne tall er merket EST.{E(peer)}{" (" + E(pe.get("group", "")) + ")" if peer else ""}.</div>')
+
+
 def stock_page(code: str, ctx: dict) -> str:
     st, c = ctx["status"], ctx["case"]
     name = ctx["name"]
     if not st.get("price"):
         return page(code, "", f'<h1>{E(code)}</h1><p class="err">No prices for {E(code)} in the store. Add it to universe.yaml and run oq record.</p>')
-    head = (f'<h1>{E(name)} <span class="code">{E(code)} · {E(ctx["group"])}</span></h1>'
-            f'<div class="price">{st["price"]:.2f}<small class="{cls(st.get("chg_1d"))}">{pct(st.get("chg_1d"))} day</small>'
-            f'<small class="{cls(st.get("chg_20d"))}">{pct(st.get("chg_20d"))} 20d</small></div>'
-            f'<div class="src">{E(ctx["price_label"])}</div>')
+    px = st["price"]
+    lc = ctx.get("lightcase")
+    v = (c.view if c else None) or {}
+    lead = v.get("thesis") or ""
+    lead_html = f'<div class="lead">{E(lead[:420])}{"…" if len(lead) > 420 else ""}</div>' if lead else ''
+    head = (f'<div class="src" style="margin-top:4px">{E(ctx["group"])} · {E(code)} · {E(ctx["price_label"])}</div>'
+            f'<h1>{E(name)}</h1>'
+            f'<div class="price">{px:.2f}<small class="{cls(st.get("chg_1d"))}">{pct(st.get("chg_1d"))} dag</small>'
+            f'<small class="{cls(st.get("chg_20d"))}">{pct(st.get("chg_20d"))} 20 d</small><small class="{cls(ctx.get("ytd"))}">{pct(ctx.get("ytd"))} i år</small></div>'
+            + lead_html)
     msgs = "".join(f'<div class="err">{E(m)}</div>' for m in ctx.get("errors", [])) + "".join(f'<div class="ok">{E(m)}</div>' for m in ctx.get("ok", []))
-    keys = [("60d high", f'{st["hi60"]:.2f}' if st.get("hi60") else "–"), ("60d low", f'{st["lo60"]:.2f}' if st.get("lo60") else "–"),
+    keys = [("60 d høy / lav", f'{st["hi60"]:.2f} / {st["lo60"]:.2f}' if st.get("hi60") and st.get("lo60") else "–"),
             ("RSI 14", f'{st["rsi"]:.0f}' if st.get("rsi") is not None else "–"), ("MA20 / MA60", f'{st["ma20"]:.2f} / {st["ma60"]:.2f}' if st.get("ma60") else "–"),
-            ("Trend", sg.trend_words(st)), ("YTD", pct(ctx.get("ytd")))]
-    keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v)}</li>" for k, v in keys) + '</ul><div class="src">Computed from the store\'s daily bars (delayed).</div>'
+            ("Trend", sg.trend_words(st))]
+    keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v_)}</li>" for k, v_ in keys) + '</ul><div class="src">Computed from the store\'s daily bars (delayed).</div>'
     sig = "".join(f'<div class="alert"><b>{E(a.kind)}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {chip_class(a)} odds">'
                   f'{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span><span class="d">{E(a.detail)}{bracket_line(a.signal)}</span></div>'
                   for a in ctx["alerts"]) or '<p class="empty">no signal in the last 10 sessions</p>'
@@ -221,19 +391,17 @@ def stock_page(code: str, ctx: dict) -> str:
              + f"</ul><div class='src'>{E(news['source'])}</div>") if news and news["items"] else (
              f'<p class="empty">No announcement in the cached window (14 days) and no headline naming the company.</p><div class="src">{E(news["source"])}</div>'
              if news else '<p class="empty">not fetched – oq dashboard --refresh</p>')
-    parts = [head, msgs, f'<div class="card">{ctx["chart"]}</div>',
-             f'<div class="grid2"><div class="card"><h3>Nøkkeltall</h3>{keyhtml}</div><div class="card"><h3>Aktive signaler (10 økter)</h3>{sig}</div></div>',
-             f'<div class="card"><h3>Børsmeldinger og nyheter</h3>{nhtml}</div>', insider_block(code, ctx.get("insiders"))]
+    main = [head, msgs, f'<div class="card">{ctx["chart"]}</div>', case_columns(c, px, lc), key_figures(lc, px)]
+    parts = ['<div class="report"><div>' + "\n".join(main) + '</div>' + view_rail(c, px, ctx["price_label"], lc, ctx.get("next_event"), ctx.get("today")) + '</div>',
+             f'<div class="grid2"><div><h2>Teknisk</h2>{keyhtml}</div><div><h2>Aktive signaler (10 økter)</h2>{sig}</div></div>',
+             f'<h2>Børsmeldinger og nyheter</h2><div class="card">{nhtml}</div>', insider_block(code, ctx.get("insiders"))]
     if c and (c.view or c.history):
-        parts.append(case_block(c, st["price"], ctx.get("rdcf")))
+        parts.append(case_block(c, px, ctx.get("rdcf")))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
-    elif c:
-        parts.append('<h2>Research book</h2><div class="card"><p class="empty">Du har ikke logget et syn på dette selskapet ennå. Les den lette casen, '
-                     'skriv ditt eget syn i skjemaet nederst – og les Claudes etterpå.</p></div>')
-    parts.append(lightcase_block(ctx.get("lightcase")))
-    parts.append(claude_view_block(c, st["price"]))
-    parts.append(judge_form(code, name, st["price"], ctx["price_label"], ctx.get("form", {}), c, ctx.get("sizing")))
+    parts.append(lightcase_block(lc))
+    parts.append(claude_view_block(c, px))
+    parts.append(judge_form(code, name, px, ctx["price_label"], ctx.get("form", {}), c, ctx.get("sizing")))
     return page(f"{code}", "", "\n".join(parts))
 
 
@@ -887,16 +1055,12 @@ def lightcase_block(lc: dict | None) -> str:
     rets = " · ".join(x for x in (f'ROE {pct(r.get("roe"), 0, False)}' if r.get("roe") is not None else "",
                                   f'ROIC {pct(r.get("roic"), 0, False)}' if r.get("roic") is not None else "",
                                   f'tax {pct(r.get("tax_rate"), 0, False)} ({E(str(r.get("tax_period")))})') if x)
-    ann = "".join(f'<tr><td>{a["year"]}</td><td>{_mn(a["revenue"])}</td><td>{_mn(a["ebit"])}</td><td>{_mn(a["net_income"])}</td><td>{_mn(a["fcf"])}</td>'
-                  f'<td>{_mn(a["net_debt"])}</td></tr>' for a in lc.get("annual", []))
     warn = "".join(f"<li>{E(w)}</li>" for w in lc.get("warnings", []))
-    return (f'<h2>Lett case – hva prisen krever</h2><div class="card"><div class="sub" style="margin-bottom:8px"><b>{E(rv["reads"])}</b></div>'
+    return (f'<h2>Lett case – grunnlaget for tallene</h2><div class="card"><div class="sub" style="margin-bottom:8px"><b>{E(rv["reads"])}</b></div>'
             + (f'<div class="warn"><ul>{warn}</ul></div>' if warn else "")
             + f'<div class="grid2"><div><table class="odds"><thead><tr><th>{E(cur)} m</th><th></th><th>Period</th></tr></thead><tbody>{figs}</tbody></table></div>'
             f'<div><table class="odds"><thead><tr><th></th><th>{E(lc["code"])}</th><th>{E(pe.get("group", "group"))} median</th></tr></thead><tbody>{mrows}</tbody></table>'
             f'<div class="src" style="margin-top:6px">{rets}</div></div></div>'
-            f'<h3 style="margin-top:10px">Fem år</h3><table class="odds"><thead><tr><th>Year</th><th>Revenue</th><th>EBIT</th><th>Net income</th><th>FCF</th><th>Net debt</th></tr></thead>'
-            f'<tbody>{ann}</tbody></table>'
             f'<div class="src">Price {lc["price"]["value"]:.2f} NOK ({E(lc["price"]["date"])}, {E(lc["price"]["source"])}); market value NOK {_mn(lc.get("mcap_nok"), 1e9)} bn; '
             f'reports in {E(cur)}{fxs}. Statements: {E(lc["statements_source"])}, quarters to {E(str(lc.get("quarters_through")))}. '
             f'Group medians: {E(pe.get("note", ""))}. Cost of capital and long-run growth are EST. Built {E(lc["built_at"])} (oq case build).</div></div>')

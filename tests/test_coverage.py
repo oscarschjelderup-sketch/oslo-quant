@@ -145,7 +145,7 @@ def test_stock_page_folds_claudes_view_and_the_form_asks_whether_it_was_read(app
     bk.log_claude_view("BBB", "Beta Shipping", VIEW, 100.0, "2026-11-02", "test")
     page = client.get("/stock/BBB").get_data(as_text=True)
     assert "<details class=\"card\"><summary><b>Claudes syn</b>" in page and "Hadde du lest Claudes syn" in page
-    assert "Du har ikke logget et syn på dette selskapet ennå" in page
+    assert "Ingen vurdering fra deg ennå" in page and "Claude har et syn (foldet lenger ned)" in page
     r = client.post("/stock/BBB/judge", data=GOOD | {"claude_exists": "1"})
     assert r.status_code == 400 and "say whether you had read Claude" in r.get_data(as_text=True)
     r = client.post("/stock/BBB/judge", data=GOOD | {"claude_exists": "1", "saw_claude": "no", "kill_level": "50"})
@@ -167,3 +167,49 @@ def test_coverage_page_lists_both_views_and_agreement():
     html = rd.coverage_page(rows, today)
     assert "2 selskaper" in html and "du har syn på 1, Claude på 2" in html and "Bare Claude har syn på 1" in html
     assert "✗" in html and "12 Nov (10 d)" in html
+
+
+# ------------------------------------------------------------------------------------------------ report layout (D32)
+def _lightcase_fixture():
+    return {"code": "AAA", "name": "Alpha", "group": "Seafood", "financial": False, "built_at": "2026-11-02T10:00:00Z",
+            "price": {"value": 100.0, "date": "2026-10-30", "source": "test"}, "shares": 10e6, "mcap_nok": 1e9,
+            "currency": {"reporting": "EUR", "fx": 11.0, "fx_date": "2026-10-30", "source": "test"},
+            "profit": {k: {"value": v, "period": "LTM to 2026-06-30"} for k, v in (("revenue", 500e6), ("ebit", 60e6), ("net_income", 40e6), ("fcf", 30e6))},
+            "balance": {"net_debt": 100e6, "equity": 300e6, "minority": 0, "date": "2026-06-30"},
+            "annual": [{"year": 2024, "date": "2024-12-31", "revenue": 450e6, "ebit": 50e6, "net_income": 35e6, "fcf": 25e6, "net_debt": 120e6, "equity": 280e6},
+                       {"year": 2025, "date": "2025-12-31", "revenue": 480e6, "ebit": 55e6, "net_income": 38e6, "fcf": 28e6, "net_debt": 110e6, "equity": 290e6}],
+            "multiples": {"pe": 2.27, "pb": 0.3, "fcf_yield": 0.33, "ev": 190.9e6, "ev_ebit": 3.2, "ev_sales": 0.38},
+            "returns": {"tax_rate": 0.22, "tax_period": "LTM", "roe": 0.13, "roic": 0.117},
+            "reverse": {"model": "value driver", "wacc_est": 0.085, "implied_g": 0.01, "reads": "the price pays for +1.0 % a year growth (EST)"},
+            "peers": {"pe": 15.0, "n_pe": 4, "ev_ebit": 10.0, "n_ev_ebit": 4, "pb": 2.0, "n_pb": 4, "group": "Seafood", "note": "test"},
+            "statements_source": "test", "warnings": [], "quarters_through": "2026-06-30"}
+
+
+def test_stock_page_is_laid_out_as_a_report_front_page(app, monkeypatch):  # noqa: F811
+    from osloquant.dashboard import lightcase as lcm
+
+    client, snap = app
+    monkeypatch.setattr(lcm, "load", lambda code: _lightcase_fixture() if code == "AAA" else None)
+    page = client.get("/stock/AAA").get_data(as_text=True)
+    assert 'class="report"' in page and 'class="rail"' in page
+    assert '<div class="view-big">BUY</div>' in page and "TP: NOK 120" in page                  # the research-book view, large
+    assert "Kapitalstruktur" in page and "EV/EBIT (LTM)" in page and "EURNOK 11.000" in page
+    assert "Neste hendelse" in page and "Q4 report" in page                                      # from the book's events
+    assert "Investeringscase" in page and "Nedside – kill-kriterier" in page and "margin below 10%" in page
+    assert 'class="keyfig"' in page and "<th>2024</th><th>2025</th>" in page and "Omsetningsvekst" in page and "+6.7 %" in page
+    assert "Ingen estimater vises" in page and "EST" in page
+    assert "prefers-color-scheme" not in page                                                      # one light theme (D32)
+    # a company without a case keeps the layout, with the rail saying so
+    bare = client.get("/stock/CCC").get_data(as_text=True)
+    assert 'class="rail"' in bare and "Ingen vurdering fra deg ennå" in bare and 'class="keyfig"' not in bare
+
+
+def test_price_chart_draws_the_cone_to_the_views_values(app):  # noqa: F811
+    from osloquant.dashboard.charts import price_chart
+
+    client, snap = app
+    c = bk.case("AAA")
+    html = price_chart(snap, "AAA", c)
+    assert "TP NOK 120" in html and "Bear NOK 70" in html and "Bull NOK 150" in html and "cone to the view" in html
+    plain = price_chart(snap, "BBB", None)
+    assert "cone" not in plain and "Close" in plain
