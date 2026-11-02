@@ -245,6 +245,78 @@ def dominant_stock(exc: pd.Series) -> tuple[str | None, float]:
     return str(code), float(share.max())
 
 
+PLACEBO_N = 200
+PLACEBO_SEED = 20261102
+
+
+def _placebo_frame(counts_sm: np.ndarray, ndays_valid: np.ndarray, valid: np.ndarray, mcode: np.ndarray, mstart: np.ndarray, rng) -> np.ndarray:
+    """One placebo frame (T, S): the signal's count spread over stock-months in proportion to its month totals times
+    its stock totals (multinomial), then that many random traded sessions in each cell. The stock mix and the market
+    timing of the real signal survive; the day does not."""
+    T, S = valid.shape
+    p_cell = np.outer(counts_sm.sum(axis=1), counts_sm.sum(axis=0)) * (ndays_valid > 0)
+    if p_cell.sum() <= 0:
+        return np.zeros((T, S), dtype=bool)
+    k = rng.multinomial(int(counts_sm.sum()), (p_cell / p_cell.sum()).ravel()).reshape(counts_sm.shape)
+    k = np.minimum(k, ndays_valid)
+    U = rng.random((T, S))
+    U[~valid] = 2.0                                           # a stock that did not trade cannot carry a placebo day
+    order = np.argsort(U + 10.0 * mcode[:, None], axis=0)      # per stock: rows by month, random within the month
+    rank = np.empty((T, S), dtype=np.int32)
+    pos = np.broadcast_to((np.arange(T) - mstart[mcode])[:, None], (T, S)).astype(np.int32)
+    np.put_along_axis(rank, order, pos, axis=0)               # rank within its month of every (day, stock)
+    return (rank < k[mcode]) & valid
+
+
+def placebo_band(P: dict[str, pd.DataFrame], frames: dict | None = None, reps: int = PLACEBO_N, seed: int = PLACEBO_SEED,
+                 horizons=(20, 60)) -> dict[str, dict]:
+    """The two-way placebo behind the fourth grade check (DECISIONS D28): for every signal, ``reps`` frames of random
+    sessions with the signal's own count per month and per stock in expectation, scored exactly like the scorecard's
+    mean excess. Per horizon: the placebo mean, its 95 % band, the real mean's z against the placebo spread, its
+    percentile rank, and ``outside`` – the real mean beyond the band on its own side. A signal whose stocks and months
+    already explain its excess (a breakdown signal that fires in the period's losers) lands inside the band."""
+    C, opens = P["close"], P["open"]
+    frames = frames or signal_frames(P)
+    fwd = {h: C.shift(-h) / opens.shift(-1) - 1 for h in horizons}
+    exc = {h: fwd[h].sub(fwd[h].mean(axis=1), axis=0).to_numpy() for h in horizons}
+    valid = np.isfinite(C.to_numpy())
+    mcode = pd.factorize(C.index.to_period("M"))[0]
+    months = int(mcode.max()) + 1
+    mstart = np.searchsorted(mcode, np.arange(months))
+    ndays_valid = pd.DataFrame(valid).groupby(mcode).sum().reindex(range(months), fill_value=0).to_numpy()
+
+    def means(sig: np.ndarray) -> list[float]:
+        ii, jj = np.nonzero(sig)
+        out = []
+        for h in horizons:
+            e = exc[h][ii, jj]
+            e = e[np.isfinite(e)]
+            out.append(float(e.mean()) if len(e) else np.nan)
+        return out
+
+    rng = np.random.default_rng(seed)
+    res: dict[str, dict] = {}
+    for name, (_kind, sig) in frames.items():
+        f = sig.fillna(False).astype(bool).to_numpy()
+        real = means(f)
+        counts = pd.DataFrame(f).groupby(mcode).sum().reindex(range(months), fill_value=0).to_numpy()
+        draws = np.array([means(_placebo_frame(counts, ndays_valid, valid, mcode, mstart, rng)) for _ in range(reps)]).reshape(reps, len(horizons))
+        res[name] = {}
+        for k, h in enumerate(horizons):
+            d = draws[:, k]
+            d = d[np.isfinite(d)]
+            if len(d) < 10 or not np.isfinite(real[k]):
+                res[name][f"h{h}"] = {"reps": int(len(d)), "mean": None, "lo": None, "hi": None, "z": None, "pct": None, "outside": None}
+                continue
+            lo, hi = np.percentile(d, [2.5, 97.5])
+            sd = float(d.std(ddof=1))
+            res[name][f"h{h}"] = {"reps": int(len(d)), "mean": round(float(d.mean()), 4), "lo": round(float(lo), 4), "hi": round(float(hi), 4),
+                                  "z": round(float((real[k] - d.mean()) / sd), 2) if sd > 0 else None,
+                                  "pct": round(float((d < real[k]).mean()), 3),
+                                  "outside": bool(real[k] > hi) if real[k] > 0 else bool(real[k] < lo)}
+    return res
+
+
 PERIODS = (("2010-01-01", "2015-12-31"), ("2016-01-01", "2020-12-31"), ("2021-01-01", "2030-12-31"))
 LISTED_BY = "2011-01-01"       # "survivors": stocks with bars from the start, so no late listings flatter the odds
 DOMINANT = 1 / 3
@@ -260,10 +332,11 @@ def grade(checks: dict[str, bool | None]) -> str:
     return "ABCD"[min(failed, 3)] if len(done) >= 3 else ("B" if failed == 0 else "ABCD"[min(failed + 1, 3)])
 
 
-def robustness(P: dict[str, pd.DataFrame], periods=PERIODS, listed_by: str = LISTED_BY) -> dict[str, dict]:
+def robustness(P: dict[str, pd.DataFrame], periods=PERIODS, listed_by: str = LISTED_BY, placebo: dict[str, dict] | None = None) -> dict[str, dict]:
     """How the odds hold up: the scorecard on three sub-periods and on the stocks listed from the start, and a grade
-    per horizon from three checks – same sign in every sub-period, bootstrap interval excludes zero, no stock carries
-    a third of the sum. A fourth check (a placebo band) is not run yet, so the grade says so (DECISIONS D20, D23)."""
+    per horizon from four checks – same sign in every sub-period, bootstrap interval excludes zero, no stock carries
+    a third of the sum, and the real mean outside the two-way placebo band (``placebo`` from `placebo_band`; when it
+    is not passed that check is "not run" and does not count) (DECISIONS D20, D23, D28)."""
     C = P["close"]
     first = C.apply(lambda s: s.first_valid_index())
     old = [c for c in C.columns if first[c] is not None and first[c] <= pd.Timestamp(listed_by)]
@@ -289,7 +362,11 @@ def robustness(P: dict[str, pd.DataFrame], periods=PERIODS, listed_by: str = LIS
             ci_ok = None if lo != lo else bool(lo > 0 or hi < 0)
             share = f[f"topshare{h}"]
             no_dom = None if share != share else bool(share < DOMINANT)
-            checks = {"same_sign_all_periods": same_sign, "interval_excludes_zero": ci_ok, "no_dominant_stock": no_dom, "outside_placebo_band": None}
+            pb = ((placebo or {}).get(sig) or {}).get(f"h{h}")
+            checks = {"same_sign_all_periods": same_sign, "interval_excludes_zero": ci_ok, "no_dominant_stock": no_dom,
+                      "outside_placebo_band": None if not pb else pb.get("outside")}
+            if pb:
+                o[f"placebo{h}"] = pb
             o[f"checks{h}"] = checks
             o[f"grade{h}"] = grade(checks)
         out[sig] = o
@@ -308,8 +385,11 @@ def write_odds(table: pd.DataFrame, start: str, end: str, universe: int, path: P
                 "universe_note": "today's listed stocks only (survivors); late listings enter on their first bar"}
     if robust:
         measured.update(periods=[f"{a[:4]}-{b[:4]}" for a, b in PERIODS], listed_by=LISTED_BY,
-                        grade="A–D from: same sign in all three sub-periods, month-bootstrap 95 % interval excludes zero, no stock carries "
-                              "a third of the sum; the placebo-band check is not run yet, so A means 3 of 3",
+                        grade="A–D from four checks: same sign in all three sub-periods, month-bootstrap 95 % interval excludes zero, no stock "
+                              "carries a third of the sum, real mean outside the two-way placebo 95 % band on its own side; a check not run "
+                              "does not count (A = every check that ran passed)",
+                        placebo={"design": "two-way: the signal's count per month and per stock in expectation, random traded sessions",
+                                 "reps": PLACEBO_N, "seed": PLACEBO_SEED} if any("placebo60" in r for r in robust.values()) else "not run",
                         tc="two-way cluster-robust t (time blocks of ceil(h/21) months x stock) of the event-weighted mean")
     if old.get("measured", {}).get("bracket"):
         measured["bracket"] = old["measured"]["bracket"]

@@ -139,9 +139,10 @@ def test_the_committed_signal_odds_reproduce_from_the_frozen_prices():
     """exc/hit/clustered t and the half-period robustness in signal_odds.yaml, from the frozen prices to 19 Oct 2026."""
     P = {k: v.loc[:"2026-10-19"] for k, v in tdata.load_panel().items()}
     table = sg.scorecard(P)
-    rob = sg.robustness(P)
+    rob = sg.robustness(P, placebo=sg.placebo_band(P))
     doc = yaml.safe_load(sg.odds_path().read_text(encoding="utf-8"))
     assert doc["measured"]["listed_by"] == sg.LISTED_BY and len(doc["measured"]["periods"]) == 3
+    assert doc["measured"]["placebo"]["reps"] == sg.PLACEBO_N and doc["measured"]["placebo"]["seed"] == sg.PLACEBO_SEED
     for name, row in table.iterrows():
         s = doc["signals"][name]
         for k in ("events", "exc20", "exc60", "hit20", "tc20", "tc60", "lo60", "hi60", "bench60", "topshare60"):

@@ -13,9 +13,15 @@ measured:
   - 2016-2020
   - 2021-2030
   listed_by: '2011-01-01'
-  grade: 'A–D from: same sign in all three sub-periods, month-bootstrap 95 % interval
-    excludes zero, no stock carries a third of the sum; the placebo-band check is
-    not run yet, so A means 3 of 3'
+  grade: 'A–D from four checks: same sign in all three sub-periods, month-bootstrap
+    95 % interval excludes zero, no stock carries a third of the sum, real mean outside
+    the two-way placebo 95 % band on its own side; a check not run does not count
+    (A = every check that ran passed)'
+  placebo:
+    design: 'two-way: the signal''s count per month and per stock in expectation,
+      random traded sessions'
+    reps: 200
+    seed: 20261102
   tc: two-way cluster-robust t (time blocks of ceil(h/21) months x stock) of the event-weighted
     mean
   bracket:
@@ -95,17 +101,33 @@ signals:
         hit20: 0.4826
         tc20: 0.5144
         tc60: 1.9519
+      placebo20:
+        reps: 200
+        mean: 0.0005
+        lo: -0.0026
+        hi: 0.0038
+        z: 1.77
+        pct: 0.965
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade20: D
+      placebo60:
+        reps: 200
+        mean: 0.0013
+        lo: -0.0064
+        hi: 0.0077
+        z: 3.6
+        pct: 1.0
+        outside: true
       checks60:
         same_sign_all_periods: true
         interval_excludes_zero: true
         no_dominant_stock: true
-        outside_placebo_band: null
+        outside_placebo_band: true
       grade60: A
     bracket:
       h20:
@@ -186,17 +208,33 @@ signals:
         hit20: 0.4904
         tc20: 0.7487
         tc60: 2.4831
+      placebo20:
+        reps: 200
+        mean: 0.0002
+        lo: -0.0025
+        hi: 0.003
+        z: 1.32
+        pct: 0.915
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade20: D
+      placebo60:
+        reps: 200
+        mean: 0.0005
+        lo: -0.0045
+        hi: 0.0053
+        z: 4.13
+        pct: 1.0
+        outside: true
       checks60:
         same_sign_all_periods: true
         interval_excludes_zero: true
         no_dominant_stock: true
-        outside_placebo_band: null
+        outside_placebo_band: true
       grade60: A
     bracket:
       h20:
@@ -277,17 +315,33 @@ signals:
         hit20: 0.4732
         tc20: -0.4712
         tc60: 0.2701
+      placebo20:
+        reps: 200
+        mean: 0.0004
+        lo: -0.0018
+        hi: 0.0026
+        z: -0.13
+        pct: 0.485
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade20: D
+      placebo60:
+        reps: 200
+        mean: 0.002
+        lo: -0.0015
+        hi: 0.0056
+        z: 1.84
+        pct: 0.97
+        outside: false
       checks60:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade60: D
     bracket:
       h20:
@@ -368,17 +422,33 @@ signals:
         hit20: 0.4913
         tc20: 0.8227
         tc60: 1.1117
+      placebo20:
+        reps: 200
+        mean: 0.0002
+        lo: -0.0019
+        hi: 0.0025
+        z: 1.9
+        pct: 0.97
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: true
-        outside_placebo_band: null
-      grade20: C
+        outside_placebo_band: false
+      grade20: D
+      placebo60:
+        reps: 200
+        mean: 0.0007
+        lo: -0.0036
+        hi: 0.0044
+        z: 3.57
+        pct: 1.0
+        outside: true
       checks60:
         same_sign_all_periods: false
         interval_excludes_zero: true
         no_dominant_stock: true
-        outside_placebo_band: null
+        outside_placebo_band: true
       grade60: B
     bracket:
       h20:
@@ -459,17 +529,33 @@ signals:
         hit20: 0.4722
         tc20: 0.6037
         tc60: -0.0447
+      placebo20:
+        reps: 200
+        mean: -0.001
+        lo: -0.0046
+        hi: 0.0032
+        z: 0.58
+        pct: 0.705
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade20: D
+      placebo60:
+        reps: 200
+        mean: -0.0025
+        lo: -0.0112
+        hi: 0.0063
+        z: 0.16
+        pct: 0.58
+        outside: false
       checks60:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade60: D
     bracket:
       h20:
@@ -550,18 +636,34 @@ signals:
         hit20: 0.4773
         tc20: -0.5274
         tc60: -0.3186
+      placebo20:
+        reps: 200
+        mean: -0.0033
+        lo: -0.0061
+        hi: -0.0003
+        z: -1.13
+        pct: 0.135
+        outside: false
       checks20:
         same_sign_all_periods: true
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
-      grade20: C
+        outside_placebo_band: false
+      grade20: D
+      placebo60:
+        reps: 200
+        mean: -0.0058
+        lo: -0.0111
+        hi: -0.0004
+        z: -1.12
+        pct: 0.125
+        outside: false
       checks60:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: true
-        outside_placebo_band: null
-      grade60: C
+        outside_placebo_band: false
+      grade60: D
     bracket:
       h20:
         target: 0.395
@@ -641,18 +743,34 @@ signals:
         hit20: 0.4563
         tc20: -2.2214
         tc60: -1.3092
+      placebo20:
+        reps: 200
+        mean: -0.0007
+        lo: -0.0046
+        hi: 0.0034
+        z: -2.17
+        pct: 0.01
+        outside: true
       checks20:
         same_sign_all_periods: true
         interval_excludes_zero: true
         no_dominant_stock: true
-        outside_placebo_band: null
+        outside_placebo_band: true
       grade20: A
+      placebo60:
+        reps: 200
+        mean: -0.0022
+        lo: -0.0095
+        hi: 0.0052
+        z: -0.51
+        pct: 0.3
+        outside: false
       checks60:
         same_sign_all_periods: true
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
-      grade60: C
+        outside_placebo_band: false
+      grade60: D
     bracket:
       h20:
         target: 0.3546
@@ -732,17 +850,33 @@ signals:
         hit20: 0.4745
         tc20: 0.52
         tc60: 0.8844
+      placebo20:
+        reps: 200
+        mean: -0.0007
+        lo: -0.0031
+        hi: 0.0021
+        z: 0.64
+        pct: 0.74
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade20: D
+      placebo60:
+        reps: 200
+        mean: -0.0011
+        lo: -0.0062
+        hi: 0.0036
+        z: 0.84
+        pct: 0.78
+        outside: false
       checks60:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade60: D
     bracket:
       h20:
@@ -823,17 +957,33 @@ signals:
         hit20: 0.4766
         tc20: 0.3161
         tc60: -0.9143
+      placebo20:
+        reps: 200
+        mean: -0.0017
+        lo: -0.0055
+        hi: 0.0028
+        z: 0.4
+        pct: 0.63
+        outside: false
       checks20:
         same_sign_all_periods: false
         interval_excludes_zero: false
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: false
       grade20: D
+      placebo60:
+        reps: 200
+        mean: -0.0048
+        lo: -0.011
+        hi: 0.0019
+        z: -2.51
+        pct: 0.005
+        outside: true
       checks60:
         same_sign_all_periods: false
         interval_excludes_zero: true
         no_dominant_stock: false
-        outside_placebo_band: null
+        outside_placebo_band: true
       grade60: C
     bracket:
       h20:

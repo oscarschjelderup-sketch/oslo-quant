@@ -446,7 +446,16 @@ def bracket_line(signal: str) -> str:
             + robustness_line(signal))
 
 
-GRADE_NO = {"A": "stabil (3 av 3 sjekker)", "B": "2 av 3 sjekker", "C": "1 av 3 sjekker", "D": "ustabil (0 av 3)"}
+def grade_words(g: str, checks: dict | None) -> str:
+    """'stabil (4 av 4 sjekker)' – counted from the checks that actually ran, so the words never promise a check that
+    was skipped."""
+    done = [v for v in (checks or {}).values() if v is not None]
+    n, ok = len(done), sum(bool(v) for v in done)
+    if g == "A":
+        return f"stabil ({ok} av {n} sjekker)"
+    if g == "D":
+        return f"ustabil ({ok} av {n})"
+    return f"{ok} av {n} sjekker"
 
 
 def robustness_line(signal: str) -> str:
@@ -460,14 +469,21 @@ def robustness_line(signal: str) -> str:
     sv = (r.get("survivors") or {}).get("exc60")
     lo, hi, tc = sig.get("lo60"), sig.get("hi60"), sig.get("tc60")
     ci = f"[{lo * 100:+.1f}, {hi * 100:+.1f}]" if lo is not None and hi is not None else "–"
-    top = f'{E(str(sig.get("top60") or "–"))} bærer {_p(sig.get("topshare60"))} av summen' if sig.get("topshare60") is not None else ""
+    share = sig.get("topshare60")
+    top = ("" if share is None else f'{E(str(sig.get("top60") or "–"))} bærer {_p(share)} av summen'
+           + (" (summen er nær null, så andelen sier lite)" if share > 1 else ""))
     g60, g20 = r.get("grade60", "?"), r.get("grade20", "?")
     cls = "buy" if g60 == "A" and (sig.get("exc60") or 0) > 0 else "risk" if g60 == "A" else "warn-t" if g60 == "B" else ""
+    pb = r.get("placebo60") or {}
+    if pb.get("mean") is not None:
+        plac = (f'tilfeldige dager med samme aksje- og månedsmiks ({pb["reps"]} trekk): {pct(pb["mean"])} [{pb["lo"] * 100:+.1f}, {pb["hi"] * 100:+.1f}], '
+                f'z {pb["z"]:+.1f} – {"utenfor båndet" if pb.get("outside") else "innenfor båndet: aksjene og månedene forklarer tallet, ikke dagen"}')
+    else:
+        plac = "placebo-bånd ikke kjørt"
     return (f'<span class="bracket">60 d: aksjen {pct(sig.get("raw60"))}, de 64 i samme vindu {pct(sig.get("bench60"))}, meravkastning {pct(sig.get("exc60"))} '
             f'{ci} (95 %), t {"–" if tc is None else format(tc, ".1f")} med klynger på tid × aksje · per periode {per} · '
-            f'{r.get("survivor_stocks", "?")} aksjer notert fra start {pct(sv)} · {top} → '
-            f'<b class="{cls}">grad {E(g60)} – {E(GRADE_NO.get(g60, ""))}</b> (20 d: {E(g20)}). Bare dagens 64 aksjer (overlevere); '
-            'placebo-bånd ikke kjørt ennå.</span>')
+            f'{r.get("survivor_stocks", "?")} aksjer notert fra start {pct(sv)} · {top} · {plac} → '
+            f'<b class="{cls}">grad {E(g60)} – {E(grade_words(g60, r.get("checks60")))}</b> (20 d: {E(g20)}). Bare dagens 64 aksjer (overlevere).</span>')
 
 
 def chip_class(a) -> str:

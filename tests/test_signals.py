@@ -178,6 +178,38 @@ def test_scorecard_reports_clustered_t_intervals_and_grades():
     assert not any(r["grade20"] == "A" and r["grade60"] == "A" for r in rob.values())
 
 
+def test_placebo_band_sees_a_planted_day_effect_and_not_noise():
+    rng = np.random.default_rng(11)
+    n, codes = 1500, "ABCD"
+    base = {c: 100 * np.exp(np.cumsum(rng.normal(0, 0.01, n))) for c in codes}
+    sig = np.zeros((n, 4), dtype=bool)
+    for j in range(4):
+        sig[rng.choice(np.arange(50, n - 80), 25, replace=False), j] = True
+    jump = {c: np.ones(n) for c in codes}
+    for j, c in enumerate(codes):
+        for d in np.nonzero(sig[:, j])[0]:
+            jump[c][d + 1:] *= 1.05                                   # the stock steps up 5 % the session after the signal
+    P = _panel({c: base[c] * jump[c] for c in codes}, start="2015-01-02")
+    planted = pd.DataFrame(sig, index=P["close"].index, columns=list(codes))
+    noise = pd.DataFrame(rng.random((n, 4)) < 0.02, index=P["close"].index, columns=list(codes))
+    frames = {"planted": ("buy", planted), "noise": ("buy", noise)}
+    pb = signals.placebo_band(P, frames=frames, reps=100, seed=1)
+    for name in frames:
+        for h in ("h20", "h60"):
+            assert pb[name][h]["reps"] == 100 and pb[name][h]["lo"] <= pb[name][h]["mean"] <= pb[name][h]["hi"]
+    assert pb["planted"]["h20"]["outside"] and pb["planted"]["h20"]["z"] > 5 and pb["planted"]["h20"]["pct"] == 1.0
+    assert abs(pb["noise"]["h20"]["z"]) < 3 and abs(pb["noise"]["h20"]["mean"]) < 0.01
+    assert signals.placebo_band(P, frames=frames, reps=100, seed=1) == pb                       # the seed makes it reproducible
+    # the fourth check enters the grade only when the placebo is passed in
+    rob = signals.robustness(P, periods=(("2015-01-01", "2016-12-31"), ("2017-01-01", "2018-12-31"), ("2019-01-01", "2030-12-31")),
+                             listed_by="2015-06-01", placebo=signals.placebo_band(P, reps=20, seed=2))
+    ran = [r for r in rob.values() if r["placebo60"]["mean"] is not None]            # signals that fired on this panel
+    assert ran and all(r["checks60"]["outside_placebo_band"] in (True, False) and r["placebo60"]["reps"] == 20 for r in ran)
+    assert all(r["checks60"]["outside_placebo_band"] is None for r in rob.values() if r["placebo60"]["mean"] is None)
+    assert signals.grade({"a": True, "b": True, "c": True, "d": True}) == "A"
+    assert signals.grade({"a": True, "b": True, "c": True, "d": False}) == "B"
+
+
 def test_cluster_t_and_bootstrap_on_known_series():
     idx = pd.MultiIndex.from_product([pd.bdate_range("2020-01-01", periods=240), ["A", "B"]])
     rng = np.random.default_rng(0)

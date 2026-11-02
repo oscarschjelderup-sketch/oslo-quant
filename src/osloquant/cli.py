@@ -1379,9 +1379,11 @@ def signals_score(
     write: bool = typer.Option(
         False, "--write", help="Update the odds file the alerts read (resources/signal_odds.yaml)."
     ),
+    placebo_reps: int = typer.Option(200, "--placebo-reps", help="Two-way placebo frames per signal for the fourth grade check "
+                                                                  "(0 = skip; about a minute per 100 on the full history)."),
 ) -> None:
-    """Measure every signal on the store's history: events, forward excess returns, hit rates, month-clustered t, and
-    how the odds hold up on each half of the period and on the stocks listed from the start."""
+    """Measure every signal on the store's history: events, forward excess returns, hit rates, clustered t, the
+    two-way placebo band, and how the odds hold up in three sub-periods and on the stocks listed from the start."""
     _setup()
     from rich.table import Table
 
@@ -1396,19 +1398,24 @@ def signals_score(
     if end:
         P = {k: v.loc[:end] for k, v in P.items()}
     table = sg.scorecard(P)
-    robust = sg.robustness(P)
+    placebo = sg.placebo_band(P, reps=placebo_reps) if placebo_reps else None
+    robust = sg.robustness(P, placebo=placebo)
     t = Table(title=f"Signal scorecard {start} .. {P['close'].index[-1]:%Y-%m-%d}, {P['close'].shape[1]} stocks")
     labels = list(next(iter(robust.values()))["periods"]) if robust else []
-    for col in ("signal", "kind", "events", "exc 20d", "95 %", "tc 20d", "grade", "exc 60d", "95 %", "tc 60d", *[f"60d {lab}" for lab in labels], "top stock", "grade"):
+    for col in ("signal", "kind", "events", "exc 20d", "95 %", "tc 20d", "grade", "exc 60d", "95 %", "tc 60d", "placebo 60d", *[f"60d {lab}" for lab in labels],
+                "top stock", "grade"):
         t.add_column(col, justify="right" if col not in ("signal", "kind", "grade", "top stock") else "left")
     for name, row in table.iterrows():
         r = robust[name]
+        pb = r.get("placebo60") or {}
+        pbs = "not run" if not pb else "–" if pb.get("mean") is None else f"{pb['mean'] * 100:+.2f} [{pb['lo'] * 100:+.2f}, {pb['hi'] * 100:+.2f}] z {pb['z']:+.1f}"
         t.add_row(name, row["kind"], f"{row['events']:.0f}", _pct(row["exc20"], 2), f"[{row['lo20'] * 100:+.2f}, {row['hi20'] * 100:+.2f}]",
-                  f"{row['tc20']:.1f}", r["grade20"], _pct(row["exc60"], 2), f"[{row['lo60'] * 100:+.2f}, {row['hi60'] * 100:+.2f}]", f"{row['tc60']:.1f}",
+                  f"{row['tc20']:.1f}", r["grade20"], _pct(row["exc60"], 2), f"[{row['lo60'] * 100:+.2f}, {row['hi60'] * 100:+.2f}]", f"{row['tc60']:.1f}", pbs,
                   *[_pct(r["periods"][lab]["exc60"], 2) for lab in labels], f"{row['top60']} {row['topshare60'] * 100:.0f}%", r["grade60"])
     console.print(t)
     console.print(f"Round trip ~{sg.ROUND_TRIP_COST * 100:.1f} %: a 20-day signal pays only if raw 20d beats it. tc = two-way cluster-robust t "
-                  "(time blocks x stock); 95 % = month-bootstrap interval; grade A–D from sign in all periods, interval, no dominant stock. Survivors only.")
+                  "(time blocks x stock); 95 % = month-bootstrap interval; placebo = random days with the signal's stock and month mix; "
+                  "grade A–D from sign in all periods, interval, no dominant stock, outside the placebo band. Survivors only.")
     if write:
         path = sg.write_odds(table, start, f"{P['close'].index[-1]:%Y-%m-%d}", P["close"].shape[1], robust=robust)
         console.print(f"odds written to {path}")

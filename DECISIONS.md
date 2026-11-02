@@ -381,3 +381,18 @@ so the author can overrule it – inference is a hint, never a verdict. The sizi
 `max_loss_per_group` (NOK) across open BUY views in the same sector group, applied like `max_total_loss`; the
 default config writes it as 3000 against a 6000 total, which Oscar should set himself. Nothing here changes a
 rating; it changes what the size form allows and what the morning visit sees.
+
+## D28. The fourth grade check: a two-way placebo band
+
+D23 left the grade at three checks and said so. The quant review built the missing one and found that the obvious
+placebo – random days in the same stock-months as the real signal – is not a null: a month in which a stock broke
+out is a month in which it rallied, and a random day in it inherits the rally. The placebo that is fair to the
+signal keeps its stock mix and its month mix but not the day: the signal's count is spread over stock-months in
+proportion to its month totals times its stock totals (a multinomial draw), and random traded sessions are drawn in
+each cell. `placebo_band` does that `PLACEBO_N` = 200 times per signal with a fixed seed and scores each frame
+exactly like the scorecard's mean excess; the fourth check passes when the real mean lies beyond the 95 % band on
+its own side. 200 draws, not the review's 500: the band's edges move by less than the rounding at 200 and the
+committed file has to reproduce in the test suite in about a minute and a half. The check is optional in the code
+(`robustness(..., placebo=None)` still says "not run"), on by default in `oq signals score`, and written into the
+odds file with its design, count and seed. The dashboard's grade words now count the checks that ran, and the signal
+line says whether the stocks and months already explain the number.
