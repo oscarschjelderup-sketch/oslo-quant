@@ -93,7 +93,7 @@ def test_a_report_target_that_differs_from_the_view_asks_for_a_decision(app, hom
     items = td.report_tp_items(bk.cases(), pd.Timestamp("2026-11-04"))
     assert len(items) == 1 and items[0].kind == "report-tp" and "135" in items[0].title
     front = client.get("/").get_data(as_text=True)
-    assert "rapporten av 2026-11-01" in front
+    assert "rapporten av 2026-11-01" in front and "/stock/AAA/pretrade" in front        # the decision item links to the page before the form
     stock = client.get("/stock/AAA").get_data(as_text=True)
     assert "har kursmål 135" in stock
     # a judgement logged after the report settles it, whatever the target

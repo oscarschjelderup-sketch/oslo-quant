@@ -174,7 +174,9 @@ def today_page(ctx: dict, static: bool = False) -> str:
         dec_html = summary + "".join(
             f'<div class="item"><span class="tag {["u0", "u1", "u2"][i.urgency]}">{n}. {E(urgency_word[i.urgency])}</span>'
             f'<span class="src">{E(i.kind)} · ~{minutes.get(i.kind, 5)} min</span><br><b>{L(i.code, i.title)}</b>'
-            f'<div class="why">{E(i.detail)}</div></div>' for n, i in enumerate(dec, 1))
+            f'<div class="why">{E(i.detail)}'
+            + (f' <a href="/stock/{E(i.code)}/pretrade">Før du kjøper →</a>' if (not static and i.kind in ("pre-report", "post-report", "re-rate", "re-assess", "report-tp")) else '')
+            + '</div></div>' for n, i in enumerate(dec, 1))
     else:
         nxt = ctx["upcoming"][0] if ctx.get("upcoming") else None
         dec_html = ('<p style="font-size:16px;margin:4px 0"><b>Ingenting krever en vurdering i dag.</b> Gå til forelesning.</p>'
