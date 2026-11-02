@@ -46,13 +46,10 @@ Revisjon: `docs/natt/revisjon.md`. Idéliste (43 skårede): `docs/natt/ideer.md`
 
 ## Status ved avbrudd (00:15 – bruksgrensen ble nådd)
 
-- `natt-2026-11-02` står på D (17319a0): A/A2, B, E, F, C, D – alle med full suite grønn (365 passed).
-- G, H og I ligger som en stabel på `natt-i-stale` (60d7f3a) ovenpå D. G og I har grønne delkjøringer; H er grønn på
-  odds/dashboard/signals (43 tester). Full suite for H startet i `oslo-quant-natt-ci` (logg `scratchpad/natt-h-full.log`)
-  og var 40 % ferdig da økta ble kuttet. Kjør i worktree'en:
-  `PYTHONPATH=src ../oslo-quant/.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider` på `natt-i-stale`; er den
-  grønn: `git branch -f natt-2026-11-02 natt-i-stale`. Ikke gjort automatisk fordi regelen var «full suite grønn før
-  sammenslåing».
+- Full suite for H ble grønn etter avbruddet (369 passed), så `natt-2026-11-02` er flyttet til H (81123b9): A/A2, B, E, F, C, D, G og H.
+- Bare I (syn eldre enn siste rapport, D29) står igjen på `natt-i-stale` (60d7f3a + denne rapporten) med grønn delkjøring, ikke full suite.
+  Kjør i worktree'en `PYTHONPATH=src ../oslo-quant/.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider` på `natt-i-stale`;
+  er den grønn: `git branch -f natt-2026-11-02 natt-i-stale`.
 - Idé 25 (malspor: samme kursmål/sannsynligheter i flere caser – begge åpne syn har TP 54) var neste; patch-skript
   ligger i scratchpad (`natt_j_patch.py`), ikke kjørt. D30 ikke skrevet.
 - Natt-dashbordet kjører på http://127.0.0.1:8063 med H-koden (kan stoppes); main på 8060 er urørt.
