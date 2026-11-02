@@ -265,6 +265,17 @@ def create_app() -> Flask:
         fp = jg.fingerprint([dict(c.view, code=c.code) for c in bk.cases() if c.view])
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table))
 
+    @app.get("/funds")
+    def funds_page():
+        from osloquant.dashboard import funds as fn
+
+        b = fn.load_build()
+        tracked = []
+        if fn.load_all():
+            pr = jg.load_prices(start=pd.Timestamp.now().normalize() - pd.Timedelta(days=400))
+            tracked = fn.tracking(pr.adjusted, pr.index, fn.risk_free()[0])
+        return rd.funds_page(b, tracked, pd.Timestamp.now().normalize())
+
     @app.get("/coverage")
     def coverage():
         snap = mk.snapshot()

@@ -458,3 +458,23 @@ last. The chart draws the cone from the last close to the view's bear, target an
 as the note does. Two things the note has that the page does not: estimates by year – we show history and LTM only
 and never invent an "e" column – and consensus, which is licensed; the consensus target stays a field Oscar fills
 in by hand with its source. The right rail shows Oscar's view only; Claude's stays folded below (D31).
+
+## D33. Model portfolios: built on the frontier, judged out of sample, tracked as paper funds
+
+Oscar asked for portfolios put together on risk-adjusted return – the efficient frontier and the capital market
+line – as "almost funds", and for them to be judged. Three things are kept apart on the page because they are
+different kinds of knowledge. (1) What a portfolio *is* today: weights and the expected return, volatility and
+Sharpe on the inputs, marked EST – the inputs are three years of daily history (means shrunk towards the
+cross-section, covariance shrunk by Ledoit–Wolf, no stock above 15 %) or the views' targets. (2) How the *recipe*
+did out of sample: rebuilt at every month end from trailing data only, held a month, 0.25 % on turnover, five
+years, against equal weight and OSEBX, with a monthly block-bootstrap interval on the Sharpe difference. On the
+first build (2 Nov 2026) no optimised recipe is distinguishable from equal weight; maximum Sharpe is ahead on the
+point estimate and minimum variance behind, both inside wide intervals. (3) How each *fund* does from the day its
+weights were written: a paper NAV from the recorded weights and the store's closes, append-only in
+`~/osloquant-home/funds/`, compared with equal weight and OSEBX over the same days.
+
+The reference is equal weight, not OSEBX: the universe is today's stocks, and survivorship alone made equal weight
+beat the index by about eight points a year in the test period. The risk-free rate is Norges Bank's policy rate
+from the rates feed. The view-weighted funds (Claude's, and Oscar's once he has three views) cannot be backtested
+and say so; they exist to be judged forward. `oq funds build` recomputes and caches; `--write` records a rebalance.
+Nothing trades; paper money.

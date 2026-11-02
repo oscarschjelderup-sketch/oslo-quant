@@ -1570,6 +1570,57 @@ def insiders_study(
 
 
 # ------------------------------------------------------------------------------------------------ judgement log
+funds_app = typer.Typer(help="Model portfolios on the store: frontier, CML, out-of-sample test, paper NAVs (DECISIONS D33).", no_args_is_help=True)
+app.add_typer(funds_app, name="funds")
+
+
+@funds_app.command("build")
+def funds_build(
+    write: bool = typer.Option(False, "--write", help="Also record today's weights as a rebalance of each paper fund (inception the first time)."),
+    no_backtest: bool = typer.Option(False, "--no-backtest", help="Skip the five-year walk-forward (seconds instead of a minute)."),
+) -> None:
+    """Build every model portfolio on the store's prices, run the walk-forward test, cache the result for the dashboard."""
+    _setup()
+    from osloquant import judgements as jg
+    from osloquant.dashboard import book as bk
+    from osloquant.dashboard import funds as fn
+
+    pr = jg.load_prices(start=pd.Timestamp.now().normalize() - pd.DateOffset(years=fn.BACKTEST_YEARS + int(fn.LOOKBACK_YEARS) + 1))
+    cases = bk.cases()
+    claude = {c.code: c.claude_view for c in cases if c.claude_view}
+    oscar = {c.code: c.view for c in cases if c.view}
+    with console.status("Building portfolios and the walk-forward test ..."):
+        b = fn.build(pr.adjusted, pr.index, views_claude=claude, views_oscar=oscar, backtest=not no_backtest)
+    fn.save_build(b)
+    rows = (b.get("backtest") or {}).get("rows") or {}
+    for f in b["funds"]:
+        e = f["est"]
+        line = f"[bold]{f['name']:24s}[/bold] {f['n']:3d} stocks  E[r] {e['ret']:.1%}  vol {e['vol']:.1%}  Sharpe {e['sharpe']:.2f}" if e.get("vol") else f"[bold]{f['name']}[/bold] – {f['note']}"
+        if f["name"] in rows:
+            r = rows[f["name"]]
+            line += f"  | OOS {r.get('cagr', 0):.1%} p.a., Sharpe {r.get('sharpe') or 0:.2f}: {fn.verdict(r, f['name'])}"
+        console.print(line)
+    if write:
+        px = pr.adjusted.loc[:pd.Timestamp(b["asof"])].iloc[-1]
+        for f in b["funds"]:
+            if f["weights"]:
+                doc = fn.write(f, b["asof"], px)
+                console.print(f"  written {f['slug']}: {len(doc['rebalances'])} rebalance(s), first {doc['rebalances'][0]['date']}")
+    console.print(f"cached in {fn.fund_dir() / fn.BUILD_FILE}; dashboard: /funds")
+
+
+@funds_app.command("show")
+def funds_show() -> None:
+    """The paper funds since inception: NAV against equal weight and OSEBX."""
+    _setup()
+    from osloquant import judgements as jg
+    from osloquant.dashboard import funds as fn
+
+    pr = jg.load_prices(start=pd.Timestamp.now().normalize() - pd.Timedelta(days=400))
+    for t in fn.tracking(pr.adjusted, pr.index, fn.risk_free()[0]):
+        console.print(f"{t['name']:24s} since {t['since']}  NAV {t['nav']:.2f} ({t['ret']:+.1%})  EW {t['ew']:+.1%}  OSEBX {t['osebx'] if t['osebx'] is None else format(t['osebx'], '+.1%')}  maxDD {t['max_dd']:.1%}")
+
+
 case_app = typer.Typer(help="Light cases: one page per company from the store, and Claude's views on them (DECISIONS D31).", no_args_is_help=True)
 app.add_typer(case_app, name="case")
 
