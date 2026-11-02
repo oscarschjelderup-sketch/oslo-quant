@@ -43,10 +43,10 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     alerts, sessions = td.signals_since(snap, last_seen or state.get("last_seen_session"))
     newest = [a for a in alerts if a.session == f"{snap.asof:%Y-%m-%d}"]
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
-    decisions = sorted(td.decisions(snap, cases, newest, today, watch) + td.report_items(cases, today) + td.pre_report_items(cases, today),
-                       key=lambda i: (i.urgency, i.code))
+    decisions = td.merge_items(td.decisions(snap, cases, newest, today, watch), td.report_items(cases, today), td.pre_report_items(cases, today),
+                               td.post_report_items(cases, today))
     ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today),
-               moves=td.target_moves(snap, cases), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
+               moves=td.target_moves(snap, cases, today), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
                announcements=fd.announcements(codes, days=7))
     from osloquant.dashboard import insiders as ins

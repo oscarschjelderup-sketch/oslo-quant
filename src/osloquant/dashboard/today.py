@@ -151,6 +151,52 @@ def pre_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = PRE_
     return items
 
 
+POST_REPORT_DAYS = 45         # a report this far back still asks for a view dated after it
+
+
+def last_report(c: bk.Case, today: pd.Timestamp, days: int = POST_REPORT_DAYS) -> tuple[pd.Timestamp, str] | None:
+    """The newest report date that has passed within ``days`` days: a report the reader summarised, or a research-book
+    event with report words. (date, what) or None."""
+    from osloquant.dashboard import reports as rp
+
+    found = []
+    s = rp.latest(c.code)
+    if s:
+        found.append((pd.Timestamp(s["published"][:10]), f"Q{s['quarter']} {s['year']} report"))
+    for ev in c.events:
+        d = pd.Timestamp(ev["date"])
+        if d <= today and any(w in str(ev.get("what", "")).lower() for w in _REPORT_WORDS):
+            found.append((d, ev["what"]))
+    found = [(d, w) for d, w in found if (today - d).days <= days]
+    return max(found, key=lambda x: x[0]) if found else None
+
+
+def post_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = POST_REPORT_DAYS) -> list[Item]:
+    """A report has passed and no judgement is dated on or after it: the view on record predates the numbers, so it
+    is not the view the calibration should score from here. Asks for a re-assessment (D29)."""
+    items = []
+    for c in cases:
+        lr = last_report(c, today, days)
+        if not lr or not c.view:
+            continue
+        d, what = lr
+        if any(r["kind"] == "judgement" and pd.Timestamp(r["date"][:10]) >= d for r in c.history):
+            continue
+        items.append(Item(c.code, "post-report", f"{c.name}: the view of {c.view.get('date')} predates the report of {d:%d %b}",
+                          f"{what[:80]} is out ({(today - d).days} d ago) and the view has not been re-logged since. Re-assess and log the view "
+                          "(even if unchanged) – until then the research book carries a pre-report view.", 1))
+    return items
+
+
+def merge_items(*groups: list[Item]) -> list[Item]:
+    """One list, most urgent first; a code with a post-report item drops its 'moved 10 %' re-assess item, since the
+    post-report item already asks for the same thing with the better reason."""
+    items = [i for g in groups for i in g]
+    post = {i.code for i in items if i.kind == "post-report"}
+    items = [i for i in items if not (i.kind == "re-assess" and i.code in post)]
+    return sorted(items, key=lambda i: (i.urgency, i.code))
+
+
 def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAYS) -> list[dict]:
     """The next ``days`` days: the research book's own events (with the kill criteria to check when close), then the
     issuers' financial calendars and Norges Bank from the calendar feed, without repeating a date the book has."""
@@ -170,18 +216,21 @@ def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAY
     return sorted(out, key=lambda e: e["date"])
 
 
-def target_moves(snap: mk.Snapshot, cases: list[bk.Case]) -> list[dict]:
-    """Every case's price against its view: since the view, distance to target, bear and bull."""
+def target_moves(snap: mk.Snapshot, cases: list[bk.Case], today: pd.Timestamp | None = None) -> list[dict]:
+    """Every case's price against its view: since the view, distance to target, bear and bull, and the date of a
+    report that has passed since the view was logged (``stale_report``), if any."""
     out = []
     for c in cases:
         lp, v = mk.last_price(snap, c.code), c.view
         if not lp or not v or not v.get("price"):
             continue
         px, day = lp
+        lr = last_report(c, today if today is not None else pd.Timestamp(day).normalize())
+        stale = lr[0] if lr and v.get("date") and pd.Timestamp(str(v["date"])[:10]) < lr[0] else None
         out.append({"code": c.code, "name": c.name, "price": px, "date": day, "rating": v.get("rating"), "target": v.get("target"),
                     "since": px / v["price"] - 1, "to_tp": v["target"] / px - 1 if v.get("target") else None,
                     "to_bear": v["bear"] / px - 1 if v.get("bear") else None, "to_bull": v["bull"] / px - 1 if v.get("bull") else None,
-                    "view_date": v.get("date"), "view_source": c.view_source})
+                    "view_date": v.get("date"), "view_source": c.view_source, "stale_report": stale})
     return out
 
 

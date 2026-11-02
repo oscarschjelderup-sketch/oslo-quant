@@ -106,7 +106,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
     banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {asof:%A %d %b} – eldre enn siste virkedag ({expected:%d %b}). '
               'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
     urgency_word = {0: "Gjør først", 1: "I dag", 2: "Kan vente"}
-    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10}
+    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10}
     total_min = sum(minutes.get(i.kind, 5) for i in dec)
     if dec:
         summary = (f'<p style="margin:0 0 8px"><b>{len(dec)} ting, omtrent {total_min} minutter, i denne rekkefølgen:</b> '
@@ -127,11 +127,13 @@ def today_page(ctx: dict, static: bool = False) -> str:
     rows = "".join(
         f'<tr><td>{L(m["code"], m["name"])}</td><td>{E(m["rating"] or "")}</td><td>{m["price"]:.2f}</td><td class="{cls(m["since"])}">{pct(m["since"])}</td>'
         f'<td>{m["target"]:g}</td><td class="{cls(m["to_tp"])}">{pct(m["to_tp"])}</td><td>{pct(m["to_bear"])}</td><td>{pct(m["to_bull"])}</td>'
-        f'<td class="src">{E(str(m["view_date"]))} · {E(m["view_source"])}</td></tr>' for m in ctx["moves"])
+        f'<td class="src">{E(str(m["view_date"]))} · {E(m["view_source"])}'
+        + (f' <span class="warn-t">· før rapporten {m["stale_report"]:%d %b}</span>' if m.get("stale_report") is not None else '') + '</td></tr>' for m in ctx["moves"])
     body.append('<h2>Research book mot kursmål</h2><div class="card"><table><thead><tr><th>Company</th><th>View</th><th>Close</th><th>Since view</th>'
                 '<th>TP</th><th>To TP</th><th>To bear</th><th>To bull</th><th>View from</th></tr></thead><tbody>'
                 + (rows or '<tr><td colspan="9" class="empty">no cases with a view</td></tr>') + '</tbody></table>'
-                f'<div class="src">Close: {E(ctx["price_label"])}. A move of 10 % or more since the view puts the case on the decision list.</div></div>')
+                f'<div class="src">Close: {E(ctx["price_label"])}. A move of 10 % or more since the view, or a report dated after the view, puts the case on '
+                'the decision list.</div></div>')
     if ctx.get("portfolio"):
         from osloquant.dashboard import portfolio as pf
 

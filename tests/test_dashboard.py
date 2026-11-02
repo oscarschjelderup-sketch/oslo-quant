@@ -448,3 +448,34 @@ def test_signals_on_other_stocks_are_folded_and_chips_are_neutral(app):
     assert "1 på dine aksjer" in html and "<details><summary>1 signaler på andre aksjer" in html
     assert html.index("Alpha") < html.index("<details>")                             # own stocks open, others folded
     assert 'class="chip  odds"' in html or 'class="chip buy odds"' not in html         # a D-grade signal is not green
+
+
+# ------------------------------------------------------------------------------------------------ after the report (night: D29)
+def test_a_passed_report_with_no_view_after_it_asks_for_a_re_assessment(home, monkeypatch):
+    from osloquant.dashboard import reports as rp
+    from osloquant.dashboard import today as td
+
+    monkeypatch.setattr(rp, "latest", lambda code: None)
+    today = pd.Timestamp("2026-11-20")
+    hist = [{"kind": "judgement", "date": "2026-10-08", "logged_at": "2026-10-08T10:00:00Z", "rating": "BUY", "target": 54}]
+    c = bk.Case("XYZ", "Xyz", {"rating": "BUY", "target": 54, "date": "2026-10-08", "price": 40}, "log #1",
+                [{"date": "2026-11-12", "what": "Q3 2026 report – first after the listing"}], ["x"], None, hist)
+    assert td.last_report(c, today) == (pd.Timestamp("2026-11-12"), "Q3 2026 report – first after the listing")
+    items = td.post_report_items([c], today)
+    assert len(items) == 1 and items[0].kind == "post-report" and "12 Nov" in items[0].title and items[0].urgency == 1
+    # a kill check after the report is not a view; a judgement is
+    c.history.append({"kind": "kill_check", "date": "2026-11-13", "logged_at": "2026-11-13T10:00:00Z"})
+    assert len(td.post_report_items([c], today)) == 1
+    c.history.append({"kind": "judgement", "date": "2026-11-14", "logged_at": "2026-11-14T10:00:00Z", "rating": "HOLD", "target": 50})
+    assert td.post_report_items([c], today) == []
+    # a report the reader summarised counts too, and an old one does not
+    monkeypatch.setattr(rp, "latest", lambda code: {"published": "2026-10-27T06:00:00Z", "quarter": 3, "year": 2026, "kill": []})
+    fresh = bk.Case("ABC", "Abc", {"rating": "BUY", "target": 10, "date": "2026-10-06", "price": 9}, "log #1", [], [], None,
+                    [{"kind": "judgement", "date": "2026-10-06", "logged_at": "2026-10-06T10:00:00Z", "rating": "BUY", "target": 10}])
+    assert td.last_report(fresh, today) == (pd.Timestamp("2026-10-27"), "Q3 2026 report")
+    assert td.post_report_items([fresh], pd.Timestamp("2027-01-15")) == []                 # 80 days on: no longer nagging
+    # the merged list keeps one re-assessment per code
+    move = td.Item("ABC", "re-assess", "Abc +11% since the view", "...", 1)
+    merged = td.merge_items([move], td.post_report_items([fresh], today))
+    assert [i.kind for i in merged] == ["post-report"]
+    assert [i.kind for i in td.merge_items([move], [])] == ["re-assess"]

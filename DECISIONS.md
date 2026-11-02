@@ -396,3 +396,14 @@ committed file has to reproduce in the test suite in about a minute and a half. 
 (`robustness(..., placebo=None)` still says "not run"), on by default in `oq signals score`, and written into the
 odds file with its design, count and seed. The dashboard's grade words now count the checks that ran, and the signal
 line says whether the stocks and months already explain the number.
+
+## D29. A view older than the last report is not the view
+
+D22 asks for a view *before* a report. The other half was missing: once the report is out, the view on record was
+formed without its numbers, and the calibration keeps scoring that pre-report view as if it were current. The
+front page now raises a "post-report" item when a report has passed in the last 45 days – one the reader summarised,
+or a research-book event with report words, so it works for a company without a reader spec – and no *judgement* is
+dated on or after it (a kill check is not a view). The research-book table marks such a view with "før rapporten
+DD Mon". A code with a post-report item drops its "moved 10 %" re-assess item, because the post-report item asks for
+the same act with the better reason. Nothing is written automatically: the re-assessment is Oscar's, and "unchanged"
+is a valid answer once it is logged with the report in hand.
