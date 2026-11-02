@@ -209,7 +209,8 @@ def create_app() -> Flask:
         table, summary = jg.calibration(rows)
         kills = [r for r in rows if r["kind"] == "kill_check"]
         rel = jg.reliability(rows, table=table) if len(table) else None
-        return rd.calibration_page(table, summary, check, kills, rel)
+        fp = jg.fingerprint([dict(c.view, code=c.code) for c in bk.cases() if c.view])
+        return rd.calibration_page(table, summary, check, kills, rel, fp)
 
     def _watch(msg=None, status=200):
         snap = mk.snapshot()

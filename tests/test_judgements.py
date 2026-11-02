@@ -152,3 +152,19 @@ def test_benchmarks_flat_and_consensus_and_reliability(tmp_path):
     rows = jg.read_log(path)
     table, _ = jg.calibration(rows, prices=prices, asof=pd.Timestamp("2026-07-01"))
     assert jg.reliability(rows, table=table)["pending_calls"] == 1
+
+
+def test_fingerprint_flags_numbers_repeated_across_companies():
+    views = [{"code": "AAA", "target": 20, "bull": 26, "bear": 14, "p_bear": 0.2, "p_base": 0.55, "p_bull": 0.25},
+             {"code": "BBB", "target": 20, "bull": 26, "bear": 14, "p_bear": 0.2, "p_base": 0.55, "p_bull": 0.25},
+             {"code": "CCC", "target": 75, "bull": 90, "bear": 50, "p_bear": 0.3, "p_base": 0.5, "p_bull": 0.2}]
+    fp = jg.fingerprint(views)
+    assert fp["views"] == 3 and len(fp["marks"]) == 3
+    assert all(m["codes"] == ["AAA", "BBB"] for m in fp["marks"])
+    assert {m["what"].split()[0] for m in fp["marks"]} == {"target", "probabilities", "bull/target"}
+    assert jg.fingerprint(views[1:])["marks"] == []
+    assert jg.fingerprint([{"code": "AAA", "target": 20}, {"code": "BBB", "target": 20.5}])["marks"] == []
+    from osloquant.dashboard import render as rd
+
+    assert "Samme tall i flere selskaper" in rd.fingerprint_block(fp) and "target 20" in rd.fingerprint_block(fp)
+    assert "is repeated" in rd.fingerprint_block(jg.fingerprint(views[1:])) and rd.fingerprint_block(None) == ""

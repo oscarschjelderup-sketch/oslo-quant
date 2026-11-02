@@ -661,7 +661,22 @@ Tapet ved kill-nivået er et gulv, ikke et tak: en rapport eller et gap kan åpn
 
 
 # ------------------------------------------------------------------------------------------------ Kalibrering
-def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict], rel: dict | None = None) -> str:
+def fingerprint_block(fp: dict | None) -> str:
+    """Template marks across the open views (D30): shown as a warning when two companies share a number that should
+    come from the company, as an all-clear otherwise."""
+    if not fp or fp["views"] < 2:
+        return ""
+    if fp["marks"]:
+        items = "".join(f'<li>{E(m["what"])} in {m["n"]} of {fp["views"]} views: {", ".join(link(c) for c in m["codes"])}</li>' for m in fp["marks"])
+        inner = f'<div class="warn"><b>Samme tall i flere selskaper:</b><ul>{items}</ul></div>'
+    else:
+        inner = f'<div class="ok">No target, probability set or bull/bear spread is repeated across the {fp["views"]} open views.</div>'
+    return ('<h2>Malspor</h2><div class="card">' + inner
+            + '<div class="src">Two companies at different prices with the same target, or the same scenario probabilities, say more about the spreadsheet '
+              'than about the companies. Not an error – a question to answer in the next view.</div></div>')
+
+
+def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict], rel: dict | None = None, fp: dict | None = None) -> str:
     body = ['<h1>Kalibrering</h1><div class="sub">What I said, what happened, how far off. Calls younger than their horizon are provisional and are not evidence.</div>']
     chain = "verifies" if check.ok else "BROKEN: " + "; ".join(check.problems[:3])
     body.append(f'<div class="src">Judgement log: {check.rows} rows, chain {E(chain)}, head {check.head[:16]}.</div>')
@@ -679,6 +694,7 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
     body.append(benchmarks_block(table, summary))
     if rel is not None:
         body.append(reliability_block(rel))
+    body.append(fingerprint_block(fp))
     if len(table):
         rows = "".join(
             f'<tr><td>#{r["seq"]}</td><td>{link(r["code"])}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:.2f}</td><td>{r["target"]:g}</td>'

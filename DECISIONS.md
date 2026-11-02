@@ -407,3 +407,12 @@ dated on or after it (a kill check is not a view). The research-book table marks
 DD Mon". A code with a post-report item drops its "moved 10 %" re-assess item, because the post-report item asks for
 the same act with the better reason. Nothing is written automatically: the re-assessment is Oscar's, and "unchanged"
 is a valid answer once it is logged with the report in hand.
+
+## D30. Template marks across the open views
+
+Two companies at different prices with the same target, the same scenario probabilities, or the same bull/bear
+spread around the target say more about the spreadsheet than about the companies. The calibration page now lists
+such repeats across the open views (`jg.fingerprint`), as a question for the next view rather than an error: a
+shared number can be a coincidence, but it should be one the author has noticed. It reads only the views; nothing is
+written. Norges Bank's calendar (D26) was re-read on 2 Nov from the policy-rate-decisions page, which lists the full
+published schedule – ten dates through December 2027 – so the resource file now holds all of them.

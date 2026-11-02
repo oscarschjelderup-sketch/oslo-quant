@@ -342,6 +342,33 @@ def reliability(rows: list[dict] | None = None, table: pd.DataFrame | None = Non
             "brier_binary": brier}
 
 
+def fingerprint(views: list[dict] | None = None) -> dict:
+    """Template marks across the open views (one dict per company with ``code``; default: the newest logged view per
+    company): the same target, the same scenario probabilities, or the same bull/bear spread around the target in two
+    or more companies. Two companies at different prices with the same target, or the same 20/55/25, say more about
+    the spreadsheet than about the companies (D30)."""
+    views = [v for v in (list(latest_by_code().values()) if views is None else views) if v.get("target")]
+    marks = []
+
+    def group(label, key):
+        seen: dict = {}
+        for v in views:
+            k = key(v)
+            if k is None:
+                continue
+            seen.setdefault(k, []).append(v["code"])
+        for k, codes in seen.items():
+            if len(set(codes)) >= 2:
+                marks.append({"what": label(k), "codes": sorted(set(codes)), "n": len(set(codes))})
+
+    group(lambda k: f"target {k:g}", lambda v: float(v["target"]))
+    group(lambda k: f"probabilities {k[0]:.0%}/{k[1]:.0%}/{k[2]:.0%} (bear/base/bull)",
+          lambda v: None if any(v.get(x) is None for x in ("p_bear", "p_base", "p_bull")) else tuple(round(float(v[x]), 3) for x in ("p_bear", "p_base", "p_bull")))
+    group(lambda k: f"bull/target {k[0]:.2f} and bear/target {k[1]:.2f}",
+          lambda v: None if not (v.get("bull") and v.get("bear")) else (round(float(v["bull"]) / float(v["target"]), 2), round(float(v["bear"]) / float(v["target"]), 2)))
+    return {"views": len(views), "marks": marks}
+
+
 def _p(v, d=1, sign=True):
     if v is None or (isinstance(v, float) and v != v):
         return "–"
