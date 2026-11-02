@@ -110,8 +110,10 @@ def coverage_rows(cases, snap, today: pd.Timestamp) -> list[dict]:
         def v(view, px=px):
             if not view or not view.get("target"):
                 return None
+            since = px / view["price"] - 1 if px and view.get("price") else None
             return {"rating": view.get("rating"), "target": float(view["target"]), "date": view.get("date"),
-                    "since": px / view["price"] - 1 if px and view.get("price") else None, "to_tp": float(view["target"]) / px - 1 if px else None}
+                    "since": 0.0 if since is not None and abs(since) < 5e-4 else since,      # no "-0.0 %" on the day a view is logged
+                    "to_tp": float(view["target"]) / px - 1 if px else None}
         lc = lcm.load(c.code)
         out.append({"code": c.code, "name": c.name, "group": snap.group(c.code), "price": px, "oscar": v(c.view), "claude": v(c.claude_view),
                     "reads": _short_read(lc), "next": nxt.get(c.code)})

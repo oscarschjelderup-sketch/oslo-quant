@@ -621,8 +621,9 @@ def saw_claude_box(c, f: dict) -> str:
         return ""
     ch = lambda v: " checked" if f.get("saw_claude") == v else ""  # noqa: E731
     return ('<input type="hidden" name="claude_exists" value="1"><div class="warn"><b>Hadde du lest Claudes syn på selskapet før du skrev dette?</b> '
-            f'<label><input type="radio" name="saw_claude" value="no"{ch("no")}> Nei – blindt</label> '
-            f'<label><input type="radio" name="saw_claude" value="yes"{ch("yes")}> Ja</label>'
+            f'<div style="display:flex;gap:24px;margin:8px 0">'
+            f'<label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="radio" style="width:auto;margin:0" name="saw_claude" value="no"{ch("no")}> Nei – blindt</label>'
+            f'<label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="radio" style="width:auto;margin:0" name="saw_claude" value="yes"{ch("yes")}> Ja</label></div>'
             '<div class="src">Svaret lagres på raden og deler kalibreringen i blinde syn og syn skrevet etter Claudes.</div></div>')
 
 
