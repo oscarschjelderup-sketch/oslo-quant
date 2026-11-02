@@ -11,12 +11,12 @@ from osloquant.dashboard import sizing
 
 
 def test_driver_from_tag_or_words():
-    assert pf.driver_of("Gross margin below 49% [margin]") == ("margin", "tag")
-    assert pf.driver_of("Net club openings below the committed pipeline") == ("volume", "inferred")
-    assert pf.driver_of("Price/mix below 2% a year") == ("pricing", "inferred")
-    assert pf.driver_of("NIBD / EBITDAaL above 2.5x") == ("leverage", "inferred")
+    assert pf.driver_of("Widget margin below 30% [margin]") == ("margin", "tag")
+    assert pf.driver_of("Fewer than 8 store openings in the year") == ("volume", "inferred")
+    assert pf.driver_of("Average ticket price below last year's") == ("pricing", "inferred")
+    assert pf.driver_of("Net debt above 3x EBITDA") == ("leverage", "inferred")
     assert pf.driver_of("Something unusual happens") == ("other", "none")
-    assert pf.driver_of("Personnel costs above 37% of revenue [volume]") == ("volume", "tag")     # the tag wins over the words
+    assert pf.driver_of("Staff cost ratio above 40% [volume]") == ("volume", "tag")     # the tag wins over the words
 
 
 def _case(code, group_kill, rating="BUY", loss=None):

@@ -376,7 +376,7 @@ criteria both start with a margin line, that is not true: one bad quarter for No
 both, and the loss at the kill levels adds up. The front page now has a block under the research-book table that
 sums the loss at kill per sector group and per kill driver, and says in words when every open BUY sits in one
 group or when two views can die from the same driver. The driver of a kill criterion is read from an explicit tag
-at the end of the line (`... below 49% [margin]`) or, without one, inferred from its words and marked with a star
+at the end of the line (`... below 30% [margin]`) or, without one, inferred from its words and marked with a star
 so the author can overrule it – inference is a hint, never a verdict. The sizing gets an optional
 `max_loss_per_group` (NOK) across open BUY views in the same sector group, applied like `max_total_loss`; the
 default config writes it as 3000 against a 6000 total, which Oscar should set himself. Nothing here changes a
