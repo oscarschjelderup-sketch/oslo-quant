@@ -55,8 +55,11 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
 
     ctx["insiders"] = ins.recent(set(codes), days=7)
     ctx["shorts_moved"] = ins.short_moves(codes, days=7)
+    from osloquant.dashboard import coverage as cv
+
     ctx["coverage"] = {"n": len(cases), "claude": sum(bool(c.claude_view) for c in cases),
-                       "only_claude": sum(bool(c.claude_view) and not c.view for c in cases)}
+                       "only_claude": sum(bool(c.claude_view) and not c.view for c in cases),
+                       **cv.counts(cv.universe(snap, cases, watch, today))}
     ctx["portfolio"] = pf.exposure(cases, {c.code: snap.group(c.code) for c in cases}, sizing.config())
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
@@ -310,11 +313,20 @@ def create_app() -> Flask:
 
     @app.get("/coverage")
     def coverage():
+        from osloquant.dashboard import calendar as cal
+        from osloquant.dashboard import coverage as cv
+
         snap = mk.snapshot()
         today = pd.Timestamp.now().normalize()
-        rows = coverage_rows(bk.cases(), snap, today)
+        cases, watch = bk.cases(), bk.watchlist()
+        rows = coverage_rows(cases, snap, today)
         table = jg.calibration()[0] if any(r["claude"] and r["oscar"] for r in rows) else pd.DataFrame()
-        return rd.coverage_page(rows, today, jg.head_to_head(table) if len(table) else None)
+        nxt: dict = {}
+        for e in cal.events(cases, watch, today=today, days=200):
+            if e.get("code") and e["kind"] in ("report", "case") and e["code"] not in nxt:
+                nxt[e["code"]] = e
+        uni = cv.universe(snap, cases, watch, today, next_events=nxt)
+        return rd.coverage_page(rows, today, jg.head_to_head(table) if len(table) else None, uni, cv.summary(uni))
 
     def _watch(msg=None, status=200):
         snap = mk.snapshot()

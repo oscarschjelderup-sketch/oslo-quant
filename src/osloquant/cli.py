@@ -1621,6 +1621,66 @@ def funds_show() -> None:
         console.print(f"{t['name']:24s} since {t['since']}  NAV {t['nav']:.2f} ({t['ret']:+.1%})  EW {t['ew']:+.1%}  OSEBX {t['osebx'] if t['osebx'] is None else format(t['osebx'], '+.1%')}  maxDD {t['max_dd']:.1%}")
 
 
+coverage_app = typer.Typer(help="The coverage universe: the level every company in the store is covered at, and the plan for it (DECISIONS D38).",
+                           invoke_without_command=True)
+app.add_typer(coverage_app, name="coverage")
+
+
+@coverage_app.callback()
+def coverage_show(ctx: typer.Context, group: str | None = typer.Option(None, "--group", help="One sector group only, e.g. Energy.")) -> None:
+    """The universe by sector group and level, then every company with its level, views, light-case age and plan."""
+    if ctx.invoked_subcommand:
+        return
+    _setup()
+    from osloquant.dashboard import book as bk
+    from osloquant.dashboard import coverage as cv
+    from osloquant.dashboard import market as mk
+
+    snap = mk.snapshot()
+    uni = cv.universe(snap, bk.cases(), bk.watchlist())
+    if group:
+        uni = [r for r in uni if r["group"].lower() == group.lower()]
+    t = Table(title="Dekning per sektorgruppe")
+    for col in ("Gruppe", "n", "full", "lett", "følges", "ikke", "med syn", "ditt", "Claudes", "under plan", "utdatert"):
+        t.add_column(col, justify="right" if col != "Gruppe" else "left")
+    for s in cv.summary(uni):
+        t.add_row(s["group"], *(str(s[k] or "–") for k in ("n", "full", "light", "watch", "none", "any_view", "oscar", "claude", "gap", "stale")))
+    console.print(t)
+    t2 = Table(title="Universet")
+    for col in ("Kode", "Navn", "Gruppe", "Nivå", "Syn", "Lett case", "Rapport", "Plan", ""):
+        t2.add_column(col)
+    for r in uni:
+        views = " · ".join(x for x in ((f"du {r['oscar']['rating']} {r['oscar']['target']:g}" if r["oscar"] else ""),
+                                       (f"Claude {r['claude']['rating']} {r['claude']['target']:g}" if r["claude"] else "")) if x)
+        lcs = (r["lightcase_built"] + ("  [yellow]stale[/yellow]" if r["lightcase_stale"] else "")) if r["lightcase_built"] else ""
+        rep = (r["report"]["date"] + (f" {r['report']['rating']} {r['report']['tp']:g}" if r["report"].get("tp") else "")) if r["report"] else ""
+        plan = " · ".join(str(x) for x in (r["target"], r["owner"], r["rhythm"]) if x)
+        t2.add_row(r["code"], r["name"], r["group"], cv.LEVEL_LABEL[r["level"]], views, lcs, rep, plan, "[red]under plan[/red]" if r["gap"] else "")
+    console.print(t2)
+    console.print(f"plan: {cv.plan_path()} ({len(cv.plan())} entries); levels are derived from the files, the plan is the intent")
+
+
+@coverage_app.command("set")
+def coverage_set(
+    code: str = typer.Argument(..., help="Stock code."),
+    target: str | None = typer.Option(None, "--target", help="Planned level: full, light, watch or none."),
+    owner: str | None = typer.Option(None, "--owner", help="Who owns the view: oscar, claude or both."),
+    rhythm: str | None = typer.Option(None, "--rhythm", help="When it is renewed: report, monthly, quarterly or event."),
+    note: str | None = typer.Option(None, "--note", help="Why this company, in one line."),
+) -> None:
+    """Write the plan for one company to ~/osloquant-home/coverage.yaml (fields not given keep their value)."""
+    _setup()
+    from osloquant.dashboard import coverage as cv
+
+    if all(v is None for v in (target, owner, rhythm, note)):
+        raise typer.BadParameter("give at least one of --target, --owner, --rhythm, --note")
+    try:
+        e = cv.set_plan(code, target, owner, rhythm, note)
+    except ValueError as err:
+        raise typer.BadParameter(str(err)) from None
+    console.print(f"{e['code']}: " + " · ".join(f"{k} {e[k]}" for k in ("target", "owner", "rhythm", "note") if e.get(k)))
+
+
 case_app = typer.Typer(help="Light cases: one page per company from the store, and Claude's views on them (DECISIONS D31).", no_args_is_help=True)
 app.add_typer(case_app, name="case")
 

@@ -521,3 +521,16 @@ issues in words – a report target that differs from the view, a report dated a
 judgement, a model file older than the newest report, a light case built at a price more than 10 % from today's,
 no coming date in the book. The front-page problem list carries them. The rule: no number is read off one source
 without knowing that another source says something else. Rapporter 2026-11-02, part 4.
+
+## D38. The coverage universe: a level per company, derived from the files; the plan typed in
+
+Every company in the store is on the coverage page, at the level it is actually covered at: *full* when a research
+report has been published to the dashboard (`cases/reports_pdf/<CODE>/`) or the research book names a model file,
+*light* when a light case exists, *watch* when it is only on the watchlist, *none* otherwise. The level is never typed
+in – it is read off what exists, so the page cannot claim coverage that is not there. The views are shown
+separately from the level: a full case with no logged row is shown as exactly that. The one thing typed in is the
+plan (`~/osloquant-home/coverage.yaml`, written by `oq coverage set`): the level a company should be at, who owns
+the view (oscar, claude, both) and the rhythm (after every report, monthly, quarterly, at an event). The page and
+`oq coverage` show, per sector group, how many companies the store holds, how many sit at each level, how many have
+a view, how many are below their planned level and how many light cases are stale (older than 120 days or built
+before the newest report). The front page carries the same counts in one line. Dekning 2026-11-03, part 1.

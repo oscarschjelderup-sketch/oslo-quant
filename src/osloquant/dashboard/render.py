@@ -193,6 +193,8 @@ def today_page(ctx: dict, static: bool = False) -> str:
         + (f' <span class="warn-t">· før rapporten {m["stale_report"]:%d %b}</span>' if m.get("stale_report") is not None else '') + '</td></tr>' for m in ctx["moves"])
     cov = ctx.get("coverage")
     cov_line = (f'<div class="src">Dekning: {cov["n"]} selskaper, Claude har syn på {cov["claude"]}' + (f', {cov["only_claude"]} uten ditt syn' if cov["only_claude"] else '')
+                + (f'; universet {cov["universe"]} selskaper – {cov["full"]} full case, {cov["light"]} lett case, {cov["watch"]} følges'
+                   + (f', <span class="k">{cov["gap"]} under plan</span>' if cov.get("gap") else '') if cov.get("universe") else '')
                 + ('' if static else ' – <a href="/coverage">se Dekning</a>') + '.</div>') if cov and cov.get("claude") else ''
     body.append('<h2>Research book mot kursmål</h2><div class="card"><table><thead><tr><th>Company</th><th>View</th><th>Close</th><th>Since view</th>'
                 '<th>TP</th><th>To TP</th><th>To bear</th><th>To bull</th><th>View from</th></tr></thead><tbody>'
@@ -1090,9 +1092,10 @@ def claude_view_block(c, px: float | None) -> str:
             '<div class="src">Claude (AI) writes its views from the light case and the public reports; they are estimates (EST), scored on the same terms as yours.</div></details>')
 
 
-def coverage_page(rows: list[dict], today, h2h: dict | None = None) -> str:
-    """Every company with a view from either analyst: the price now, each view and how it has moved since, whether
-    they agree, and the next report date."""
+def coverage_page(rows: list[dict], today, h2h: dict | None = None, universe: list[dict] | None = None, summ: list[dict] | None = None) -> str:
+    """The coverage page (D31, D38): the universe by sector group and level, every company with a view from either
+    analyst (the price now, each view and how it has moved since, whether they agree, the next report), and the
+    whole universe with the plan per company."""
     def view(v: dict | None) -> str:
         if not v:
             return '<td colspan="3" class="empty">–</td>'
@@ -1111,14 +1114,76 @@ def coverage_page(rows: list[dict], today, h2h: dict | None = None) -> str:
         hh = (f'<div class="src">Side om side på {h2h["n"]} selskaper: kursmålet ditt nærmest kursen i {h2h["oscar_closer"]}, Claudes i {h2h["claude_closer"]}; '
               f'samme rating i {h2h["agree"]}. Se Kalibrering for tallene.</div>')
     return page("Dekning", "/coverage", (
-        '<h1>Dekning</h1><div class="sub">Alle selskaper med et syn fra deg eller Claude – kursen nå, hvert syn og utviklingen siden, og neste rapport.</div>'
-        f'<div class="card"><p><b>{len(rows)} selskaper</b>: du har syn på {n_o}, Claude på {n_c}.'
+        '<h1>Dekning</h1><div class="sub">Hele universet i lageret: hvilket nivå hvert selskap er dekket på, synene fra deg og Claude, og planen per selskap.</div>'
+        + coverage_summary_block(universe, summ, today)
+        + f'<h2>Selskaper med et syn</h2><div class="card"><p><b>{len(rows)} selskaper</b>: du har syn på {n_o}, Claude på {n_c}.'
         + (f' Bare Claude har syn på {len(only_c)} – åpne aksjesiden, les den lette casen og logg ditt eget før du leser Claudes.' if only_c else '') + '</p>'
         '<table class="odds"><thead><tr><th>Selskap</th><th>Sektor</th><th>Kurs</th><th colspan="3">Ditt syn · siden · til kursmål</th>'
         '<th colspan="3">Claudes syn · siden · til kursmål</th><th>Enige</th><th>Hva prisen krever (lett case)</th><th>Neste rapport</th></tr></thead>'
         f'<tbody>{"".join(body) or "<tr><td colspan=12 class=empty>no views yet</td></tr>"}</tbody></table>{hh}'
         '<div class="src">Kurs: Yahoo via lageret (forsinket). «Siden» = kursendring siden synet ble logget (ikke utbytte). Rapportdatoer fra selskapenes '
-        'finanskalendere på NewsWeb og research book. Claude er en AI; synene er estimater (EST).</div></div>'))
+        'finanskalendere på NewsWeb og research book. Claude er en AI; synene er estimater (EST).</div></div>'
+        + coverage_universe_block(universe, today)))
+
+
+def _level_chip(level: str) -> str:
+    from osloquant.dashboard import coverage as cv
+
+    klass = {"full": "buy", "light": "info", "watch": "plain", "none": "plain"}.get(level, "plain")
+    return f'<span class="chip {klass}">{E(cv.LEVEL_LABEL.get(level, level))}</span>'
+
+
+def coverage_summary_block(universe: list[dict] | None, summ: list[dict] | None, today) -> str:
+    """Per sector group: how many companies the store holds, how many are at each level, how many have a view, and
+    how many sit below the level the plan asks for."""
+    if not universe or not summ:
+        return ""
+    from osloquant.dashboard import coverage as cv
+
+    rows = []
+    for s in summ:
+        tot = s["group"] == "Alle"
+        rows.append(f'<tr{" style=font-weight:700" if tot else ""}><td>{E(s["group"])}</td><td>{s["n"]}</td>'
+                    + "".join(f'<td>{s[lv] or "–"}</td>' for lv in cv.LEVELS)
+                    + f'<td>{s["any_view"] or "–"}</td><td>{s["oscar"] or "–"}</td><td>{s["claude"] or "–"}</td>'
+                    f'<td class="{"k" if s["gap"] else ""}">{s["gap"] or "–"}</td><td class="{"warn-t" if s["stale"] else ""}">{s["stale"] or "–"}</td></tr>')
+    n = cv.counts(universe)
+    return (f'<div class="card"><p><b>{n["universe"]} selskaper i lageret</b>: {n["full"]} med full case, {n["light"]} med lett case, {n["watch"]} følges, '
+            f'{n["none"]} ikke dekket. Et syn fra deg eller Claude på {n["any_view"]}.'
+            + (f' <span class="k">{n["gap"]} ligger under nivået planen sier.</span>' if n["gap"] else '') + '</p>'
+            '<table class="odds"><thead><tr><th>Sektorgruppe</th><th>Selskaper</th><th>Full case</th><th>Lett case</th><th>Følges</th><th>Ikke dekket</th>'
+            '<th>Med syn</th><th>Ditt</th><th>Claudes</th><th>Under plan</th><th>Lett case utdatert</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>'
+            '<div class="src">Nivået er utledet av filene: full case = rapport publisert til dashbordet eller modellfil i research book; lett case = cases/&lt;KODE&gt;.json; '
+            f'følges = på overvåkningslisten. «Utdatert» = lett case eldre enn {cv.LIGHT_STALE_DAYS} dager eller bygget før siste rapport. Planen står i ~/osloquant-home/coverage.yaml '
+            '(oq coverage set).</div></div>')
+
+
+def coverage_universe_block(universe: list[dict] | None, today) -> str:
+    """Every company in the store, by sector group: level, light-case age, newest report, plan, gap, next report."""
+    if not universe:
+        return ""
+    from osloquant.dashboard import coverage as cv
+
+    body, last_group = [], None
+    for r in universe:
+        if r["group"] != last_group:
+            body.append(f'<tr><th colspan="10" style="text-align:left;background:var(--panel)">{E(r["group"])}</th></tr>')
+            last_group = r["group"]
+        views = " · ".join(x for x in ((f'du {E(r["oscar"]["rating"])} {r["oscar"]["target"]:g}' if r["oscar"] else ""),
+                                       (f'Claude {E(r["claude"]["rating"])} {r["claude"]["target"]:g}' if r["claude"] else "")) if x) or "–"
+        lcs = (f'{r["lightcase_built"]}' + (f' <span class="warn-t">({r["lightcase_age"]} d)</span>' if r["lightcase_stale"] else f' ({r["lightcase_age"]} d)')) if r["lightcase_built"] else "–"
+        rep = (f'{r["report"]["date"]}' + (f' · {E(str(r["report"]["rating"] or ""))} {r["report"]["tp"]:g}' if r["report"].get("tp") else "")) if r["report"] else "–"
+        plan = (f'{E(cv.LEVEL_LABEL.get(r["target"], r["target"]))}' + (f' · {E(r["owner"])}' if r["owner"] else "") + (f' · {E(cv.RHYTHM_LABEL.get(r["rhythm"], r["rhythm"]))}' if r["rhythm"] else "")) if r["target"] else "–"
+        nxt = f'{r["next"]["date"]:%d %b} ({(r["next"]["date"] - today).days} d)' if r.get("next") else "–"
+        body.append(f'<tr><td>{link(r["code"], r["name"])}</td><td>{"–" if r["price"] is None else format(r["price"], ".2f")}</td><td>{_level_chip(r["level"])}</td>'
+                    f'<td>{views}</td><td class="src">{lcs}</td><td class="src">{rep}</td><td class="src">{plan}</td>'
+                    f'<td class="{"k" if r["gap"] else ""}">{"under plan" if r["gap"] else ""}</td><td class="src">{E((r.get("plan") or {}).get("note") or "")}</td><td>{nxt}</td></tr>')
+    return ('<h2>Universet</h2><div class="card"><table class="odds"><thead><tr><th>Selskap</th><th>Kurs</th><th>Nivå</th><th>Syn</th><th>Lett case bygget</th>'
+            '<th>Siste rapport</th><th>Plan (nivå · eier · rytme)</th><th></th><th>Notat</th><th>Neste rapport</th></tr></thead>'
+            f'<tbody>{"".join(body)}</tbody></table>'
+            '<div class="src">Et selskap uten lett case får en med <code>oq case build KODE --refresh</code>; en full case bygges i Equity Research Toolkit og publiseres '
+            'til dashbordet av build_report.py. Planen settes med <code>oq coverage set KODE --target light --owner claude --rhythm report</code>.</div></div>')
 
 
 def analysts_block(summary: dict, h2h: dict | None) -> str:
