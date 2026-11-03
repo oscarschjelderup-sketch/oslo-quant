@@ -534,3 +534,35 @@ the view (oscar, claude, both) and the rhythm (after every report, monthly, quar
 `oq coverage` show, per sector group, how many companies the store holds, how many sit at each level, how many have
 a view, how many are below their planned level and how many light cases are stale (older than 120 days or built
 before the newest report). The front page carries the same counts in one line. Dekning 2026-11-03, part 1.
+
+## D39. After the report: the numbers are refreshed and the view is queued, for every covered company
+
+A report changes the numbers under a view; until now only SATS had a reader spec, and only Oscar's views were asked
+for again (D29). The loop `oq case after-report` does, for any covered company: re-record the statements and rebuild
+the light case keeping before and after (price, LTM revenue, EBIT and net income, EV/EBIT, P/E, what the price pays
+for, the quarter the statements reach); fetch the newest quarterly report from NewsWeb; read it with the company's
+spec when there is one, otherwise dry-run a generic spec (revenue, EBITDA, EBIT, net debt, the income statement) and
+write a suggested spec to `cases/specs/<CODE>.suggested.yaml`, so the next quarter can be machine-read. The result is
+written to `cases/afterreport/<CODE>.json` and shown on the stock page as "Etter rapporten". The queue is derived,
+never stored: a company is due when its newest report – the reader's summary, a downloaded report, a research-book
+event or the issuer's financial calendar, whichever is newest, with its source named – is newer than its light case
+or than an analyst's view. Oscar's items reach the front page through D29 (a downloaded report now counts as a
+report there too); Claude's are listed on the coverage page only (D31). Nothing in the loop writes a judgement: the
+analyst who owes the view logs it. Dekning 2026-11-03, part 2.
+
+## D40. One kill list per case: the model's, published with the report; the dashboard names where the copies diverge
+
+A case's kill criteria lived in three places that drifted apart: the Toolkit data module (`KILL`, workbook rows with
+thresholds, and from now `KILL_TEXT` for criteria the rows cannot carry), the sentences on the judgement row, and the
+reader's rules in `reports.yaml`. The model's list is the source: the Toolkit exports it with every report's estimates
+(`kill`: rows, text, source), and `dashboard/killlist.py` compares the other two copies with it – by the numbers
+(the threshold must appear in the sentence) and the words of the label, never by guessing. It names a model criterion
+with no sentence in the view, a sentence with no model line behind it, a reader rule whose index points past the
+view's list or whose threshold differs from the model's, and the model criteria no rule checks. The result stands
+under the kill list on the stock page ("én liste" or "spriker"), in the case's data-health issues and in
+`oq book check` (with `--stub` drafting the reader rules from the model's list). Nothing is rewritten: the log is
+append-only, the yaml is Oscar's, and a diverging list is fixed in the data module and then re-logged as a view.
+First run (3 Nov 2026): the SATS view of 6 Oct carries three sentences, the model five criteria, and the reader's
+ARPM threshold (2 %) is not the model's price/mix threshold (1.5 %) – ten divergences, now on the page. Claude's
+list is compared too but reported as "two analysts, two lists", not as an error. Dekning 2026-11-03, part 4
+(the Toolkit side: `kill_list_of` in rb_data.py, `KILL_TEXT` in elkem_data.py).

@@ -123,6 +123,34 @@ def read_key_row(line: str, label: str) -> dict | None:
     return out
 
 
+def read_key_row_plain(line: str, label: str) -> dict | None:
+    """A key-figure row without printed changes, in the five-column layout many issuers use (quarter, year-ago
+    quarter, year to date, year to date a year ago, full year) or the four-column one without the full year. There
+    is no printed change to check against, so the row is accepted only when the numbers split in exactly one way."""
+    rest = line[len(label):] if line.startswith(label) else re.sub(rf"^{label}", "", line)
+    if "%" in rest:
+        return None
+    toks = _tokens(rest)
+
+    def plausible(c: list[float]) -> bool:
+        # a quarter is never larger than its year to date, and the five figures are the same line of the same company
+        q, q_ly, ytd, ytd_ly = c[:4]
+        if abs(q) > abs(ytd) * 1.0001 or abs(q_ly) > abs(ytd_ly) * 1.0001:
+            return False
+        nz = [abs(v) for v in c if v]
+        return not nz or max(nz) / min(nz) <= 1000
+
+    for k in (5, 4):
+        cands = [c for c in partitions(toks, k) if plausible(c)]
+        if len(cands) == 1:
+            q, q_ly, ytd, ytd_ly = cands[0][:4]
+            return {"q": q, "q_ly": q_ly, "q_chg_printed": None, "ytd": ytd, "ytd_ly": ytd_ly, "ytd_chg_printed": None,
+                    "fy": cands[0][4] if k == 5 else None, "layout": f"{k} columns, no printed change"}
+        if cands:
+            return None                      # several readings survive: not safe to pick one
+    return None
+
+
 def read_pl_row(line: str, label: str, columns: list[str]) -> dict | None:
     """An income-statement row: label, optional note references, one number per column of the table header."""
     rest = line[len(label):]
@@ -160,12 +188,13 @@ def extract(path: Path, spec: dict) -> dict[str, Figure]:
     figs: dict[str, Figure] = {}
     for key, label in (spec.get("key") or {}).items():
         for page, line in lines:
-            if re.match(rf"{label}\s+-?\d", line):
-                row = read_key_row(line, re.match(label, line).group(0))
+            if re.match(rf"{label}\s+\(?-?\d", line):
+                head = re.match(label, line).group(0)
+                row = read_key_row(line, head) or read_key_row_plain(line.replace("(", "-").replace(")", ""), head)
                 if row and "q" in row:
                     chg = row["q"] / row["q_ly"] - 1 if row["q_ly"] else None
                     checked = ("matches the printed change" if row["q_chg_printed"] is not None and chg is not None
-                               and abs(chg - row["q_chg_printed"]) <= 0.015 else "no printed change to check against")
+                               and abs(chg - row["q_chg_printed"]) <= 0.015 else row.get("layout") or "no printed change to check against")
                     figs[key] = Figure(row["q"], page, line, row, checked)
                     break
     header_cols, header_page = None, None
@@ -187,9 +216,29 @@ def extract(path: Path, spec: dict) -> dict[str, Figure]:
 
 
 # ------------------------------------------------------------------------------------------------ derived figures
+_QWORDS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "første": 1, "andre": 2, "tredje": 3, "fjerde": 4, "1st": 1, "2nd": 2, "3rd": 3, "4th": 4}
+
+
 def period_of(title: str) -> tuple[int, int] | None:
-    m = re.search(r"\bQ([1-4])\s?(\d{4})\b", title)
-    return (int(m.group(2)), int(m.group(1))) if m else None
+    """(year, quarter) from a report title, in the forms Oslo issuers use: "Q3 2026", "Q3-26", "3Q 2026", "Q3/2026",
+    "third quarter 2026", "3. kvartal 2026", "tredje kvartal 2026", "half-year report 2026" (= Q2), "H1 2026"."""
+    t = title.lower()
+    m = re.search(r"\b(?:q([1-4])\s?[-/ ]?\s?(\d{4}|\d{2})\b|([1-4])q\s?(\d{4})\b)", t)
+    if m:
+        y = m.group(2) or m.group(4)
+        q = m.group(1) or m.group(3)
+        return (2000 + int(y) if len(y) == 2 else int(y), int(q))
+    y = re.search(r"\b(20\d{2})\b", t)
+    if not y:
+        return None
+    m = re.search(r"\b(first|second|third|fourth|første|andre|tredje|fjerde|1st|2nd|3rd|4th)[- ]quarter|\b([1-4])\.\s?kvartal|\b(første|andre|tredje|fjerde) kvartal", t)
+    if m:
+        return (int(y.group(1)), _QWORDS[m.group(1) or m.group(3)] if (m.group(1) or m.group(3)) else int(m.group(2)))
+    if re.search(r"\bh1\b|half[- ]year|halvår|første halvår", t):
+        return (int(y.group(1)), 2)
+    if re.search(r"\bh2\b", t):
+        return (int(y.group(1)), 4)
+    return None
 
 
 def ltm(cols: dict, year: int, q: int) -> float | None:

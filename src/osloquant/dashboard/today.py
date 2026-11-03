@@ -157,14 +157,16 @@ POST_REPORT_DAYS = 45         # a report this far back still asks for a view dat
 
 
 def last_report(c: bk.Case, today: pd.Timestamp, days: int = POST_REPORT_DAYS) -> tuple[pd.Timestamp, str] | None:
-    """The newest report date that has passed within ``days`` days: a report the reader summarised, or a research-book
-    event with report words. (date, what) or None."""
+    """The newest report date that has passed within ``days`` days: a report the reader summarised, a report the
+    after-report loop downloaded (D39), or a research-book event with report words. (date, what) or None."""
+    from osloquant.dashboard import afterreport as ar
     from osloquant.dashboard import reports as rp
 
     found = []
     s = rp.latest(c.code)
     if s:
         found.append((pd.Timestamp(s["published"][:10]), f"Q{s['quarter']} {s['year']} report"))
+    found += [(d, what) for d, what, _ in ar._downloaded(c.code)]
     for ev in c.events:
         d = pd.Timestamp(ev["date"])
         if d <= today and any(w in str(ev.get("what", "")).lower() for w in _REPORT_WORDS):

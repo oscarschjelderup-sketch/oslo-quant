@@ -293,6 +293,65 @@ def _shares(bal: pd.DataFrame, inc_q: pd.DataFrame, inc_y: pd.DataFrame) -> floa
     return None
 
 
+def _records(df: pd.DataFrame) -> list[dict]:
+    """A statements frame as plain records: dates as strings, NaN as None, the store's bookkeeping columns dropped."""
+    if df is None or not len(df):
+        return []
+    keep = [c for c in df.columns if c not in ("id", "entity_id", "timestamp", "provider", "code")]
+    out = []
+    for _, r in df.sort_values("report_date").iterrows():
+        rec = {}
+        for c in keep:
+            v = r[c]
+            if isinstance(v, pd.Timestamp):
+                rec[c] = f"{v:%Y-%m-%d}"
+            elif isinstance(v, float) and not math.isfinite(v):
+                rec[c] = None
+            elif hasattr(v, "item"):
+                rec[c] = v.item()
+            else:
+                rec[c] = v
+        out.append(rec)
+    return out
+
+
+def export_statements(code: str, snap=None, write: bool = True) -> dict:
+    """Every statement line the store holds for ``code`` – annual and quarterly income statement, balance sheet and
+    cash flow as Yahoo reports them – with the price, share count and reporting currency, written to
+    ``cases/<CODE>.statements.json`` for the Equity Research Toolkit's case factory (`new_case.py`)."""
+    from osloquant.dashboard import market as mk
+
+    snap = snap or mk.snapshot()
+    code = code.upper()
+    inc_y, inc_q, bal, cf_y, cf_q = _frames(code)
+    if not len(inc_y) and not len(inc_q):
+        raise ValueError(f"no statements for {code} in the store")
+    lp = mk.last_price(snap, code)
+    rep = (currencies().get(code) or {}).get("reporting")
+    fx, fx_date = fx_rate(rep, lp[1]) if lp else (None, None)
+    bal_y = bal[bal["report_period"] == "year"] if len(bal) else bal
+    bal_q = bal[bal["report_period"] == "quarter"] if len(bal) else bal
+    prices_ye = {}
+    if code in snap.panel["close"].columns:
+        c = snap.panel["close"][code].dropna()
+        for d in inc_y["report_date"] if len(inc_y) else []:
+            upto = c[c.index <= pd.Timestamp(d)]
+            if len(upto):
+                prices_ye[f"{pd.Timestamp(d):%Y-%m-%d}"] = {"close": float(upto.iloc[-1]), "date": f"{upto.index[-1]:%Y-%m-%d}"}
+    doc = {"code": code, "name": snap.names.get(code, code), "group": snap.group(code), "exported_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "prices_ye": prices_ye,
+           "price": {"value": lp[0], "date": f"{lp[1]:%Y-%m-%d}", "source": mk.PRICE_SOURCE} if lp else None,
+           "shares": _shares(bal, inc_q, inc_y), "currency": {"reporting": rep or "NOK", "fx": fx, "fx_date": fx_date, "source": "Yahoo quote summary; FX: store's daily close"},
+           "unit": "reporting currency, units as Yahoo reports them (not millions)",
+           "annual": {"income": _records(inc_y), "balance": _records(bal_y), "cashflow": _records(cf_y)},
+           "quarterly": {"income": _records(inc_q), "balance": _records(bal_q), "cashflow": _records(cf_q)},
+           "source": "Yahoo Finance annual and quarterly statements via the oslo-quant store (oq case export)"}
+    if write:
+        case_dir().mkdir(parents=True, exist_ok=True)
+        (case_dir() / f"{code}.statements.json").write_text(json.dumps(doc, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+    return doc
+
+
 def build(code: str, snap=None, write: bool = True, with_peers: bool = True) -> dict:
     """The light case for ``code`` from the store, with the group's medians computed the same way."""
     from osloquant.dashboard import market as mk

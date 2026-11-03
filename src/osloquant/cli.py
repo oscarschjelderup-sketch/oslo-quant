@@ -1716,6 +1716,66 @@ def case_build(
             console.print(f"  [yellow]{w}[/yellow]")
 
 
+@case_app.command("export")
+def case_export(codes: str = typer.Argument(..., help="Comma-separated codes.")) -> None:
+    """Write every statement line the store holds to cases/<CODE>.statements.json – the input of the Equity Research
+    Toolkit's case factory (model_builder/new_case.py)."""
+    _setup()
+    from osloquant.dashboard import lightcase as lc
+    from osloquant.dashboard import market as mk
+
+    snap = mk.snapshot()
+    for code in _codes(codes) or []:
+        try:
+            d = lc.export_statements(code, snap=snap)
+        except ValueError as e:
+            console.print(f"[yellow]{code}: {e}[/yellow]")
+            continue
+        a = d["annual"]
+        console.print(f"[bold]{code}[/bold] {d['currency']['reporting']}: {len(a['income'])} annual income statements, {len(a['balance'])} balance sheets, "
+                      f"{len(a['cashflow'])} cash flows; {len(d['quarterly']['income'])} quarters -> {lc.case_dir() / (code + '.statements.json')}")
+
+
+@case_app.command("after-report")
+def case_after_report(
+    codes: str | None = typer.Argument(None, help="Comma-separated codes; or --due for every company the queue names."),
+    due: bool = typer.Option(False, "--due", help="Run for every covered company whose newest report is newer than its light case or a view."),
+    refresh: bool = typer.Option(True, "--refresh/--no-refresh", help="Re-record the statements from Yahoo before rebuilding the light case."),
+    days: int = typer.Option(120, "--days", help="How far back to look for the report on NewsWeb."),
+) -> None:
+    """After a report (DECISIONS D39): rebuild the light case with before/after, fetch the report from NewsWeb and read it
+    with the company's spec – or dry-run a generic spec and write a suggested one. Writes cases/afterreport/<CODE>.json."""
+    _setup()
+    from osloquant.dashboard import afterreport as ar
+    from osloquant.dashboard import book as bk
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import coverage as cv
+    from osloquant.dashboard import feeds as fd
+    from osloquant.dashboard import market as mk
+
+    snap = mk.snapshot()
+    cases = bk.cases()
+    today = pd.Timestamp.now().normalize()
+    wanted = _codes(codes) or []
+    if due:
+        q = ar.due(cases, cv.universe(snap, cases, bk.watchlist(), today), today, fd.read(cal.CAL_FEED))
+        for it in q:
+            console.print(f"{it['code']}: {it['report']['what'][:50]} ({it['report']['date']}, {it['report']['source']}) – owes: {', '.join(it['owes']) or '–'}"
+                          + (", light case before the report" if it["lightcase_stale"] else "") + (f", ran {it['ran']}" if it["ran"] else ""))
+        wanted = sorted(set(wanted) | {it["code"] for it in q if not it["ran"]})
+        if not wanted:
+            console.print("nothing due")
+            return
+    by_code = {c.code: c for c in cases}
+    for code in wanted:
+        log = ar.run_one(code, by_code.get(code), snap, refresh=refresh, days=days, today=today)
+        console.print(f"[bold]{code}[/bold] " + " · ".join(log["steps"]))
+        d = (log.get("lightcase") or {}).get("diff") or {}
+        for k in ("price", "ebit", "implied_g", "quarters_through"):
+            if d.get(k) and d[k].get("change"):
+                console.print(f"  {k}: {ar._fmt(k, d[k]['before'])} -> {ar._fmt(k, d[k]['after'])} ({ar._chg(d[k])})")
+
+
 @case_app.command("log")
 def case_log(
     code: str = typer.Argument(..., help="Stock code."),
@@ -1801,6 +1861,36 @@ def book_kill(
 
     row = jg.append("kill_check", dict(code=code, date=date, criterion=criterion, breached=breached, action=action))
     console.print(f"logged #{row['seq']}, head {row['hash'][:16]}")
+
+
+@book_app.command("check")
+def book_check(code: str | None = typer.Argument(None, help="One code; default every case with a published report or a reader spec."),
+               stub: bool = typer.Option(False, "--stub", help="Print draft reader rules (reports.yaml) from the model's list.")) -> None:
+    """One kill list per case (DECISIONS D40): compare the model's list (published with the report) with the view's
+    sentences and the reader's rules, and name every divergence. Writes nothing."""
+    _setup()
+    from osloquant.dashboard import book as bk
+    from osloquant.dashboard import killlist as kl
+    from osloquant.dashboard import reportpdf as rpdf
+
+    n_bad = 0
+    for c in bk.cases():
+        if code and c.code != code.upper():
+            continue
+        r = kl.for_case(c)
+        if not r:
+            continue
+        mark = "[green]én liste[/green]" if not r["issues"] else f"[red]{len(r['issues'])} avvik[/red]"
+        console.print(f"[bold]{c.code}[/bold] {mark}  modell {r['model_n']} · syn {r['view_n']} · leserregler {r['reader_n']}")
+        for i in r["issues"]:
+            console.print(f"  - {i}")
+        if r["unchecked"]:
+            console.print(f"  ikke maskinsjekket: {'; '.join(r['unchecked'])}")
+        if stub:
+            ent = rpdf.latest(c.code)
+            console.print(kl.reader_stub(((ent or {}).get("estimates") or {}).get("kill"), list(c.kill)))
+        n_bad += bool(r["issues"])
+    console.print(f"{n_bad} case(s) with a diverging kill list" if n_bad else "every compared case has one list")
 
 
 @book_app.command("verify")

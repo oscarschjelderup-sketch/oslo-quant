@@ -89,3 +89,21 @@ def test_coverage_page_shows_the_universe_and_the_front_page_counts_it(app, tmp_
     assert "universet 3 selskaper – 1 full case" in home_page and "1 under plan" in home_page
     # the old signature still renders (no universe given)
     assert "Universet" not in rd.coverage_page([], pd.Timestamp("2026-11-03"))
+
+
+def test_statements_export_writes_every_line_the_store_holds(home, monkeypatch):
+    from .test_coverage import _frames
+
+    inc_y, inc_q, bal, cf_y, cf_q = _frames()
+    monkeypatch.setattr(lcm, "_frames", lambda code: (inc_y, inc_q, bal, cf_y, cf_q))
+    snap = _snapshot()
+    doc = lcm.export_statements("AAA", snap=snap)
+    assert doc["code"] == "AAA" and doc["name"] == "Alpha" and doc["group"] == "Seafood" and doc["shares"] == 10.0
+    assert len(doc["annual"]["income"]) == 3 and doc["annual"]["income"][-1]["report_date"] == "2025-12-31" and doc["annual"]["income"][-1]["total_revenue"] == 1000.0
+    assert len(doc["quarterly"]["income"]) == 4 and doc["annual"]["balance"][0]["net_debt"] == 200.0 and doc["quarterly"]["cashflow"][0]["free_cash_flow"] == 20.0
+    assert doc["price"]["value"] == pytest.approx(float(snap.panel["close"]["AAA"].iloc[-1]))
+    written = json.loads((lcm.case_dir() / "AAA.statements.json").read_text(encoding="utf-8"))
+    assert written["source"].startswith("Yahoo Finance") and written["currency"]["reporting"] == "NOK"
+    monkeypatch.setattr(lcm, "_frames", lambda code: (inc_y.iloc[0:0], inc_q.iloc[0:0], bal, cf_y, cf_q))
+    with pytest.raises(ValueError, match="no statements"):
+        lcm.export_statements("AAA", snap=snap)

@@ -323,9 +323,18 @@ def case_columns(c, px: float, lc: dict | None) -> str:
     bear = (f'<p><b>Bear NOK {v["bear"]:g}</b> ({pct(v["bear"] / px - 1, 0)}), vekt {v["p_bear"]:.0%}.</p>' if v.get("bear") and v.get("p_bear") is not None else
             f'<p><b>Bear NOK {v["bear"]:g}</b> ({pct(v["bear"] / px - 1, 0)}).</p>' if v.get("bear") else '')
     return ('<h2>Investeringscase</h2><div class="cols3">'
-            f'<div><h3>Nedside – kill-kriterier</h3>{bear}<ul>{kills}</ul><div class="src">Brytes ett, er caset brutt – sjekk og logg.</div></div>'
+            f'<div><h3>Nedside – kill-kriterier</h3>{bear}<ul>{kills}</ul><div class="src">Brytes ett, er caset brutt – sjekk og logg.</div>{_kill_source(c)}</div>'
             f'<div class="mid"><h3>Vårt syn</h3><p>{thesis}</p>{reads}<div class="src">Synet er ditt (EST); «hva prisen krever» er regnet fra lett case.</div></div>'
             f'<div><h3>Oppside</h3>{bull}<div class="src">Bull-verdien er synets eget anslag (EST).</div></div></div>')
+
+
+def _kill_source(c) -> str:
+    """One line under the kill list: is it the model's list (D40)?"""
+    if not c:
+        return ""
+    from osloquant.dashboard import killlist as kl
+
+    return kl.block_html(kl.for_case(c))
 
 
 def key_figures(lc: dict | None, px: float) -> str:
@@ -399,7 +408,7 @@ def stock_page(code: str, ctx: dict) -> str:
     parts = ['<div class="report"><div>' + "\n".join(main) + '</div>' + view_rail(c, px, ctx["price_label"], lc, ctx.get("next_event"), ctx.get("today")) + '</div>',
              f'<div class="grid2"><div><h2>Teknisk</h2>{keyhtml}</div><div><h2>Aktive signaler (10 økter)</h2>{sig}</div></div>',
              f'<h2>Børsmeldinger og nyheter</h2><div class="card">{nhtml}</div>', insider_block(code, ctx.get("insiders")),
-             ctx.get("reports_html", "")]
+             ctx.get("reports_html", ""), ctx.get("afterreport_html", "")]
     if c and (c.view or c.history):
         parts.append(case_block(c, px, ctx.get("rdcf")))
         parts.append(report_block(code, ctx.get("report")))
@@ -1092,7 +1101,8 @@ def claude_view_block(c, px: float | None) -> str:
             '<div class="src">Claude (AI) writes its views from the light case and the public reports; they are estimates (EST), scored on the same terms as yours.</div></details>')
 
 
-def coverage_page(rows: list[dict], today, h2h: dict | None = None, universe: list[dict] | None = None, summ: list[dict] | None = None) -> str:
+def coverage_page(rows: list[dict], today, h2h: dict | None = None, universe: list[dict] | None = None, summ: list[dict] | None = None,
+                  queue_html: str = "") -> str:
     """The coverage page (D31, D38): the universe by sector group and level, every company with a view from either
     analyst (the price now, each view and how it has moved since, whether they agree, the next report), and the
     whole universe with the plan per company."""
@@ -1115,7 +1125,7 @@ def coverage_page(rows: list[dict], today, h2h: dict | None = None, universe: li
               f'samme rating i {h2h["agree"]}. Se Kalibrering for tallene.</div>')
     return page("Dekning", "/coverage", (
         '<h1>Dekning</h1><div class="sub">Hele universet i lageret: hvilket nivå hvert selskap er dekket på, synene fra deg og Claude, og planen per selskap.</div>'
-        + coverage_summary_block(universe, summ, today)
+        + coverage_summary_block(universe, summ, today) + queue_html
         + f'<h2>Selskaper med et syn</h2><div class="card"><p><b>{len(rows)} selskaper</b>: du har syn på {n_o}, Claude på {n_c}.'
         + (f' Bare Claude har syn på {len(only_c)} – åpne aksjesiden, les den lette casen og logg ditt eget før du leser Claudes.' if only_c else '') + '</p>'
         '<table class="odds"><thead><tr><th>Selskap</th><th>Sektor</th><th>Kurs</th><th colspan="3">Ditt syn · siden · til kursmål</th>'

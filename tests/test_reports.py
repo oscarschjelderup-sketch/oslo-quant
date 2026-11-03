@@ -74,6 +74,25 @@ def test_consensus_release_is_parsed(monkeypatch):
 def test_report_period_and_detection():
     assert rp.period_of("SATS ASA Q2 2026: Growth, margin expansion") == (2026, 2)
     assert rp.period_of("Annual Report 2025") is None
+    # the forms other Oslo issuers use (Elkem, Mowi, DNB, Orkla ...)
+    assert rp.period_of("Third quarter 2026 - Robust financial performance amid challenging markets") == (2026, 3)
+    assert rp.period_of("Elkem ASA - Second quarter and half year report 2026 (correction)") == (2026, 2)
+    assert rp.period_of("Mowi ASA: 3Q 2026 results") == (2026, 3) and rp.period_of("DNB Q3-26 report") == (2026, 3)
+    assert rp.period_of("Orkla ASA: Resultat for 3. kvartal 2026") == (2026, 3) and rp.period_of("Tredje kvartal 2026") == (2026, 3)
+    assert rp.period_of("Half-year report 2026") == (2026, 2) and rp.period_of("H1 2026 results") == (2026, 2)
+    assert rp.period_of("Invitation to third quarter results presentation") is None     # no year, no period
+
+
+def test_key_row_without_printed_changes_in_the_five_column_layout():
+    row = rp.read_key_row_plain("Total operating income 3 587 3 675 10 956 11 368 14 966", "Total operating income")
+    assert row["q"] == 3587 and row["q_ly"] == 3675 and row["ytd"] == 10956 and row["ytd_ly"] == 11368 and row["fy"] == 14966
+    assert row["layout"].startswith("5 columns")
+    nibd = rp.read_key_row_plain("Net interest-bearing debt (NIBD) 6 459 9 510 6 459 9 510 9 434", "Net interest-bearing debt (NIBD)")
+    assert nibd["q"] == 6459 and nibd["fy"] == 9434
+    assert rp.read_key_row_plain("EBITDA margin (%) 15 % 18 % 13 % 18 % 17 %", "EBITDA margin (%)") is None       # percentages: the other parser
+    assert rp.read_key_row_plain("EBITDA 554 646", "EBITDA") is None                                               # two numbers split many ways
+    e = rp.read_key_row_plain("EBITDA 554 646 1 393 2 014 2 566", "EBITDA")                                        # "554 646" is two quarters, not one number
+    assert (e["q"], e["q_ly"], e["ytd"], e["ytd_ly"], e["fy"]) == (554, 646, 1393, 2014, 2566)
 
 
 # ------------------------------------------------------------------------------------------------ frozen real reports

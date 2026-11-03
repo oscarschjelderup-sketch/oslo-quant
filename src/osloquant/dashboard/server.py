@@ -94,8 +94,10 @@ def stock_context(code: str) -> dict:
 
     ents = rpdf.entries(code)
     reports_html = rpdf.block_html(code, ents, rpdf.revision(ents), rpdf.tp_mismatch(ents[0] if ents else None, c.view if c else None, c.history if c else None))
+    from osloquant.dashboard import afterreport as ar
+
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
-                next_event=nxt, today=today, reports_html=reports_html,
+                next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -326,7 +328,10 @@ def create_app() -> Flask:
             if e.get("code") and e["kind"] in ("report", "case") and e["code"] not in nxt:
                 nxt[e["code"]] = e
         uni = cv.universe(snap, cases, watch, today, next_events=nxt)
-        return rd.coverage_page(rows, today, jg.head_to_head(table) if len(table) else None, uni, cv.summary(uni))
+        from osloquant.dashboard import afterreport as ar
+
+        queue = ar.queue_html(ar.due(cases, uni, today, fd.read(cal.CAL_FEED)), today)
+        return rd.coverage_page(rows, today, jg.head_to_head(table) if len(table) else None, uni, cv.summary(uni), queue)
 
     def _watch(msg=None, status=200):
         snap = mk.snapshot()

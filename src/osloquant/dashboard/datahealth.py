@@ -257,6 +257,11 @@ def case_health(cases, closes: pd.DataFrame | None = None, today: pd.Timestamp |
                 close = float(on.iloc[-1])
                 if abs(close / float(v["price"]) - 1) > 0.01:
                     issues.append(f"synet er logget til kurs {float(v['price']):.2f}, lagerets sluttkurs {pdate} er {close:.2f} ({(close / float(v['price']) - 1) * 100:+.1f} %)")
+        from osloquant.dashboard import killlist as kl
+
+        kr = kl.for_case(c)
+        if kr:
+            issues += [f"kill-listen: {i}" for i in kr["issues"]]
         out.append({"code": c.code, "name": c.name, "view_date": str(v.get("date") or "")[:10], "view_age": age, "lightcase_built": lc_built,
                     "lightcase_gap": lc_gap, "report_date": rep["date"] if rep else None, "report_tp": rep["tp"] if rep else None,
                     "model_date": model_date, "issues": issues})
