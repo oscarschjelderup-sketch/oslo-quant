@@ -563,6 +563,6 @@ under the kill list on the stock page ("én liste" or "spriker"), in the case's 
 `oq book check` (with `--stub` drafting the reader rules from the model's list). Nothing is rewritten: the log is
 append-only, the yaml is Oscar's, and a diverging list is fixed in the data module and then re-logged as a view.
 First run (3 Nov 2026): the SATS view of 6 Oct carries three sentences, the model five criteria, and the reader's
-ARPM threshold (2 %) is not the model's price/mix threshold (1.5 %) – ten divergences, now on the page. Claude's
+ARPM threshold is not the model's price/mix threshold – ten divergences, now on the page. Claude's
 list is compared too but reported as "two analysts, two lists", not as an error. Dekning 2026-11-03, part 4
 (the Toolkit side: `kill_list_of` in rb_data.py, `KILL_TEXT` in elkem_data.py).
