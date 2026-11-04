@@ -20,6 +20,8 @@ import struct
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import zlib
 from pathlib import Path
 
@@ -97,8 +99,6 @@ def url(port: int = PORT, path: str = "/") -> str:
 def is_up(port: int = PORT, timeout: float = 1.0) -> bool:
     """True when a dashboard answers on the port: /ping says ok, or – a dashboard started before /ping existed – the
     server answers /ping with an HTTP error, so something is listening and a second server would only fail to bind."""
-    import urllib.error
-
     try:
         with urllib.request.urlopen(url(port, "/ping"), timeout=timeout) as r:
             return r.status == 200 and r.read(16) == b"ok"
