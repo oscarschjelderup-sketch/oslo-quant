@@ -629,3 +629,9 @@ caches and the store and reproduces for a given close.
   reproduce for the same close and are never overwritten; the pages, the prefill and the row link; the veto statistic
   on a known price path. A test on the frozen real data (prices, caches and the research-book copy, D16) runs where
   that copy exists and asserts the same invariants without fixing the outcomes.
+- Robustness (same night): a sweep over 52 random synthetic homes with odd data – thirty-session listings, NaN and
+  zero volume, flat prices, a SELL view with the kill level above the price, a view without bear value or
+  probabilities, a bank light case, a model path that does not exist, missing feeds and limits, malformed insider
+  entries – found no crash. Still, one stock's bad data must never stop the daily run: `run()` isolates each stock,
+  and a failure is written to the run's data-quality list ("desk-feil for CODE") and shown on the page, never hidden.
+  Unknown turnover (no volume data) is said to be unknown, not printed as zero (`tests/test_desk_edges.py`).

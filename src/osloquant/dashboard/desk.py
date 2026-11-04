@@ -391,6 +391,11 @@ def _nok(x) -> str:
     return f"{float(x):,.0f}".replace(",", " ")
 
 
+def _insider_items(inp: Inputs, code: str) -> list[dict]:
+    """The cached notifications for one stock that carry a code and a time (a malformed cache entry is skipped)."""
+    return [i for i in inp.insiders.get("items", {}).values() if isinstance(i, dict) and i.get("code") == code and isinstance(i.get("time"), str) and len(i["time"]) >= 10]
+
+
 def _pct(x, d=1, sign=True) -> str:
     return f"{x * 100:{'+' if sign else ''}.{d}f} %"
 
@@ -436,12 +441,12 @@ def scout(inp: Inputs, code: str, forced: bool = False) -> list[Finding]:
             out.append(Finding("scout", "announcement", f"{len(items)} melding(er) siden {prev:%d %b}; siste «{a0['title'][:90]}» ({a0.get('category') or 'ukjent kategori'})",
                                f"NewsWeb (buffer; {ann['source']})", a0["time"], t, delayed=True, detail=a0["title"]))
     cutoff = f"{inp.snap.asof - pd.Timedelta(days=3):%Y-%m-%d}"
-    mine = sorted((i for i in inp.insiders.get("items", {}).values() if i["code"] == code and i["time"][:10] >= cutoff and i["side"] in ("buy", "sell", "subscription")),
+    mine = sorted((i for i in _insider_items(inp, code) if i["time"][:10] >= cutoff and i.get("side") in ("buy", "sell", "subscription")),
                   key=lambda i: i["time"], reverse=True)
     if mine:
         i0 = mine[0]
-        out.append(Finding("scout", "insider", f"{len(mine)} melding(er) siste 3 d; siste {i0['side']} ({i0.get('why', '?')}): «{i0['title'][:80]}»",
-                           f"NewsWeb kategori 1102 (buffer, {inp.insider_doc_age})", i0["time"], t, delayed=True, detail=i0["title"]))
+        out.append(Finding("scout", "insider", f"{len(mine)} melding(er) siste 3 d; siste {i0['side']} ({i0.get('why', '?')}): «{str(i0.get('title', ''))[:80]}»",
+                           f"NewsWeb kategori 1102 (buffer, {inp.insider_doc_age})", i0["time"], t, delayed=True, detail=str(i0.get("title", ""))))
     s = ins.shorts(code, inp.shorts_doc)
     if s:
         ch = ins.short_change(s, 7)
@@ -482,7 +487,7 @@ def filter_role(inp: Inputs, code: str) -> list[Finding]:
     turnover = None
     if code in C.columns:
         tv = (C[code] * V[code]).dropna().iloc[-20:]
-        turnover = float(tv.median()) if len(tv) else None
+        turnover = float(tv.median()) if len(tv) and np.isfinite(tv.median()) else None
     if turnover is not None and turnover < float(cfg["min_turnover_nok"]):
         out.append(Finding("filter", "liquidity", f"median omsetning 20 økter NOK {_nok(turnover)} < grense NOK {_nok(cfg['min_turnover_nok'])}",
                            PRICE_SRC + " (sluttkurs × volum)", inp.session, t, status="killed", delayed=True))
@@ -505,8 +510,8 @@ def filter_role(inp: Inputs, code: str) -> list[Finding]:
                            inp.session, t, status="killed", delayed=True))
     if not out:
         cover = cv.LEVEL_LABEL[level] if level != "none" else "vurdering i boken uten lett case"
-        out.append(Finding("filter", "passed", f"dekning: {cover}; omsetning NOK {_nok(turnover) if turnover is not None else '0'}/dag (median 20 økter); 0 utløste kriterier",
-                           "dekningsnivå, lageret, rapportleseren", inp.session, t))
+        to = f"omsetning NOK {_nok(turnover)}/dag (median 20 økter)" if turnover is not None else "omsetning ukjent (0 volumdata i lageret)"
+        out.append(Finding("filter", "passed", f"dekning: {cover}; {to}; 0 utløste kriterier", "dekningsnivå, lageret, rapportleseren", inp.session, t))
     return out
 
 
@@ -610,8 +615,8 @@ def analyst(inp: Inputs, code: str, ctx: Ctx) -> list[Finding]:
             if k.get("metric") is None:
                 texts.append(str(k.get("criterion", "")))
                 continue
-            val = (f"{k['status']}: nå {now_:.4g} mot {k.get('op', '')} {thr:.4g}" if isinstance(now_, (int, float)) and isinstance(thr, (int, float))
-                   else f"{k['status']}; terskel {k.get('op', '')} {thr if thr is not None else 0}")
+            val = (f"{k.get('status', '?')}: nå {now_:.4g} mot {k.get('op', '')} {thr:.4g}" if isinstance(now_, (int, float)) and isinstance(thr, (int, float))
+                   else f"{k.get('status', '?')}; terskel {k.get('op', '')} {thr if thr is not None else 0}")
             out.append(Finding("analyst", "report_kill", val, src, str(s.get("published", ""))[:10], t, detail=str(k.get("criterion", ""))))
         if texts:
             out.append(Finding("analyst", "report_text_kill", f"{len(texts)} kriterier må leses manuelt", src, str(s.get("published", ""))[:10], t, detail=" | ".join(texts)))
@@ -712,11 +717,11 @@ def bear(inp: Inputs, code: str, ctx: Ctx) -> list[Finding]:
                            f"Finanstilsynets shortregister (buffer hentet {str(sh.get('fetched_at'))[:10]})", sh["date"] or inp.session, t, delayed=True))
     days = int(cfg["insider_days"])
     cutoff = f"{inp.today - pd.Timedelta(days=days):%Y-%m-%d}"
-    items = [i for i in inp.insiders.get("items", {}).values() if i["code"] == code and i["time"][:10] >= cutoff]
-    sells = sorted((i for i in items if i["side"] == "sell"), key=lambda i: i["time"], reverse=True)
+    items = [i for i in _insider_items(inp, code) if i["time"][:10] >= cutoff]
+    sells = sorted((i for i in items if i.get("side") == "sell"), key=lambda i: i["time"], reverse=True)
     if sells:
-        out.append(Finding("bear", "insider_sell", f"{len(sells)} salgsmeldinger siste {days} d (siste {sells[0]['time'][:10]}: «{sells[0]['title'][:60]}»); {sum(i['side'] == 'buy' for i in items)} kjøp",
-                           f"NewsWeb kategori 1102 (buffer, {inp.insider_doc_age})", sells[0]["time"], t, delayed=True, detail=sells[0]["title"]))
+        out.append(Finding("bear", "insider_sell", f"{len(sells)} salgsmeldinger siste {days} d (siste {sells[0]['time'][:10]}: «{str(sells[0].get('title', ''))[:60]}»); {sum(i.get('side') == 'buy' for i in items)} kjøp",
+                           f"NewsWeb kategori 1102 (buffer, {inp.insider_doc_age})", sells[0]["time"], t, delayed=True, detail=str(sells[0].get("title", ""))))
     group = inp.groups.get(code, "Other")
     ex = pf.exposure(inp.cases, inp.groups, inp.sizing)
     others = [x for x in ex["per_case"] if x["group"] == group and x["code"] != code]
@@ -849,8 +854,8 @@ def reply(inp: Inputs, code: str, ctx: Ctx, reasons: list[Finding], offset: int)
         elif k == "insider_sell":
             days = int(inp.cfg["insider_days"])
             cutoff = f"{inp.today - pd.Timedelta(days=days):%Y-%m-%d}"
-            items = [i for i in inp.insiders.get("items", {}).values() if i["code"] == code and i["time"][:10] >= cutoff]
-            buys, sells = sum(i["side"] == "buy" for i in items), sum(i["side"] == "sell" for i in items)
+            items = [i for i in _insider_items(inp, code) if i["time"][:10] >= cutoff]
+            buys, sells = sum(i.get("side") == "buy" for i in items), sum(i.get("side") == "sell" for i in items)
             ok = buys >= sells
             val = f"{buys} kjøp mot {sells} salg siste {days} d"
         elif k == "implied":
@@ -1037,7 +1042,12 @@ def run(codes: list[str] | None = None, trigger: str = "daily", snap: mk.Snapsho
         run_id = f"{base}-{n}"
     out = DeskRun(run_id, inp.session, trigger, inp.stamp(), config={**inp.cfg, "sizing": inp.sizing or {}})
     for code in universe:
-        sr = run_stock(inp, code, forced)
+        try:
+            sr = run_stock(inp, code, forced)
+        except Exception as e:  # noqa: BLE001 – one stock's bad data must not stop the daily run; the failure is shown, not hidden
+            inp.data_quality.append({"what": f"desk-feil for {code}", "asof": inp.session, "ok": False,
+                                     "note": f"{type(e).__name__}: {e} – aksjen er ikke med i kjøringen"})
+            continue
         if sr:
             out.stocks.append(sr)
     out.scanned = len(universe)
