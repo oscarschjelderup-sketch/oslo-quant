@@ -104,7 +104,8 @@ def test_old_rows_cannot_be_overwritten(app):
                       ("/stock/<code>/update", "POST"),                                          # an update row appended to the log (D48)
                       ("/review/<int:seq>", "POST"),                                             # a review row appended to the log (D49)
                       ("/chief/decide", "POST"),                                                 # Oscar's decision on a proposal, its own log (D50)
-                      ("/stock/<code>/forecast", "POST")}                                        # a forecast row appended to the log (D52)
+                      ("/stock/<code>/forecast", "POST"),                                        # a forecast row appended to the log (D52)
+                      ("/stock/<code>/pass", "POST")}                                            # a pass row appended to the log (D54)
     for method in ("put", "delete", "patch"):
         assert getattr(client, method)("/stock/AAA/judge").status_code == 405
     # an edited log is found, and nothing more can be written to it

@@ -430,6 +430,7 @@ def stock_page(code: str, ctx: dict) -> str:
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
     parts.append(ctx.get("forecast_html", ""))
+    parts.append(ctx.get("pass_html", ""))
     parts.append(ctx.get("baserate_html", ""))
     parts.append(lightcase_block(lc))
     parts.append(claude_view_block(c, px))
@@ -770,6 +771,9 @@ def case_block(c, px: float, rd: dict | None) -> str:
             pr = " / ".join("–" if p is None else f"{float(p):.0%}" for p in (r.get("p_bear"), r.get("p_base"), r.get("p_bull")))
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">oppdatering av #{r["ref_seq"]} etter {E(str((r.get("trigger") or {}).get("what")))}: '
                         f'<b>{pr}</b>{"" if r.get("changed") else " (uendret – " + E(str(r.get("reason") or "")) + ")"}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+        elif r["kind"] == "pass":
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">lar være ved {r["price"]:g}: {E(r["reason"])}</td><td></td>'
+                        f'<td class="src">{E(r.get("logged_at", ""))}</td></tr>')
         elif r["kind"] == "review":
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">feilgjennomgang {E(str(r.get("quarter")))} av #{r["ref_seq"]}</td><td></td>'
                         f'<td class="src">{E(r.get("logged_at", ""))}</td></tr>')

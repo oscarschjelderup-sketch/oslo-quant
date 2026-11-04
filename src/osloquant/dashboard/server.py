@@ -109,6 +109,7 @@ def stock_context(code: str) -> dict:
                 inversion_html=_inversion_html(code, c, lp[0] if lp else None),
                 baserate_html=_baserate_html(code),
                 forecast_html=_forecast_html(code, c, today),
+                pass_html=_pass_html(code),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -225,6 +226,13 @@ def _habit_items(cases, today) -> list:
         return [td.Item("", "chief", "Løkkene fra 5. nov kunne ikke leses", f"{type(e).__name__}: {e}", 2)]
 
 
+def _pass_html(code: str) -> str:
+    """D54: log a decision not to buy."""
+    from osloquant.dashboard import passes as ps
+
+    return ps.stock_html(code, jg.read_log())
+
+
 def _forecast_html(code: str, c, today) -> str:
     """D52: an 80 % interval for the next report's numbers, answered by the report reader."""
     from osloquant.dashboard import forecasts as fc
@@ -325,6 +333,8 @@ def create_app() -> Flask:
         ctx = stock_context(code)
         if request.args.get("logged"):
             ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
+        if request.args.get("passed"):
+            ctx["ok"] = [f"Pass logged as row #{request.args['passed']} in the judgement log."]
         if request.args.get("forecast"):
             ctx["ok"] = [f"Forecast logged as row #{request.args['forecast']} in the judgement log."]
         if request.args.get("updated"):
@@ -379,6 +389,24 @@ def create_app() -> Flask:
             attach_desk(ctx, code, form["desk_run"])
             ctx["form"] = form                                    # the typed values win over the prefill
         return Response(rd.stock_page(code, ctx), status=400)
+
+    @app.post("/stock/<code>/pass")
+    def pass_(code):
+        from osloquant.dashboard import passes as ps
+
+        if not code.isalnum():
+            abort(404)
+        code = code.upper()
+        lp = mk.last_price(mk.snapshot(), code)
+        try:
+            if lp is None:
+                raise ValueError(f"no price for {code} in the store")
+            row = ps.write(code, request.form.get("reason", ""), bool(request.form.get("inside")), lp[0], f"{lp[1]:%Y-%m-%d}", pd.Timestamp.now().strftime("%Y-%m-%d"))
+            return redirect(f"/stock/{code}?passed={row['seq']}", code=303)
+        except (ValueError, RuntimeError) as e:
+            ctx = stock_context(code)
+            ctx["errors"] = [str(e)]
+            return Response(rd.stock_page(code, ctx), status=400)
 
     @app.post("/stock/<code>/forecast")
     def forecast(code):
@@ -552,6 +580,9 @@ def create_app() -> Flask:
         from osloquant.dashboard import forecasts as fcs
 
         learn_html += fcs.calibration_html(fcs.scoring(rows))                                         # D52
+        from osloquant.dashboard import passes as pss
+
+        learn_html += pss.calibration_html(pss.scoring(rows))                                         # D54
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")

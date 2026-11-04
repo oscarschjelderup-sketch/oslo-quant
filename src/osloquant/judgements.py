@@ -37,7 +37,7 @@ import pandas as pd
 
 LOG_FILE = "judgements.jsonl"
 GENESIS = "0" * 64
-KINDS = ("judgement", "kill_check", "note", "update", "review", "forecast")     # update: D48, review: D49, forecast: D52
+KINDS = ("judgement", "kill_check", "note", "update", "review", "forecast", "pass")     # update: D48, review: D49, forecast: D52, pass: D54
 RATINGS = ("BUY", "HOLD", "SELL")
 ANALYSTS = ("oscar", "claude")
 DEFAULT_ANALYST = "oscar"
@@ -48,6 +48,7 @@ REQUIRED = {
     "update": ("code", "date", "ref_seq", "trigger", "p_bear", "p_base", "p_bull"),
     "review": ("code", "date", "ref_seq", "quarter", "answers"),
     "forecast": ("code", "date", "report", "metric", "low", "mid", "high"),
+    "pass": ("code", "date", "price", "reason"),
 }
 
 

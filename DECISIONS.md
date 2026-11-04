@@ -828,3 +828,12 @@ target; it makes the gap between what is said and what is computed visible when 
   rises).
 - **Toolkit:** the same base-rate check in the research report – an exhibit in "What we do not know" and a `[flag]`
   line in the build gate that never fails the build (Toolkit DECISIONS 2026-11-05).
+
+## D54. Passes: the decisions not to buy
+
+Buffett (letter for 1989): the costliest mistakes were opportunities understood and not taken, and they never show in
+the accounts. A pass is now a row of kind `pass` (POST /stock/<code>/pass): the price and date set by the server, the
+reason (at least fifteen characters) and whether the company was inside the circle of competence. It is scored like a
+view without a target – total return against OSEBX for twelve months – and a pass inside the circle that beat OSEBX by
+more than 20 percentage points is a *possible omission* (the threshold is mine). The calibration page lists them; the
+head of analysis counts passes as forecasts in R04. Cheap on purpose: one sentence and a tick.

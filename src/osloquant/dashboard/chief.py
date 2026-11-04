@@ -99,7 +99,7 @@ def m_brier(c):
 
 def m_forecasts_per_quarter(c):
     since = c.today - pd.Timedelta(days=91)
-    n = sum(1 for r in c.rows if jg.analyst_of(r) == jg.DEFAULT_ANALYST and r.get("kind") in ("judgement", "update", "forecast")
+    n = sum(1 for r in c.rows if jg.analyst_of(r) == jg.DEFAULT_ANALYST and r.get("kind") in ("judgement", "update", "forecast", "pass")
             and pd.Timestamp(str(r["date"])[:10]) >= since)
     return float(n), n
 
