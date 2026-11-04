@@ -2092,6 +2092,27 @@ def ui(
     main(host=host, port=port, debug=debug)
 
 
+chief_app = typer.Typer(help="The head of analysis: thirty rules measured weekly, proposals Oscar approves or rejects (DECISIONS D50).", no_args_is_help=True)
+app.add_typer(chief_app, name="chief")
+
+
+@chief_app.command("run")
+def chief_run(write: bool = typer.Option(False, "--write", help="Store the run in ~/osloquant-home/chief/run-YYYY-MM-DD.json (the weekly routine).")) -> None:
+    """Measure the thirty rules and rank the proposals. Reads only, unless --write."""
+    _setup()
+    from osloquant.dashboard import chief as ch
+
+    doc = ch.run(ch.build_ctx())
+    for res in doc["results"]:
+        r = ch.rule(res["id"])
+        console.print(f"{r.id} {res['status']:<13} {ch._fmt(r, res.get('value')):>7} (n {res['n']}) {r.title}")
+    console.print(f"{doc['counts']}")
+    for i, p in enumerate(doc["live"][:5], 1):
+        console.print(f"[bold]#{i}[/bold] {p['text']} – {p['why']}")
+    if write:
+        console.print(f"written: {ch.write_run(doc)}")
+
+
 @app.command("app")
 def app_window(
     install: bool = typer.Option(False, "--install", help="Put an «Oslo Børs-dashbord» shortcut on the desktop and in the Start menu."),

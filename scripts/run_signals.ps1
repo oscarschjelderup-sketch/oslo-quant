@@ -39,6 +39,14 @@ $output = & $oq desk run --daily --quiet 2>&1 | ForEach-Object { "$_" }
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "desk exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
 
+# the head of analysis (DECISIONS D50), once a week on Mondays: thirty rules measured, the proposals stored for /chief.
+# It reads the log and writes only its own run file; a failed run never stops the digest.
+if ((Get-Date).DayOfWeek -eq 'Monday') {
+    $output = & $oq chief run --write 2>&1 | ForEach-Object { "$_" }
+    $output | Out-File -FilePath $log -Append -Encoding utf8
+    "chief exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
+}
+
 # latest.html is the dashboard's front page (oq dashboard serves the live version at http://127.0.0.1:8060)
 $output = & $oq signals digest --notify --open --quiet 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE

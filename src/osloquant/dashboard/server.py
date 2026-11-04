@@ -366,6 +366,35 @@ def create_app() -> Flask:
         notes = "".join(f'<div class="err">{E(m)}</div>' for m in (msg or {}).get("errors", [])) + "".join(f'<div class="ok">{E(m)}</div>' for m in (msg or {}).get("ok", []))
         return Response(rd.page("Feilgjennomgang", "/review", notes + rv.page_html(rv.items(rows, table, today), rv.summary(rows), today)), status=status)
 
+    def _chief_page(msg: dict | None = None, status: int = 200):
+        from osloquant.dashboard import chief as ch
+
+        runs = ch.latest_runs(2)
+        today = f"{pd.Timestamp.now():%Y-%m-%d}"
+        if runs and runs[-1]["date"] == today:
+            doc, prev, stored = runs[-1], (runs[-2] if len(runs) > 1 else None), True
+            doc = doc | ch.proposals(doc["results"], ch.read_decisions())          # decisions made since the run apply at once
+        else:
+            doc, prev, stored = ch.run(ch.build_ctx()), (runs[-1] if runs else None), False
+        return Response(rd.page("Analysesjef", "/chief", ch.page_html(doc, prev, stored, msg)), status=status)
+
+    @app.get("/chief")
+    def chief_page():
+        return _chief_page()
+
+    @app.post("/chief/decide")
+    def chief_decide():
+        from osloquant.dashboard import chief as ch
+
+        f = request.form
+        try:
+            mv = f.get("metric_at")
+            row = ch.decide(f.get("proposal", ""), f.get("decision", ""), f.get("reason", ""), f.get("reason_kind") or None,
+                            float(mv) if mv not in (None, "") else None)
+            return _chief_page({"ok": [f"{row['proposal']}: {row['decision']} ({row['reason']})."]})
+        except ValueError as e:
+            return _chief_page({"errors": [str(e)]}, 400)
+
     @app.get("/review")
     def review_page():
         return _review_page()
