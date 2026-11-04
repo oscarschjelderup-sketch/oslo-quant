@@ -787,6 +787,10 @@ def judge_form(code: str, name: str, px: float, label: str, f: dict, c, sz: dict
     kill_default = "\n".join(c.kill) if c and not f else ""
     ck = str(f.get("checklist") or "")
     dr = str(f.get("desk_run") or "")
+    from osloquant import judgements as jg
+    from osloquant.dashboard import discipline as dsc
+
+    prev = dsc.previous_view(jg.read_log(), code.upper())
     pre = (f'<div class="ok">Sjekklisten fra «Før du kjøper» er krysset av ({E(ck.replace(",", ", "))}) og skrives på raden.</div>' if ck else
            f'<div class="warn"><b>Skal du kjøpe?</b> Gå via <a href="/stock/{E(code)}/pretrade">Før du kjøper</a> først: hva markedet priser inn, oddsene, '
            'motargumentene, hendelsene før horisonten, posisjonsstørrelsen og sjekklisten – på én side. Et syn uten sjekkliste kan logges, men merkes slik.</div>')
@@ -807,10 +811,13 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 <div class="row3"><div><label>Sannsynlighet bear</label><input name="p_bear" inputmode="decimal" placeholder="0.25" value="{val("p_bear")}"></div>
 <div><label>Sannsynlighet base</label><input name="p_base" inputmode="decimal" placeholder="0.50" value="{val("p_base")}"></div>
 <div><label>Sannsynlighet bull</label><input name="p_bull" inputmode="decimal" placeholder="0.25" value="{val("p_bull")}"></div></div>
+{dsc.probs_box(f)}
+{dsc.anchor_box(prev, px, f)}
 <div class="row3"><div><label>Konsensus kursmål (valgfritt, offentlig kilde)</label><input name="consensus_target" inputmode="decimal" value="{val("consensus_target")}"></div>
 <div style="grid-column:span 2"><label>Kilde og dato for konsensus (påkrevd hvis mål)</label><input name="consensus_source" placeholder="f.eks. selskapets IR-side, 2026-10-22" value="{val("consensus_source")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
 <label>Kill-kriterier (påkrevd, ett per linje)</label><textarea name="kill" required>{E(f.get("kill_text", kill_default))}</textarea>
+{dsc.premortem_box(f)}
 {saw_claude_box(c, f)}
 {ack_box(code, f)}
 {sizing_box(px, sz, val("position_shares"))}

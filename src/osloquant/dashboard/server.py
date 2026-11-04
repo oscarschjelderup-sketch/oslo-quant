@@ -295,6 +295,11 @@ def create_app() -> Flask:
         form["saw_claude"] = f.get("saw_claude") or None
         form["checklist"] = ",".join(k for k in (f.get("checklist") or "").split(",") if k.replace("_", "").isalnum())
         form["desk_run"] = (f.get("desk_run") or "").strip()
+        from osloquant.dashboard import discipline as dsc
+
+        form["premortem"] = dsc.premortem_from_form(f)                       # D46
+        form["probs_deliberate"] = bool(f.get("probs_deliberate"))
+        form["anchor_reason"] = (f.get("anchor_reason") or "").strip()
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))
@@ -389,6 +394,9 @@ def create_app() -> Flask:
         if len(table):
             prices = jg.load_prices(start=min(pd.Timestamp(j["date"]) for j in jg.judgements(rows)) - pd.Timedelta(days=10))
             learn_html = learn.by_case_html(learn.by_case(table, rel)) + learn.patterns_html(learn.error_patterns(rows, table, prices))
+            from osloquant.dashboard import discipline as dsc
+
+            learn_html = dsc.grid_html(dsc.decision_grid(rows, table)) + learn_html          # D46: process against outcome
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")

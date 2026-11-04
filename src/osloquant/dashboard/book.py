@@ -169,6 +169,9 @@ def validate_form(form: dict) -> list[str]:
         problems.append("the view must be BUY, HOLD or SELL")
     if form.get("consensus_target") not in (None, "") and not (form.get("consensus_source") or "").strip():
         problems.append("a consensus target needs its source and date")
+    from osloquant.dashboard import discipline as dsc
+
+    problems += dsc.premortem_problems(form.get("premortem") or dsc.premortem_from_form(form))                 # D46: no view without three reasons it could fail
     if form.get("claude_exists") and form.get("saw_claude") not in ("yes", "no"):
         problems.append("say whether you had read Claude's view on the company before writing this (it decides how the view is scored)")
     for k in ("target", "bear", "base", "bull"):
@@ -225,6 +228,9 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                    sizing={"paper_capital": float(cfg["paper_capital"]), "max_loss": float(cfg["max_loss"]),
                            "max_position": cfg.get("max_position"), "binding": s.binding, "limits": s.limits, "round_trip_cost": sizing.COST})
     kill = [k.strip() for k in form["kill"] if k.strip()]
+    from osloquant.dashboard import discipline as dsc
+
+    anchor = dsc.anchor_check(dsc.previous_view(jg.read_log(), code.upper()), float(price), float(form["target"]))   # D46
     fields = dict(code=code, name=name, date=today, price=round(float(price), 4), rating=form["rating"], target=float(form["target"]),
                   horizon_months=int(form.get("horizon") or 12),
                   bear=form.get("bear"), base=form.get("base"), bull=form.get("bull"),
@@ -236,6 +242,9 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   saw_claude={"yes": True, "no": False}.get(form.get("saw_claude")) if form.get("claude_exists") else None,
                   checklist=[k for k in str(form.get("checklist") or "").split(",") if k] or None,
                   desk_run=_desk_run(form.get("desk_run")),
+                  premortem=[x.strip() for x in form.get("premortem") or dsc.premortem_from_form(form) if x and x.strip()] or None,
+                  probs_deliberate=True if form.get("probs_deliberate") else None,
+                  anchor=anchor, anchor_reason=(form.get("anchor_reason") or "").strip() or None,
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()

@@ -25,7 +25,8 @@ from .helpers import business_days
 REPO = Path(__file__).resolve().parents[1]
 GOOD = {"rating": "BUY", "target": "130", "rationale": "Margins recover as the price increases stick; cheap on 2027.",
         "kill": "Gross margin below 40%\nNet debt above 3x EBITDA", "bear": "80", "base": "125", "bull": "160",
-        "p_bear": "0.25", "p_base": "0.5", "p_bull": "0.25", "horizon": "12"}
+        "p_bear": "0.25", "p_base": "0.5", "p_bull": "0.25", "horizon": "12",
+        "premortem_1": "Fictional reason one: prices stopped rising", "premortem_2": "Fictional reason two: costs grew faster", "premortem_3": "Fictional reason three: a competitor cut prices"}
 
 
 def _snapshot() -> mk.Snapshot:

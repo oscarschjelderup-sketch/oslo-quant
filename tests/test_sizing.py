@@ -10,7 +10,8 @@ from osloquant.dashboard import book as bk
 from osloquant.dashboard import sizing
 
 CFG = {"paper_capital": 100000, "max_loss": 2000, "max_position": 0.25}
-FORM = {"rating": "BUY", "target": 130, "rationale": "A rationale that says why, long enough.", "kill": ["margin below 10%"]}
+FORM = {"rating": "BUY", "target": 130, "rationale": "A rationale that says why, long enough.", "kill": ["margin below 10%"],
+        "premortem": ["Fictional reason one: prices stopped rising", "Fictional reason two: costs grew faster", "Fictional reason three: a competitor cut prices"]}
 
 
 def _config(home, **kw):

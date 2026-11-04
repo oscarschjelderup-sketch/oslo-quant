@@ -11,7 +11,8 @@ such:
 - ``no_kill_check``– a call scored for 90 days or more with no kill check at all;
 - ``guidance``     – the rationale names management's guidance, ambition, CMD or target (word match – a question, not
                      a verdict);
-- ``consensus``    – a consensus target was logged and the call's target sits within 5 % of it.
+- ``consensus``    – a consensus target was logged and the call's target sits within 5 % of it;
+- ``anchored``     – the row's anchoring check (D46) found the target following the price or stuck after a big move.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ HERD = 0.05
 _GUIDANCE = re.compile(r"guid|ambition|ambisjon|capital markets day|\bcmd\b|management'?s? target|ledelsens? mål|company target|selskapets mål", re.I)
 PATTERN_WORDS = {"early": "for tidlig inn (≥ 15 % mot meg først)", "late_out": "for sent ut (kill-nivå krysset, ingen logging innen 10 økter)",
                  "kill_ignored": "kill-kriterium brutt og ignorert", "no_kill_check": "kill-kriteriene aldri sjekket", "guidance": "ankret til ledelsens guiding (ordtreff)",
-                 "consensus": "kursmål innenfor 5 % av konsensus"}
+                 "consensus": "kursmål innenfor 5 % av konsensus", "anchored": "kursmålet fulgte kursen eller sto fast (D46)"}
 
 
 def by_case(table: pd.DataFrame, rel: dict | None, analyst: str = jg.DEFAULT_ANALYST) -> list[dict]:
@@ -94,6 +95,8 @@ def patterns_for(j: dict, scored: dict, prices: jg.Prices, rows: list[dict]) -> 
     ct = j.get("consensus_target")
     if ct and abs(float(j["target"]) / float(ct) - 1) < HERD:
         found.append("consensus")
+    if (j.get("anchor") or {}).get("kind"):
+        found.append("anchored")                     # D46: the target followed the price, or stayed put after a big move
     return found
 
 

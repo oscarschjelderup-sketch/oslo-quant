@@ -304,7 +304,8 @@ def test_the_desk_page_runs_one_stock_and_the_log_opens_from_the_stock_page_and_
     px = float(snap.panel["close"]["SATS"].iloc[-1])
     data = {"rating": "BUY", "target": "131", "bear": "72", "base": "124", "bull": "160", "p_bear": "0.25", "p_base": "0.5", "p_bull": "0.25", "horizon": "12",
             "kill_level": "86", "position_shares": "97", "rationale": "Fiktiv begrunnelse etter desken, lang nok til å telle.", "kill": "Fiktivt kriterium A: klubbmargin under 20 % [margin]",
-            "claude_exists": "1", "saw_claude": "no", "desk_run": run_id}
+            "claude_exists": "1", "saw_claude": "no", "desk_run": run_id,
+            "premortem_1": "Fictional reason one: prices stopped rising", "premortem_2": "Fictional reason two: costs grew faster", "premortem_3": "Fictional reason three: a competitor cut prices"}
     r = client.post("/stock/SATS/judge", data=data)
     assert r.status_code == 303, r.get_data(as_text=True)
     row = jg.read_log()[-1]

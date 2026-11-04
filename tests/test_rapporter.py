@@ -24,7 +24,8 @@ from .helpers import business_days
 PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n160\n%%EOF\n"
 GOOD = {"rating": "BUY", "target": "130", "rationale": "Margins recover as the price increases stick; cheap on 2027.",
         "kill": "Gross margin below 40%\nNet debt above 3x EBITDA", "bear": "80", "base": "125", "bull": "160",
-        "p_bear": "0.25", "p_base": "0.5", "p_bull": "0.25", "horizon": "12", "kill_level": "85"}
+        "p_bear": "0.25", "p_base": "0.5", "p_bull": "0.25", "horizon": "12", "kill_level": "85",
+        "premortem_1": "Fictional reason one: prices stopped rising", "premortem_2": "Fictional reason two: costs grew faster", "premortem_3": "Fictional reason three: a competitor cut prices"}
 
 
 def _snapshot(n=300, start="2025-08-01") -> mk.Snapshot:
