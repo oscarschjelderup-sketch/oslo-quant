@@ -7,6 +7,7 @@ never steps a paper account. Bound to 127.0.0.1 only.
 
 from __future__ import annotations
 
+import html
 from functools import lru_cache
 from importlib import resources
 from pathlib import Path
@@ -22,6 +23,7 @@ from osloquant.dashboard import market as mk
 from osloquant.dashboard import render as rd
 from osloquant.dashboard import today as td
 
+E = html.escape
 PORT = 8060
 
 
@@ -354,6 +356,30 @@ def create_app() -> Flask:
             ctx = stock_context(code)
             ctx["errors"] = [str(e)]
             return Response(rd.stock_page(code, ctx), status=400)
+
+    def _review_page(msg: dict | None = None, status: int = 200):
+        from osloquant.dashboard import review as rv
+
+        rows = jg.read_log()
+        table, _ = jg.calibration(rows)
+        today = pd.Timestamp.now().normalize()
+        notes = "".join(f'<div class="err">{E(m)}</div>' for m in (msg or {}).get("errors", [])) + "".join(f'<div class="ok">{E(m)}</div>' for m in (msg or {}).get("ok", []))
+        return Response(rd.page("Feilgjennomgang", "/review", notes + rv.page_html(rv.items(rows, table, today), rv.summary(rows), today)), status=status)
+
+    @app.get("/review")
+    def review_page():
+        return _review_page()
+
+    @app.post("/review/<int:seq>")
+    def review_write(seq):
+        from osloquant.dashboard import review as rv
+
+        try:
+            row = rv.write(seq, {k: request.form.get(k) for k in ("premortem_hit", "info_available", "cause", "bias", "lesson", "vs_target", "status")},
+                           pd.Timestamp.now().normalize())
+            return _review_page({"ok": [f"Gjennomgangen av #{seq} er lagret som rad #{row['seq']}."]})
+        except (ValueError, RuntimeError) as e:
+            return _review_page({"errors": [str(e)]}, 400)
 
     @app.get("/desk")
     def desk_page():

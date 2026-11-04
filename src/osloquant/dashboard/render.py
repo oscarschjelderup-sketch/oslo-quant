@@ -109,7 +109,7 @@ button.go { margin-top:12px; padding:9px 20px; border:0; border-radius:2px; back
 button.go:hover { background:var(--accent-dark); }
 """
 
-NAV = [("/", "I dag"), ("/desk", "Desk"), ("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
+NAV = [("/", "I dag"), ("/desk", "Desk"), ("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/review", "Feil"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
 
 
 def pct(v, d=1, sign=True):

@@ -101,7 +101,8 @@ def test_old_rows_cannot_be_overwritten(app):
     # no route can edit or delete: the only writes are the two POSTs
     writes = {(r.rule, m) for r in client.application.url_map.iter_rules() for m in r.methods - {"GET", "HEAD", "OPTIONS"}}
     assert writes == {("/stock/<code>/judge", "POST"), ("/watchlist", "POST"), ("/desk/run", "POST"),    # the desk writes only its own log (D41)
-                      ("/stock/<code>/update", "POST")}                                          # an update row appended to the log (D48)
+                      ("/stock/<code>/update", "POST"),                                          # an update row appended to the log (D48)
+                      ("/review/<int:seq>", "POST")}                                             # a review row appended to the log (D49)
     for method in ("put", "delete", "patch"):
         assert getattr(client, method)("/stock/AAA/judge").status_code == 405
     # an edited log is found, and nothing more can be written to it
