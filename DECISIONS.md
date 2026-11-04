@@ -715,3 +715,92 @@ three rising bars – is drawn in code and written as PNG and ICO without an ima
 its favicon, so the window and a browser tab carry it, and a snapshot (D44) copies it. Nothing here touches the
 research book; the only files written are the icon, the log and the two shortcuts. `oq app` does the same from a
 terminal.
+
+## The night of 4–5 November 2026: the head of analysis (D46–D52)
+
+Brief: make the set-up think like the best investors and forecasters and improve without Oscar having to invent what
+to build; every change must make buying decisions better or the measurement of being wrong stricter. Phase 1 read
+the sources and distilled thirty rules (docs/natt/beste-praksis.md); phase 2 audited every page and chain against them
+(docs/natt/gap.md); D46–D52 are what scored highest. Nothing here changes a view, a target, a kill criterion, a
+probability or an odds calculation on its own – the system proposes, with evidence, and Oscar decides. Everything was
+tested on temporary homes with fictional rows; the real research book, judgement log and hash chain were only read.
+
+## D46. Discipline on the row: pre-mortem, anchoring check, process against outcome
+
+- **Pre-mortem** (Klein, HBR 2007; Duke). A view cannot be logged without three different reasons, of at least fifteen
+  characters each, why it failed twelve months from now. They are stored on the row (`premortem`) and asked about
+  again in the error review (D49), so foresight can be counted.
+- **Anchoring check** (Tversky and Kahneman; Tetlock on updating). A new target on a company with a previous view
+  of the same analyst is compared with the previous target and the price move since. A target that moved the same way
+  as the price by at least half as much (on a move of 5 % or more) *follows the price*; one within 2 % after a 15 %
+  move is *sticky*. The form shows the previous view and the target that would count as following before it is typed;
+  the row stores `anchor` and an optional `anchor_reason`. A question, not a block.
+- **Own probabilities.** Probabilities equal to the Toolkit's default 25/50/25 count as the template's unless ticked as
+  deliberate (`probs_deliberate`) – otherwise the Brier score measures the spreadsheet (Tetlock on granularity;
+  Friedman et al. 2018).
+- **Process score and the decision grid** (Duke, *How to Decide*). Each row is scored on what it held when it was
+  written: pre-mortem, own probabilities, a kill criterion with a number, the «Før du kjøper» checklist, blind where
+  Claude had a view, the desk's debate, no unexplained price-following target, the base-rate check (D47). The share
+  of applicable items is the score; 70 % or more is a good process. The calibration page crosses it with the outcome
+  (direction against OSEBX) for final calls only: deserved win, bad break, dumb luck, deserved loss; provisional calls
+  stand beside the grid, marked. A new error pattern, `anchored`, comes from the row.
+
+## D47. Base rates for the estimates
+
+The newest report's estimates (`estimates_*.json`) give revenue growth a year over three estimate years and the
+EBITDA margin change over the same years. Each is set against two reference classes, named with sample and period
+wherever shown: the store (non-financial companies with four annual statements, one three-year period that starts at
+a cyclical peak – small and said to be) and Mauboussin, Callahan and Majd's *Base Rate Book* (Credit Suisse 2016,
+Exhibit 2, p. 22: the top 1,000 global companies 1950–2015, real growth; the nominal forecast is deflated by 2 %, EST,
+before it is looked up). The table is in `resources/base_rates.yaml` with its source and page; the book's size-class
+column for $325–700m has an arithmetic error and is not used; the book has no distribution of margin changes, so the
+margin is checked against the store only and the book's persistence (r = 0.79 over three years, p. 59) is quoted.
+Outside the 20th–80th percentile band on either side is flagged in the form (with a reason field), on the stock page
+and on the row (`base_rate`). First run, 5 Nov 2026: one of the three full cases has a growth assumption above the
+store's 80th percentile; the other two sit near the middle.
+
+## D48. The update log
+
+When a report has passed after an open view and its last update (as D39 finds reports), the stock page asks whether
+the scenario probabilities changed. The answer is a row of kind `update` (the view it refers to, the trigger, the
+probabilities after the news – the same ones if unchanged – the prior ones and, when unchanged, why). The target is
+not changed by an update. A trigger older than 14 days without an answer is *not updated* – derived, never written –
+and counted by the head of analysis. When the view is final, the last update's Brier is set beside the original's.
+A fourth write route (`POST /stock/<code>/update`), appending to the same hash-chained log.
+
+## D49. The quarterly error review
+
+`/review` lists Oscar's scored views, the largest miss against the target first, with the pre-mortem written at the
+time and the process score, and asks the same questions every time: was it among the pre-mortem's reasons, was the
+decisive information available, the decision or luck, which bias, what to do differently. The answers are a `review`
+row per view and quarter in the log; the page counts foresight, availability, luck and recurring biases and lists the
+lessons (Dalio's issue log; Duke; Klein; Mawer's annual review; Tetlock's post-mortems on successes too).
+
+## D50. The head of analysis
+
+`dashboard/chief.py`, `/chief`, `oq chief run [--write]`: the thirty rules, each with a source, a metric over what
+the system holds, a target and a minimum sample; status *ok*, *brudd*, *for lite data* or *ikke målt*, never a number
+from too little data. A rule off target yields a proposal from a fixed catalogue (what, why with the numbers, expected
+effect, effort), ranked by the distance from target, weighted for decisions over measurement, halved per earlier
+rejection of the same rule. Oscar approves or rejects on /chief with a reason (`chief/decisions.jsonl`, private,
+append-only); approved goes to the backlog; rejected stays away until its metric is 10 % further from target, and
+never after «aldri». The weekly run is a Monday step in `scripts/run_signals.ps1` and writes only its own run file.
+First live reading (5 Nov, read-only): 3 rules ok, 12 off target, 15 not measurable yet – mostly because the two
+open views predate the checks that measure them.
+
+## D51. Inversion from the model's sensitivities
+
+For every full case with a model: what has to go wrong for a 30 % loss from the last close, read from the workbook's
+growth × EBITDA margin table and WACC × terminal growth table (cached values via openpyxl; no Excel). Along each axis
+alone the shift that reaches the line is interpolated between grid points and never extrapolated – a line the grid
+does not reach is said to be outside it, with the edge value; the cheapest combinations inside the grid are listed.
+On the stock page; the head of analysis counts full cases without it (R18). Munger: invert, always invert.
+
+## D52. Quarterly forecasts with a quick answer
+
+Two twelve-month views a month cannot be calibrated before 2027. Before a covered company's next report (within 60
+days, from the calendar), the stock page takes an 80 % interval for the quarter's revenue, EBITDA or EBIT (or a key
+of the company's reader spec), one per number and report, written before the report date as a `forecast` row. The
+report reader's printed figure of the same name – or the after-report loop's generic reading – answers it: inside or
+not, and the miss against the middle. The calibration page shows the share inside against the 80 % it should be, and
+says fewer than ten answers are too few. A number the reading does not print stays unanswered; nothing is guessed.
