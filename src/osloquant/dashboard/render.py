@@ -409,7 +409,7 @@ def stock_page(code: str, ctx: dict) -> str:
              + f"</ul><div class='src'>{E(news['source'])}</div>") if news and news["items"] else (
              f'<p class="empty">No announcement in the cached window (14 days) and no headline naming the company.</p><div class="src">{E(news["source"])}</div>'
              if news else '<p class="empty">not fetched – oq dashboard --refresh</p>')
-    main = [head, msgs, f'<div class="card">{ctx["chart"]}</div>', case_columns(c, px, lc), key_figures(lc, px)]
+    main = [head, msgs, ctx.get("update_html", ""), f'<div class="card">{ctx["chart"]}</div>', case_columns(c, px, lc), key_figures(lc, px)]
     parts = ['<div class="report"><div>' + "\n".join(main) + '</div>' + view_rail(c, px, ctx["price_label"], lc, ctx.get("next_event"), ctx.get("today")) + '</div>',
              f'<div class="grid2"><div><h2>Teknisk</h2>{keyhtml}</div><div><h2>Aktive signaler (10 økter)</h2>{sig}</div></div>',
              f'<h2>Børsmeldinger og nyheter</h2><div class="card">{nhtml}</div>', insider_block(code, ctx.get("insiders")),
@@ -753,6 +753,13 @@ def case_block(c, px: float, rd: dict | None) -> str:
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:g}</td><td>{r["target"]:g}</td>'
                         f'<td>{r.get("bear", "–")} / {r.get("base", "–")} / {r.get("bull", "–")}</td><td>{r.get("p_bear", "–")} / {r.get("p_base", "–")} / {r.get("p_bull", "–")}</td>'
                         f'<td>{_rationale(r)}{_position(r)}{desk}</td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+        elif r["kind"] == "update":
+            pr = " / ".join("–" if p is None else f"{float(p):.0%}" for p in (r.get("p_bear"), r.get("p_base"), r.get("p_bull")))
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">oppdatering av #{r["ref_seq"]} etter {E(str((r.get("trigger") or {}).get("what")))}: '
+                        f'<b>{pr}</b>{"" if r.get("changed") else " (uendret – " + E(str(r.get("reason") or "")) + ")"}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+        elif r["kind"] == "review":
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">feilgjennomgang {E(str(r.get("quarter")))} av #{r["ref_seq"]}</td><td></td>'
+                        f'<td class="src">{E(r.get("logged_at", ""))}</td></tr>')
         elif r["kind"] == "kill_check":
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">kill check: {E(r["criterion"])} – '
                         f'<b>{"BREACHED" if r["breached"] else "intact"}</b>, action: {E(r["action"])}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')

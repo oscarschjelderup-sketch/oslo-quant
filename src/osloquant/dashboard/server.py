@@ -103,6 +103,7 @@ def stock_context(code: str) -> dict:
 
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
+                update_html=_update_html(code, c, today),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -209,6 +210,16 @@ def _icon_bytes() -> bytes:
     return desktop.ico((16, 32, 48))
 
 
+def _update_html(code: str, c, today) -> str:
+    """D48: the «has your probability changed?» question when a report came after the open view."""
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import updates as up
+
+    rows = jg.read_log()
+    item = next((p for p in up.pending(rows, [c] if c else [], today, fd.read(cal.CAL_FEED)) if p["code"] == code), None)
+    return up.block_html(item, rows)
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
 
@@ -274,6 +285,8 @@ def create_app() -> Flask:
         ctx = stock_context(code)
         if request.args.get("logged"):
             ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
+        if request.args.get("updated"):
+            ctx["ok"] = [f"Update logged as row #{request.args['updated']} in the judgement log."]
         if request.args.get("checklist"):
             ctx["form"] = {"checklist": ",".join(k for k in request.args["checklist"].split(",") if k.replace("_", "").isalnum())}
         if request.args.get("desk"):
@@ -321,6 +334,26 @@ def create_app() -> Flask:
             attach_desk(ctx, code, form["desk_run"])
             ctx["form"] = form                                    # the typed values win over the prefill
         return Response(rd.stock_page(code, ctx), status=400)
+
+    @app.post("/stock/<code>/update")
+    def update(code):
+        from osloquant.dashboard import updates as up
+
+        if not code.isalnum():
+            abort(404)
+        code = code.upper()
+        f = request.form
+        form = {k: f.get(k) for k in ("p_bear", "p_base", "p_bull", "reason", "trigger_date", "trigger_what", "trigger_source")} | {"changed": bool(f.get("changed"))}
+        lp = mk.last_price(mk.snapshot(), code)
+        try:
+            if lp is None:
+                raise ValueError(f"no price for {code} in the store")
+            row = up.write(code, form, lp[0], f"{lp[1]:%Y-%m-%d}", pd.Timestamp.now().strftime("%Y-%m-%d"))
+            return redirect(f"/stock/{code}?updated={row['seq']}", code=303)
+        except (ValueError, RuntimeError) as e:
+            ctx = stock_context(code)
+            ctx["errors"] = [str(e)]
+            return Response(rd.stock_page(code, ctx), status=400)
 
     @app.get("/desk")
     def desk_page():
@@ -397,6 +430,10 @@ def create_app() -> Flask:
             from osloquant.dashboard import discipline as dsc
 
             learn_html = dsc.grid_html(dsc.decision_grid(rows, table)) + learn_html          # D46: process against outcome
+            from osloquant.dashboard import calendar as cal
+            from osloquant.dashboard import updates as up
+
+            learn_html += up.calibration_html(up.scoring(rows, table, pd.Timestamp.now().normalize(), bk.cases(), fd.read(cal.CAL_FEED)))   # D48
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")

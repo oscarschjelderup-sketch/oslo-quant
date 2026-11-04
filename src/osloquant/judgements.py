@@ -2,7 +2,8 @@
 
 A judgement is one row: the date, the price, the rating, the 12-month target, the bull and bear values, the
 probabilities of the three scenarios and the kill criteria. A changed view is a new row, not an edit. Kill checks
-(at a report: was a criterion breached, and what did I do) are rows too.
+(at a report: was a criterion breached, and what did I do) are rows too, and so are updates of the scenario
+probabilities after news (D48) and the answers of the error review (D49).
 
 The log is a JSON-lines file in the home directory (``~/osloquant-home/judgements.jsonl``, private). Each row
 carries the SHA-256 of its own content and of the row before it, so ``verify()`` finds any row that was changed,
@@ -36,7 +37,7 @@ import pandas as pd
 
 LOG_FILE = "judgements.jsonl"
 GENESIS = "0" * 64
-KINDS = ("judgement", "kill_check", "note")
+KINDS = ("judgement", "kill_check", "note", "update", "review")     # update: D48, review: D49
 RATINGS = ("BUY", "HOLD", "SELL")
 ANALYSTS = ("oscar", "claude")
 DEFAULT_ANALYST = "oscar"
@@ -44,6 +45,8 @@ REQUIRED = {
     "judgement": ("code", "date", "price", "rating", "target", "horizon_months"),
     "kill_check": ("code", "date", "criterion", "breached", "action"),
     "note": ("code", "date", "text"),
+    "update": ("code", "date", "ref_seq", "trigger", "p_bear", "p_base", "p_bull"),
+    "review": ("code", "date", "ref_seq", "quarter", "answers"),
 }
 
 
@@ -110,6 +113,10 @@ def _validate(kind: str, fields: dict) -> None:
     missing = [k for k in REQUIRED[kind] if fields.get(k) in (None, "")]
     if missing:
         raise ValueError(f"a {kind} needs {', '.join(missing)}")
+    if kind == "update":
+        probs = [float(fields[k]) for k in ("p_bear", "p_base", "p_bull")]
+        if abs(sum(probs) - 1) > 0.011:
+            raise ValueError("p_bear, p_base and p_bull must sum to 1")
     if kind == "judgement":
         if fields["rating"] not in RATINGS:
             raise ValueError(f"rating must be one of {RATINGS}")
