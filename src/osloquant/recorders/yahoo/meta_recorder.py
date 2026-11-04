@@ -85,4 +85,5 @@ class YahooCurrencyMetaRecorder(_FixedListRecorder):
     entities = [
         ("fx", "USDNOK", "US dollar in kroner", "NOK=X", {}),
         ("fx", "EURNOK", "Euro in kroner", "EURNOK=X", {}),
+        ("fx", "DKKNOK", "Danish krone in kroner", "DKKNOK=X", {}),      # Bakkafrost reports in DKK (D42)
     ]

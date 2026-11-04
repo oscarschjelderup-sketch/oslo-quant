@@ -38,6 +38,14 @@ COE_EST = 0.10
 G_LONG_EST = 0.02
 TAX_FALLBACK = 0.22
 UNIT = 1e6
+#: groups whose last twelve months can be a peak or a trough: read them also on the average margin (D42)
+CYCLICAL_GROUPS = {"Energy", "Shipping", "Seafood"}
+#: groups valued on their holdings, not on an operating profit: the value-driver reading does not apply (D42)
+NAV_GROUPS = {"Investment companies"}
+MIN_YEARS_NORMALISED = 3
+QUARTERS_STALE_DAYS = 115
+PRICE_STALE_DAYS = 7
+BALANCE_STALE_DAYS = 400
 
 
 # ------------------------------------------------------------------------------------------------ pure computation
@@ -53,23 +61,87 @@ def implied_growth(ev: float, nopat: float, roic: float, wacc: float) -> float |
     return g if g < wacc - 0.005 else None
 
 
+def value_reading(ev: float | None, nopat: float | None, roic: float | None, wacc: float, basis: str = "") -> dict:
+    """What an enterprise value pays for, by the value-driver formula, in words and numbers. ``kind`` is one of
+    ``no_answer`` (no value or no positive profit), ``below_wacc`` (today's return is under the cost of capital),
+    ``below_capital`` (EV is below the capital the business employs, NOPAT / ROIC: no growth rate explains it, so the
+    price pays for a lower return – the one at no growth is given), ``above_wacc`` (the price needs growth at or above
+    the cost of capital), ``falls`` (EV under the no-growth value) and ``grows``. ``basis`` opens the sentence (e.g.
+    "at the 2022–2025 average EBIT margin (9.1 %)"); empty for the last twelve months, as before D42."""
+    lead = f"{basis} " if basis else ""
+    rw = "that" if basis else "today's"
+    lvl = "that" if basis else "the last twelve months'"
+    rt = "the" if basis else "today's"
+    no_growth = nopat / wacc if nopat and nopat > 0 else None
+    vs = ev / no_growth - 1 if ev and no_growth else None
+    out = {"implied_g": None, "no_growth_ev": no_growth, "ev_vs_no_growth": vs, "implied_roic_no_growth": None}
+    if not ev or not nopat or nopat <= 0:
+        return out | {"kind": "no_answer", "reads": (f"{lead}there is no operating profit to pay for" if basis else
+                                                     "no answer: no market value or no positive operating profit in the last twelve months")}
+    if roic is not None and roic < wacc:
+        return out | {"kind": "below_wacc", "reads": (
+            f"{lead}{rt} {roic * 100:.0f} % return on capital is below the {wacc:.1%} cost of capital (EST): at that return growth destroys "
+            f"value, so the price pays for higher margins or returns, not for growth – EV is {vs * 100:+.0f} % against the no-growth value")}
+    g = implied_growth(ev, nopat, roic if roic is not None else float("nan"), wacc)
+    ic = nopat / roic if roic else None
+    if g is None and ic is not None and ev <= ic:
+        r0 = ev * wacc / ic
+        return out | {"kind": "below_capital", "implied_roic_no_growth": r0, "reads": (
+            f"{lead}EV is below the capital the business employs: no growth rate explains it at {rt} {roic * 100:.0f} % return on capital – "
+            f"with no growth the price pays for a {r0 * 100:.1f} % return, against {rt} {roic * 100:.0f} % and a {wacc:.1%} cost of capital (EST)")}
+    if g is None:
+        return out | {"kind": "above_wacc", "reads": f"{lead}the price needs growth at or above the {wacc:.1%} cost of capital (EST): it pays for more than today's business can earn"}
+    out["implied_g"] = g
+    if vs is not None and vs < 0:
+        return out | {"kind": "falls", "reads": (
+            f"{lead}EV is {abs(vs) * 100:.0f} % below the no-growth value at a {wacc:.1%} cost of capital (EST): the price pays for operating profit "
+            f"falling from {lvl} level ({g * 100:+.1f} % a year at {rw} {roic * 100:.0f} % return on capital) – it treats "
+            "the current result as a peak")}
+    return out | {"kind": "grows", "reads": (
+        f"{lead}at a {wacc:.1%} cost of capital (EST) and {rw} {roic * 100:.0f} % return on capital, the enterprise value pays for "
+        f"{g * 100:+.1f} % a year growth in operating profit for good (EV {vs * 100:+.0f} % against the no-growth value)")}
+
+
 def implied_roe(pb: float, coe: float, g: float) -> float | None:
     if not (math.isfinite(pb) and pb > 0):
         return None
     return pb * (coe - g) + g
 
 
-def ltm(q: pd.DataFrame, col: str) -> tuple[float | None, str | None]:
-    """Sum of the last four quarters of ``col`` when they are four consecutive quarters; (value, 'LTM to YYYY-MM-DD')."""
+def ltm(q: pd.DataFrame, col: str, y: pd.DataFrame | None = None) -> tuple[float | None, str | None]:
+    """The last twelve months of ``col``: the sum of the last four quarters when they are four consecutive quarters;
+    otherwise, when ``y`` (the annual rows) is given, the last full year plus this year's quarters minus the same
+    quarters a year earlier (D42 – Yahoo often drops one quarter, so four in a row are missing while the year and
+    both year-to-dates are there). (value, 'LTM to YYYY-MM-DD'), or (None, None)."""
     if q is None or not len(q) or col not in q:
         return None, None
-    s = q[["report_date", col]].dropna().sort_values("report_date").tail(4)
-    if len(s) < 4:
+    s = q[["report_date", col]].dropna().sort_values("report_date")
+    last4 = s.tail(4)
+    if len(last4) == 4:
+        span = (pd.Timestamp(last4["report_date"].iloc[-1]) - pd.Timestamp(last4["report_date"].iloc[0])).days
+        if 250 <= span <= 300:                      # four consecutive quarter ends are ~273 days apart
+            return float(last4[col].sum()), f"LTM to {pd.Timestamp(last4['report_date'].iloc[-1]):%Y-%m-%d}"
+    if y is None or not len(y) or col not in y or not len(s):
         return None, None
-    span = (pd.Timestamp(s["report_date"].iloc[-1]) - pd.Timestamp(s["report_date"].iloc[0])).days
-    if not 250 <= span <= 300:                      # four consecutive quarter ends are ~273 days apart
+    latest = pd.Timestamp(s["report_date"].iloc[-1])
+    ann = y[["report_date", col]].dropna()
+    ann = ann[pd.to_datetime(ann["report_date"]) <= latest].sort_values("report_date")
+    if not len(ann):
         return None, None
-    return float(s[col].sum()), f"LTM to {pd.Timestamp(s['report_date'].iloc[-1]):%Y-%m-%d}"
+    fy_date, fy = pd.Timestamp(ann["report_date"].iloc[-1]), float(ann[col].iloc[-1])
+    if (latest - fy_date).days < 30:                # the newest quarter closes the year: the year is the LTM
+        return fy, f"LTM to {latest:%Y-%m-%d}"
+    if (latest - fy_date).days > 300:               # the year is older than the quarters' year: nothing to add to
+        return None, None
+    dates = pd.to_datetime(s["report_date"])
+    ytd = s[(dates > fy_date) & (dates <= latest)]
+    prior = []
+    for d in pd.to_datetime(ytd["report_date"]):
+        m = s[(dates - (d - pd.DateOffset(years=1))).abs() <= pd.Timedelta(days=10)]
+        if not len(m):
+            return None, None
+        prior.append(float(m[col].iloc[0]))
+    return fy + float(ytd[col].sum()) - sum(prior), f"LTM to {latest:%Y-%m-%d} (FY {fy_date:%Y} + YTD − prior YTD)"
 
 
 def _num(v) -> float | None:
@@ -93,7 +165,7 @@ def profit_figures(inc_y: pd.DataFrame, inc_q: pd.DataFrame, cf_y: pd.DataFrame,
     for key, frame_q, frame_y, col in (("revenue", inc_q, inc_y, "total_revenue"), ("ebit", inc_q, inc_y, "ebit"),
                                        ("net_income", inc_q, inc_y, "net_income"), ("pretax", inc_q, inc_y, "pretax_income"),
                                        ("tax", inc_q, inc_y, "tax_provision"), ("fcf", cf_q, cf_y, "free_cash_flow")):
-        v, label = ltm(frame_q, col)
+        v, label = ltm(frame_q, col, frame_y)
         if v is None and frame_y is not None and len(frame_y) and col in frame_y:
             newest = frame_y.sort_values("report_date").iloc[-1]          # the newest year only: an older year is not "the last year"
             v = _num(newest[col])
@@ -118,6 +190,125 @@ def annual_table(inc_y: pd.DataFrame, bal_y: pd.DataFrame, cf_y: pd.DataFrame, y
         rows.append({"year": int(d.year), "date": f"{d:%Y-%m-%d}", "revenue": _num(r.get("total_revenue")), "ebit": _num(r.get("ebit")),
                      "net_income": _num(r.get("net_income")), "fcf": g(c, "free_cash_flow"), "net_debt": g(b, "net_debt"), "equity": g(b, "total_equity")})
     return rows
+
+
+# ------------------------------------------------------------------------------------------------ reading a built case (D42)
+def _cagr(a: float | None, b: float | None, years: int) -> float | None:
+    return (b / a) ** (1 / years) - 1 if a and b and a > 0 and b > 0 and years > 0 else None
+
+
+def history(case: dict) -> dict:
+    """What the company has delivered over the annual table: revenue and EBIT growth a year (first to last year, both
+    positive), EBIT margin (average, low, high), return on capital (EBIT after tax over equity + net debt, average) and
+    the return on equity. From the case file alone, so cases built before D42 read the same way."""
+    rows = [r for r in case.get("annual") or [] if r.get("revenue") is not None]
+    if not rows:
+        return {"years": [], "n_margins": 0}
+    tax = (case.get("returns") or {}).get("tax_rate") or TAX_FALLBACK
+    first, last = rows[0], rows[-1]
+    n = last["year"] - first["year"]
+    margins = [r["ebit"] / r["revenue"] for r in rows if r.get("ebit") is not None and r["revenue"] > 0]
+    roics = [r["ebit"] * (1 - tax) / ic for r in rows
+             if r.get("ebit") is not None and r.get("equity") is not None and (ic := r["equity"] + (r.get("net_debt") or 0)) > 0]
+    roes = [r["net_income"] / r["equity"] for r in rows if r.get("net_income") is not None and r.get("equity") and r["equity"] > 0]
+    avg = lambda v: float(np.mean(v)) if v else None  # noqa: E731
+    return {"years": [r["year"] for r in rows], "from": first["year"], "to": last["year"],
+            "rev_cagr": _cagr(first["revenue"], last["revenue"], n), "ebit_cagr": _cagr(first.get("ebit"), last.get("ebit"), n),
+            "margin_avg": avg(margins), "margin_min": min(margins) if margins else None, "margin_max": max(margins) if margins else None,
+            "n_margins": len(margins), "roic_avg": avg(roics), "roe_avg": avg(roes),
+            "source": "the light case's annual table (Yahoo annual statements via the store)"}
+
+
+def reading(case: dict) -> dict:
+    """The case's own reading, derived again from the numbers stored in it (so a case file written before D42 gets the
+    corrected wording and a ``kind``); banks and insurers keep their justified-P/B reading as stored."""
+    rv = case.get("reverse") or {}
+    if case.get("financial") or rv.get("model") != "value driver":
+        return rv
+    if not rv.get("wacc_est") or "nopat" not in rv:                 # too little stored to recompute: name the kind from the words
+        t = str(rv.get("reads") or "")
+        kind = rv.get("kind") or ("no_answer" if t.startswith("no answer") else "above_wacc" if "at or above" in t
+                                  else "below_wacc" if "return on capital is below" in t else None)
+        return rv | {"kind": kind}
+    return rv | value_reading((case.get("multiples") or {}).get("ev"), rv.get("nopat"), rv.get("roic"), rv["wacc_est"])
+
+
+def ltm_margin(case: dict) -> float | None:
+    p = case.get("profit") or {}
+    e, r = (p.get("ebit") or {}).get("value"), (p.get("revenue") or {}).get("value")
+    return e / r if e is not None and r and r > 0 else None
+
+
+def normalised(case: dict) -> dict | None:
+    """The value-driver reading again with the average EBIT margin of the annual table applied to the last twelve months'
+    revenue, for a result that may be a peak or a trough. None for banks, investment companies, cases without a market
+    value, or fewer than three years of margins."""
+    if case.get("financial") or case.get("group") in NAV_GROUPS:
+        return None
+    h = history(case)
+    rv, m, b = case.get("reverse") or {}, case.get("multiples") or {}, case.get("balance") or {}
+    rev = ((case.get("profit") or {}).get("revenue") or {}).get("value")
+    ev, wacc = m.get("ev"), rv.get("wacc_est")
+    if h["n_margins"] < MIN_YEARS_NORMALISED or not rev or rev <= 0 or not ev or not wacc or b.get("equity") is None:
+        return None
+    tax = (case.get("returns") or {}).get("tax_rate") or TAX_FALLBACK
+    ebit = h["margin_avg"] * rev
+    nopat = ebit * (1 - tax)
+    ic = b["equity"] + (b.get("net_debt") or 0)
+    roic = nopat / ic if ic > 0 else None
+    lm = ltm_margin(case)
+    span = f"{h['from']}–{h['to']}"
+    per = str(((case.get("profit") or {}).get("ebit") or {}).get("period") or "the latest figures")
+    basis = (f"at the {span} average EBIT margin ({h['margin_avg'] * 100:.1f} %" + (f", against {lm * 100:.1f} % {per}" if lm is not None else "") + ")")
+    rd = value_reading(ev, nopat, roic, wacc, basis)
+    return {"margin": h["margin_avg"], "years": span, "ebit": ebit, "nopat": nopat, "roic": roic, "wacc_est": wacc, **rd}
+
+
+def quality(case: dict) -> dict:
+    """How far the light case's reading can be trusted, from the case file: grade C when the reading is not usable (no
+    price, no share count, the reporting currency unknown or not converted, a company valued on its holdings), B when
+    an input is missing or old (a full year instead of LTM, quarters older than the price by more than 115 days, no
+    net debt, a balance sheet more than 400 days older than the price, fewer than three years, a price a week older than
+    the build), A otherwise. ``issues`` name every
+    reason; ``notes`` what the reader should know without lowering the grade (a cyclical group, no reading)."""
+    c_issues, b_issues, notes = [], [], []
+    price = case.get("price") or {}
+    cur = case.get("currency") or {}
+    warns = " ".join(case.get("warnings") or [])
+    if not price.get("value"):
+        c_issues.append("no price in the store")
+    if not case.get("shares"):
+        c_issues.append("no share count: no market value")
+    if "reporting currency unknown" in warns:
+        c_issues.append("reporting currency unknown: the multiples may mix currencies")
+    elif cur.get("reporting") not in (None, "NOK") and not cur.get("fx"):
+        c_issues.append(f"reports in {cur.get('reporting')} without a {cur.get('reporting')}NOK rate")
+    if case.get("group") in NAV_GROUPS:
+        c_issues.append("investment company: valued on its holdings (NAV), so the operating-profit reading does not apply")
+    p = case.get("profit") or {}
+    fy = [lab for lab, k in (("revenue", "revenue"), ("EBIT", "ebit"), ("net income", "net_income")) if str((p.get(k) or {}).get("period") or "").startswith("FY")]
+    if fy:
+        b_issues.append(f"{', '.join(fy)} from the last full year, not the last twelve months")
+    through, pdate = case.get("quarters_through"), price.get("date")
+    if not through:
+        b_issues.append("no quarterly statements in the store")
+    elif pdate and (pd.Timestamp(pdate) - pd.Timestamp(through)).days > QUARTERS_STALE_DAYS:
+        b_issues.append(f"quarterly statements only to {through}: a newer report is not in the figures")
+    bdate = (case.get("balance") or {}).get("date")
+    if bdate and pdate and (pd.Timestamp(pdate) - pd.Timestamp(bdate)).days > BALANCE_STALE_DAYS:
+        b_issues.append(f"the balance sheet (net debt, equity) is from {bdate}: EV and returns use old capital")
+    if not case.get("financial") and (case.get("balance") or {}).get("net_debt") is None:
+        b_issues.append("no net debt: EV is the market value alone")
+    if len(case.get("annual") or []) < MIN_YEARS_NORMALISED:
+        b_issues.append(f"fewer than {MIN_YEARS_NORMALISED} annual years: no history to compare with")
+    if pdate and case.get("built_at") and (pd.Timestamp(str(case["built_at"])[:10]) - pd.Timestamp(pdate)).days > PRICE_STALE_DAYS:
+        b_issues.append(f"the price is from {pdate}, more than {PRICE_STALE_DAYS} days before the case was built")
+    if case.get("group") in CYCLICAL_GROUPS:
+        notes.append("cyclical group: the last twelve months can be a peak or a trough – read the average-margin line too")
+    if str((case.get("reverse") or {}).get("reads") or "").startswith("no answer"):
+        notes.append("no reading: no market value or no positive operating profit")
+    grade = "C" if c_issues else "B" if b_issues else "A"
+    return {"grade": grade, "issues": c_issues + b_issues, "notes": notes, "usable": grade != "C"}
 
 
 def compute(code: str, name: str, group: str, price: float, price_date: str, shares: float | None, currency: str | None, fx: float | None,
@@ -169,26 +360,8 @@ def compute(code: str, name: str, group: str, price: float, price_date: str, sha
         wacc = WACC_EST.get(group, WACC_EST["Other"])
         nopat = ebit * (1 - tax) if ebit is not None else None
         roic = ret.get("roic")
-        ev = m.get("ev")
-        g = implied_growth(ev or float("nan"), nopat or float("nan"), roic or float("nan"), wacc) if ev else None
-        no_growth = nopat / wacc if nopat and nopat > 0 else None
-        vs = ev / no_growth - 1 if ev and no_growth else None
-        if not ev or not nopat or nopat <= 0:
-            reads = "no answer: no market value or no positive operating profit in the last twelve months"
-        elif roic is not None and roic < wacc:
-            reads = (f"today's {roic * 100:.0f} % return on capital is below the {wacc:.1%} cost of capital (EST): at that return growth destroys "
-                     f"value, so the price pays for higher margins or returns, not for growth – EV is {vs * 100:+.0f} % against the no-growth value")
-        elif g is None:
-            reads = f"the price needs growth at or above the {wacc:.1%} cost of capital (EST): it pays for more than today's business can earn"
-        elif vs is not None and vs < 0:
-            reads = (f"EV is {abs(vs) * 100:.0f} % below the no-growth value at a {wacc:.1%} cost of capital (EST): the price pays for operating profit "
-                     f"falling from the last twelve months' level ({g * 100:+.1f} % a year at today's {roic * 100:.0f} % return on capital) – it treats "
-                     "the current result as a peak")
-        else:
-            reads = (f"at a {wacc:.1%} cost of capital (EST) and today's {roic * 100:.0f} % return on capital, the enterprise value pays for "
-                     f"{g * 100:+.1f} % a year growth in operating profit for good (EV {vs * 100:+.0f} % against the no-growth value)")
-        rev_model = {"model": "value driver", "wacc_est": wacc, "nopat": nopat, "roic": roic, "implied_g": g, "no_growth_ev": no_growth,
-                     "ev_vs_no_growth": vs, "reads": reads}
+        rd = value_reading(m.get("ev"), nopat, roic, wacc)
+        rev_model = {"model": "value driver", "wacc_est": wacc, "nopat": nopat, "roic": roic, **rd}
     through = _latest(bal_q, "total_equity")[1] if len(bal_q) else None
     if through and (pd.Timestamp(price_date) - pd.Timestamp(through)).days > 115:
         warn.append(f"Yahoo has quarterly statements only to {through}: a newer report may be out (see the calendar and NewsWeb) "
@@ -393,3 +566,56 @@ def build(code: str, snap=None, write: bool = True, with_peers: bool = True) -> 
         case_dir().mkdir(parents=True, exist_ok=True)
         case_path(code).write_text(json.dumps(case, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
     return case
+
+
+def build_all(snap=None, codes: list[str] | None = None, only_missing: bool = False, write: bool = True) -> dict:
+    """Light cases for many companies at once – the whole store by default (D42): every frame is loaded once, the group
+    medians are computed once per group from the same cases (members with a known reporting currency, as `build`),
+    and one company's bad data never stops the run. Returns ``{"built": {code: case}, "skipped": {code: reason}}``."""
+    from osloquant.dashboard import market as mk
+
+    snap = snap or mk.snapshot()
+    cur = currencies()
+    wanted = [c.upper() for c in (codes or sorted(snap.names))]
+    if only_missing:
+        wanted = [c for c in wanted if not case_path(c).exists()]
+    groups = {snap.group(c) for c in wanted}
+    pool = sorted(set(wanted) | {c for c in snap.names if snap.group(c) in groups and c in cur})
+    args, bare, skipped = {}, {}, {}
+    for c in pool:
+        try:
+            lp = mk.last_price(snap, c)
+            if not lp:
+                skipped[c] = "no price in the store"
+                continue
+            inc_y, inc_q, bal, cf_y, cf_q = _frames(c)
+            if not len(inc_y) and not len(inc_q):
+                skipped[c] = "no statements in the store"
+                continue
+            rep = (cur.get(c) or {}).get("reporting")
+            fx, fx_date = fx_rate(rep, lp[1])
+            args[c] = (c, snap.names.get(c, c), snap.group(c), lp[0], f"{lp[1]:%Y-%m-%d}", _shares(bal, inc_q, inc_y), rep, fx, fx_date,
+                       inc_y, inc_q, bal, cf_y, cf_q)
+            bare[c] = compute(*args[c])
+        except Exception as e:  # noqa: BLE001 – one company's data must not stop the others
+            skipped[c] = f"{type(e).__name__}: {e}"
+    peers = {}
+    for g in groups:
+        rows = [{"code": c, **{k: x["multiples"].get(k) for k in ("ev_ebit", "pe", "pb")}} for c, x in bare.items() if snap.group(c) == g and c in cur]
+        peers[g] = peer_stats(rows) | {"group": g, "note": "medians over the group's stocks with a known reporting currency, same method"}
+    built = {}
+    for c in wanted:
+        if c not in args:
+            skipped.setdefault(c, "not built")
+            continue
+        try:
+            case = compute(*args[c], peers.get(snap.group(c)))
+            if (cur.get(c) or {}).get("reporting") is None:
+                case["warnings"].append("reporting currency unknown – run oq case build with --refresh")
+            if write:
+                case_dir().mkdir(parents=True, exist_ok=True)
+                case_path(c).write_text(json.dumps(case, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+            built[c] = case
+        except Exception as e:  # noqa: BLE001
+            skipped[c] = f"{type(e).__name__}: {e}"
+    return {"built": built, "skipped": {c: r for c, r in skipped.items() if c in wanted}}

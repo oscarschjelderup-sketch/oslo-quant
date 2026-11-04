@@ -48,6 +48,8 @@ oq check-factor GoldCrossFactor   # does a factor look into the future, or depen
 oq ui                    # the dashboard at http://127.0.0.1:8050
 oq dashboard             # the decision dashboard at http://127.0.0.1:8060 (research book, signals, judgements)
 oq desk run SATS         # the desk: six roles through a stock, a debate log, never a buy (also daily after the close)
+oq case build --all      # a light case for every company in the store, each with a quality grade (A/B/C)
+oq snapshot ../copy --cdn   # a static, clickable copy of the decision dashboard (outside the repo: it holds the book)
 ```
 
 `oq record` can be run again at any time. It fetches only what is missing. Everything is stored as SQLite
@@ -500,6 +502,12 @@ must give three reasons with numbers; one reason the rules cannot rebut is a vet
 judgement" (the form prefilled, the debate attached), "parked" or "killed" – never in a buy – and the page keeps the
 one statistic that says whether it is worth anything: how often a veto was followed by the price reaching the kill
 level before the target. The daily run is part of the evening task (D41).
+
+**What the price requires** (`/screen`) lines up every company's light case: the growth the enterprise value pays for
+(for banks the return on equity), against what the company has delivered – for cyclical groups against a long-run 2 %
+on the average margin, since a few years of their revenue measure the cycle – with the case's quality grade beside it.
+It ends in candidates for full coverage, where the price and the past disagree most; it does not say who is right and
+is not tested against returns, because the store's statements are not point-in-time (D42, D43).
 
 `oq dashboard --refresh` fetches the feeds first (Oslo Børs NewsWeb, Norges Bank, SSB, Yahoo, media RSS – see
 `docs/dashboard/data-sources.md`); the evening signal task does this and writes the front page as `latest.html`.

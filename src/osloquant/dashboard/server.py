@@ -238,7 +238,7 @@ def create_app() -> Flask:
 
     @app.get("/")
     def home():
-        return rd.today_page(today_context())
+        return rd.today_page(today_context(mark_seen=not app.config.get("SNAPSHOT")))     # a copy (D44) must not mark signals seen
 
     @app.get("/sectors")
     def sectors():
@@ -404,6 +404,19 @@ def create_app() -> Flask:
 
         queue = ar.queue_html(ar.due(cases, uni, today, fd.read(cal.CAL_FEED)), today)
         return rd.coverage_page(rows, today, jg.head_to_head(table) if len(table) else None, uni, cv.summary(uni), queue)
+
+    @app.get("/screen")
+    def screen():
+        from osloquant.dashboard import coverage as cv
+        from osloquant.dashboard import lightcase as lcm
+        from osloquant.dashboard import screen as sc
+
+        snap = mk.snapshot()
+        today = pd.Timestamp.now().normalize()
+        uni = cv.universe(snap, bk.cases(), bk.watchlist(), today)
+        cases = [x for x in (lcm.load(r["code"]) for r in uni) if x]
+        rs = sc.rows(cases, {r["code"]: r["level"] for r in uni})
+        return rd.screen_page(rs, sc.candidates(rs), sc.counts(rs), today)
 
     def _watch(msg=None, status=200):
         snap = mk.snapshot()

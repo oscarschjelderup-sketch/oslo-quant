@@ -635,3 +635,68 @@ caches and the store and reproduces for a given close.
   entries – found no crash. Still, one stock's bad data must never stop the daily run: `run()` isolates each stock,
   and a failure is written to the run's data-quality list ("desk-feil for CODE") and shown on the page, never hidden.
   Unknown turnover (no volume data) is said to be unknown, not printed as zero (`tests/test_desk_edges.py`).
+
+## D42. The whole store as light cases, each with a quality grade
+
+Fifteen light cases left 46 of the 64 companies in the store with nothing. `oq case build --all` (or `--missing`)
+now builds one for every company: each company's statements are loaded once, the group medians are computed once per
+group from the same cases, and one company's bad data is reported as "not built – why" without stopping the others
+(`lightcase.build_all`). Building them showed three faults, now fixed:
+
+- **The LTM.** Yahoo often drops one quarter (for most companies the third quarter of 2025), so four quarters in a row
+  were missing and the case fell back to the last full year. The LTM is now also taken the way an analyst takes it:
+  the last full year plus this year's quarters minus the same quarters a year earlier, labelled as such
+  ("FY 2025 + YTD − prior YTD"); none of it is invented – when the prior year's quarter is missing too, there is no LTM.
+- **A wrong sentence.** When the enterprise value is below the capital the business employs (NOPAT / ROIC), no growth
+  rate solves the value-driver formula, and the case said the price "needs growth at or above the cost of capital" –
+  the opposite of the truth. The reading is now one pure function (`value_reading`) with six kinds, one of them
+  `below_capital`: no growth rate explains the price, which at no growth pays for a lower return (given). Two
+  companies read wrongly before. Case files written earlier get the corrected words on the page, derived again from
+  their stored numbers (`lightcase.reading`).
+- **Danish kroner.** One company reports in DKK and the store had no DKKNOK rate; it is now recorded with the other
+  two (Yahoo `DKKNOK=X`).
+
+Every case now carries a grade, derived from the file (`lightcase.quality`), so old files grade the same way: **C** when
+the reading cannot be used (no price, no share count, the reporting currency unknown or not converted, an investment
+company valued on its holdings), **B** when an input is missing or old (a full year instead of LTM, quarterly
+statements more than 115 days older than the price, a balance sheet more than 400 days older, no net debt, fewer than
+three annual years, a price a week older than the build), **A** otherwise; every reason is named. Energy, shipping and
+seafood are also read on the average EBIT margin of the annual table applied to today's revenue
+(`lightcase.normalised`), because their last twelve months may be a peak or a trough. The grade stands on the stock
+page, beside the light case's date on the coverage page and on the screen (D43). First run, 4 Nov 2026, with the
+statements re-recorded from Yahoo: 64 built, none failed; A 25, B 37, C 2 (the two investment companies). Most B
+grades are quarters that end in June: Yahoo did not yet have the third-quarter statements.
+
+## D43. What the price requires, across the universe – against the company's own history
+
+A light case says what the price pays for; alone it does not say whether that is a lot. `/screen` ("Prisen krever")
+and `dashboard/screen.py` set the requirement beside what the company has delivered: the growth the enterprise value
+pays for against revenue growth a year over the annual table, for banks and insurers the return on equity the P/B pays
+for against the average ROE. Revenue, not EBIT, because EBIT from a low base gives growth rates that mean nothing.
+For a cyclical group three or four years of revenue measure the cycle, not growth (2022 was a peak for oil, gas and
+freight), so its requirement – read on the average margin – is compared with the long-run growth the light cases
+assume (2 %, EST), and the revenue history is shown beside it, not used. A difference under two percentage points a
+year is "in line". The verdicts: more than the history, less, a fall (the price expects the result to shrink while
+the company grew), in line, and – without a growth rate – an EV below the capital employed, a return below the cost of
+capital, or a price that needs growth at the cost of capital. Grade C has no verdict.
+
+The page ends in **candidates for full coverage**: the six largest gaps each way among usable cases not already fully
+covered. That is what the screen is for – where the price and the past disagree most is where a full case adds most –
+and it says so: the list does not say who is right, it is not a buy or a sell list, and the coverage plan stays
+Oscar's (`oq coverage set`). Not tested against returns, and the page says that too: the store holds the statements as
+they look today, not as they looked on each date, so a historical test would see the future. First run, 4 Nov 2026:
+the price asks more than the comparison in 16, less in 24 (16 of them a fall, 3 an EV below the capital employed),
+in line in 8, no comparison in 16. Nothing in the screen writes anything.
+
+## D44. A static copy for someone without the store
+
+Sharing the dashboard meant a hand-made crawl. `oq snapshot OUT [--cdn]` (`dashboard/snapshot.py`) renders every page
+reachable from the front page through the app itself (Flask's test client – no server has to run), writes them with
+flat relative names (`/stock/SATS` → `stock-SATS.html`; the front page as `idag.html` and `index.html`), switches the
+forms off in script except the ticker search, puts a banner with the time of the copy on every page, copies the
+dashboard's own report PDFs and links the companies' quarterly reports to their NewsWeb message instead of copying
+them. `--cdn` loads plotly.js from cdnjs, the version the installed plotly bundles, for hosts that refuse the 3.5 MB
+file. A page that fails is reported, and the rest of the copy is written. The crawl found that opening the front page
+marks the signals seen; a copy must not, so the app has a `SNAPSHOT` flag the front page respects. The copy holds what
+the dashboard shows – the research book, the judgement log, private cases – so it is refused inside the repository,
+and publishing it is the owner's act, not the command's.

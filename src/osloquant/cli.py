@@ -1687,17 +1687,24 @@ app.add_typer(case_app, name="case")
 
 @case_app.command("build")
 def case_build(
-    codes: str = typer.Argument(..., help="Comma-separated codes, e.g. EQNR,MOWI,DNB."),
+    codes: str | None = typer.Argument(None, help="Comma-separated codes, e.g. EQNR,MOWI,DNB; or --all / --missing."),
+    all_: bool = typer.Option(False, "--all", help="Every company in the store (DECISIONS D42)."),
+    missing: bool = typer.Option(False, "--missing", help="Every company in the store without a light case yet."),
     refresh: bool = typer.Option(False, "--refresh", help="Re-record the statements of these codes from Yahoo and fetch missing reporting "
                                                            "currencies for their sector groups (one request per stock not yet known)."),
 ) -> None:
-    """Build the light case for each code and write it to ~/osloquant-home/cases/<CODE>.json."""
+    """Build the light case for each code and write it to ~/osloquant-home/cases/<CODE>.json, with its quality grade."""
     _setup()
     from osloquant.dashboard import lightcase as lc
     from osloquant.dashboard import market as mk
 
-    wanted = _codes(codes) or []
     snap = mk.snapshot()
+    if all_ or missing:
+        wanted = [c for c in sorted(snap.names) if not (missing and lc.case_path(c).exists())]
+    else:
+        wanted = _codes(codes) or []
+    if not wanted:
+        raise typer.BadParameter("give codes, --all or --missing (nothing to build)")
     if refresh:
         from osloquant.domain import BalanceSheet, CashFlowStatement, IncomeStatement
 
@@ -1705,15 +1712,16 @@ def case_build(
         lc.fetch_currencies(sorted(c for c in snap.names if snap.group(c) in groups))
         for schema in (IncomeStatement, BalanceSheet, CashFlowStatement):
             console.print(f"{schema.__name__}: {schema.record_data(provider='yahoo', codes=wanted, force_update=True, sleeping_time=0.8)}")
-    for code in wanted:
-        try:
-            c = lc.build(code, snap=snap)
-        except ValueError as e:
-            console.print(f"[yellow]{code}: {e}[/yellow]")
-            continue
-        console.print(f"[bold]{code}[/bold] {c['currency']['reporting']} · {c['reverse']['reads']}")
-        for w in c["warnings"]:
+    res = lc.build_all(snap, wanted)
+    for code, c in res["built"].items():
+        q = lc.quality(c)
+        console.print(f"[bold]{code}[/bold] {q['grade']} {c['currency']['reporting']} · {c['reverse']['reads']}")
+        for w in q["issues"]:
             console.print(f"  [yellow]{w}[/yellow]")
+    for code, why in res["skipped"].items():
+        console.print(f"[yellow]{code}: not built – {why}[/yellow]")
+    grades = [lc.quality(c)["grade"] for c in res["built"].values()]
+    console.print(f"{len(res['built'])} built ({', '.join(f'{g} {grades.count(g)}' for g in 'ABC')}), {len(res['skipped'])} not built")
 
 
 @case_app.command("export")
@@ -2082,6 +2090,25 @@ def ui(
 
     console.print(f"Dashboard at http://{host}:{port}  (Ctrl+C to stop)")
     main(host=host, port=port, debug=debug)
+
+
+@app.command()
+def snapshot(
+    out: Path = typer.Argument(..., help="Folder to write the copy to – outside the repository (it holds the private research book)."),
+    cdn: bool = typer.Option(False, "--cdn", help="Load plotly.js from cdnjs instead of copying the 3.5 MB file."),
+) -> None:
+    """A static, clickable copy of the decision dashboard for someone without the store (DECISIONS D44): every page
+    reachable from the front page, links made relative, forms off, a banner with the time. Does not mark signals seen."""
+    _setup()
+    from osloquant.dashboard import snapshot as sn
+
+    try:
+        res = sn.write(out, cdn=cdn)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    console.print(f"{res['pages']} pages, {res['files']} files, {res['bytes'] / 1e6:.1f} MB -> {res['out']} (plotly: {res['plotly']})")
+    for p, code in res["failed"].items():
+        console.print(f"  [yellow]{p}: HTTP {code}[/yellow]")
 
 
 @app.command()

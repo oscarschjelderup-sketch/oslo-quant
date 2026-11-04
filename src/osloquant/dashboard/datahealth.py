@@ -26,7 +26,7 @@ BIG_MOVE = 0.25              # a daily move this large in the last 60 sessions i
 
 def price_health(closes: pd.DataFrame, asof: pd.Timestamp | None = None) -> dict:
     """Per stock: first and last close, whether it is stale, missing sessions in the last 250, long gaps, big moves."""
-    asof = asof if asof is not None else closes.index[-1]
+    asof = asof if asof is not None else (closes.index[-1] if len(closes.index) else pd.Timestamp.now().normalize())   # an empty store is not a crash
     rows = []
     for code in closes.columns:
         s = closes[code]

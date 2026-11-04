@@ -133,6 +133,7 @@ def universe(snap: mk.Snapshot, cases, watch: list[dict], today: pd.Timestamp | 
                     "level": level, "in_store": code in snap.names,
                     "oscar": _view(c.view if c else None, px), "claude": _view(c.claude_view if c else None, px),
                     "lightcase_built": lc_built, "lightcase_age": lc_age, "lightcase_stale": lc_stale,
+                    "lightcase_quality": lcm.quality(lc) if lc else None,
                     "report": {"date": rep["date"], "tp": rep.get("tp"), "rating": rep.get("rating"), "file": rep["file"]} if rep else None,
                     "model": bool(c and c.model), "plan": p or None, "target": target, "owner": p.get("owner"), "rhythm": p.get("rhythm"),
                     "gap": gap, "next": (next_events or {}).get(code)})

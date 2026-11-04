@@ -109,7 +109,7 @@ button.go { margin-top:12px; padding:9px 20px; border:0; border-radius:2px; back
 button.go:hover { background:var(--accent-dark); }
 """
 
-NAV = [("/", "I dag"), ("/desk", "Desk"), ("/coverage", "Dekning"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
+NAV = [("/", "I dag"), ("/desk", "Desk"), ("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
 
 
 def pct(v, d=1, sign=True):
@@ -1090,7 +1090,22 @@ def lightcase_block(lc: dict | None) -> str:
                                   f'ROIC {pct(r.get("roic"), 0, False)}' if r.get("roic") is not None else "",
                                   f'tax {pct(r.get("tax_rate"), 0, False)} ({E(str(r.get("tax_period")))})') if x)
     warn = "".join(f"<li>{E(w)}</li>" for w in lc.get("warnings", []))
-    return (f'<h2>Lett case – grunnlaget for tallene</h2><div class="card"><div class="sub" style="margin-bottom:8px"><b>{E(rv["reads"])}</b></div>'
+    from osloquant.dashboard import lightcase as lcm
+
+    q, n, h = lcm.quality(lc), lcm.normalised(lc), lcm.history(lc)
+    qline = (f'<p>{grade_chip(q)} <b>Kvalitet {q["grade"]}</b>'
+             + (": " + E("; ".join(q["issues"])) if q["issues"] else ": price, shares, currency, LTM and quarters in place")
+             + ("".join(f' <span class="src">· {E(x)}</span>' for x in q["notes"])) + '</p>')
+    hist = ""
+    if h.get("years"):
+        hist = (f'<div class="src">History {h["from"]}–{h["to"]}: revenue {pct(h.get("rev_cagr"))} a year, EBIT {pct(h.get("ebit_cagr"))} a year, '
+                f'EBIT margin {pct(h.get("margin_avg"), 1, False)} on average ({pct(h.get("margin_min"), 1, False)} to {pct(h.get("margin_max"), 1, False)})'
+                + (f', ROIC {pct(h.get("roic_avg"), 0, False)} on average' if h.get("roic_avg") is not None and not lc["financial"] else "")
+                + (f', ROE {pct(h.get("roe_avg"), 0, False)} on average' if h.get("roe_avg") is not None and lc["financial"] else "")
+                + ' (annual table below the figures; Yahoo annual statements).</div>')
+    norm = f'<div class="sub" style="margin-bottom:8px">On the average margin: {E(n["reads"])}.</div>' if n else ""
+    return (f'<h2>Lett case – grunnlaget for tallene</h2><div class="card"><div class="sub" style="margin-bottom:8px"><b>{E(lcm.reading(lc).get("reads") or rv.get("reads") or "")}</b></div>'
+            + norm + qline + hist
             + (f'<div class="warn"><ul>{warn}</ul></div>' if warn else "")
             + f'<div class="grid2"><div><table class="odds"><thead><tr><th>{E(cur)} m</th><th></th><th>Period</th></tr></thead><tbody>{figs}</tbody></table></div>'
             f'<div><table class="odds"><thead><tr><th></th><th>{E(lc["code"])}</th><th>{E(pe.get("group", "group"))} median</th></tr></thead><tbody>{mrows}</tbody></table>'
@@ -1098,6 +1113,88 @@ def lightcase_block(lc: dict | None) -> str:
             f'<div class="src">Price {lc["price"]["value"]:.2f} NOK ({E(lc["price"]["date"])}, {E(lc["price"]["source"])}); market value NOK {_mn(lc.get("mcap_nok"), 1e9)} bn; '
             f'reports in {E(cur)}{fxs}. Statements: {E(lc["statements_source"])}, quarters to {E(str(lc.get("quarters_through")))}. '
             f'Group medians: {E(pe.get("note", ""))}. Cost of capital and long-run growth are EST. Built {E(lc["built_at"])} (oq case build).</div></div>')
+
+
+def grade_chip(q: dict | None) -> str:
+    if not q:
+        return ""
+    klass = {"A": "buy", "B": "info", "C": "risk"}[q["grade"]]
+    return f'<span class="chip {klass}" title="{E("; ".join(q["issues"]) or "no issues")}">{q["grade"]}</span>'
+
+
+def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
+    """What the price requires across the universe, against the company's own history (D43)."""
+    from osloquant.dashboard import screen as sc
+
+    def req(r):
+        if r["required"] is None:
+            return "–"
+        return pct(r["required"], 1, r["measure"] != "ROE") + (" ROE" if r["measure"] == "ROE" else " /år")
+
+    def hist(r):
+        h = r["history"]
+        if r.get("ref") == "long_run":
+            seen = f'omsetning {pct(h.get("rev_cagr"))} /år {h.get("from")}–{h.get("to")}' if h.get("rev_cagr") is not None else "ingen historikk"
+            return f'{pct(r["hist"], 1)} /år <span class="src">langsiktig EST (syklisk; {seen})</span>'
+        if r["hist"] is None:
+            return "–"
+        return f'{pct(r["hist"], 1, r["measure"] != "ROE")}{" ROE snitt" if r["measure"] == "ROE" else " /år"} <span class="src">({h.get("from")}–{h.get("to")})</span>'
+
+    def line(r, with_group=False):
+        verdict_cls = "" if r["verdict"] in ("more", "less", "fall", "above_wacc") else "src"     # no colour: a gap is not good or bad
+        gap = "–" if r["gap"] is None else f'{r["gap"] * 100:+.1f} pp'
+        roic = ("–" if r["financial"] else f'{pct(r.get("now"), 0, False)} / {pct(r.get("roic_avg"), 0, False)} <span class="src">mot {pct(r.get("wacc"), 1, False)} EST</span>')
+        return (f'<tr><td>{link(r["code"], r["name"])}</td>' + (f'<td class="src">{E(r["group"])}</td>' if with_group else "")
+                + f'<td>{_level_chip(r["level"]) if r["level"] else "–"}</td><td>{grade_chip(r["quality"])}</td>'
+                f'<td><b>{req(r)}</b> <span class="src">{E(r["basis"])}</span></td><td>{hist(r)}</td>'
+                f'<td>{gap}</td>'
+                f'<td>{roic}</td><td class="{verdict_cls}">{E(r["label"])}</td></tr>')
+    head = ('<thead><tr><th>Selskap</th>{grp}<th>Nivå</th><th>Kvalitet</th><th>Prisen krever</th><th>Sammenlignet med (omsetning; bank: ROE; syklisk: 2 % EST)</th>'
+            '<th>Spenn</th><th>ROIC nå / snitt</th><th>Lesning</th></tr></thead>')
+
+    def table(items, with_group=False, empty="ingen"):
+        body = "".join(line(r, with_group) for r in items) or f'<tr><td colspan="9" class="empty">{empty}</td></tr>'
+        return f'<table class="odds">{head.format(grp="<th>Gruppe</th>" if with_group else "")}<tbody>{body}</tbody></table>'
+
+    groups, body = [], []
+    for g in [x for x in mk_group_order() if any(r["group"] == x for r in rs)]:
+        members = sorted((r for r in rs if r["group"] == g), key=lambda r: (r["gap"] is None, -(r["gap"] or 0)))
+        groups.append(f'<h3 style="margin-top:14px">{E(g)} <span class="src">({len(members)})</span></h3>' + table(members))
+    body.append("".join(groups))
+    c = cnt
+    intro = (f'<div class="card"><p><b>{c["n"]} lette caser</b>: kvalitet A {c["grade_A"]}, B {c["grade_B"]}, C {c["grade_C"]}. '
+             f'Prisen krever mer enn historikken i {c["more"] + c["above_wacc"]}, mindre i {c["less"] + c["fall"] + c["below_capital"]} (av dem regner {c["fall"]} med at resultatet faller, '
+             f'og i {c["below_capital"]} er EV under kapitalen selskapet binder), '
+             f'stemmer i {c["in_line"]}; {c["none"] + c["nohist"] + c["below_wacc"]} uten sammenligning.</p>'
+             '<div class="src">Prisen krever = veksten i driftsresultatet for alltid som EV betaler for (EV = NOPAT × (1 − g/ROIC) / (WACC − g)), for banker og forsikring '
+             'avkastningen på egenkapitalen P/B betaler for. For energi, shipping og sjømat leses kravet på snittmarginen i årstabellen, ikke på siste tolv måneder. '
+             f'Historikken er omsetningsvekst per år over årstabellen (3–4 år, Yahoo), for banker snittet av ROE. For sykliske grupper måler tre–fire år syklusen, ikke vekst (2022 var et toppår for olje, gass og frakt), så kravet sammenlignes med den langsiktige veksten casene antar ({pct(lcm_g(), 0, False)}, EST), og omsetningen vises ved siden av. «Spenn» = krav minus sammenligningen; under {sc.GAP_PP * 100:.0f} pp regnes som likt. '
+             'Kapitalkostnad og langsiktig vekst er EST. Kvalitet A/B/C: se D42 (C = lesningen kan ikke brukes).</div></div>')
+    cands = ('<h2>Kandidater for full dekning</h2><div class="card"><p>Der prisen og historikken spriker mest, blant caser som kan brukes og ikke alt har full case. '
+             'En full case avgjør hvem som har rett – listen sier ikke hvem, og den er ikke et kjøps- eller salgsråd.</p>'
+             '<h3>Prisen krever mer enn selskapet har levert (syklisk: mer enn 2 % for alltid)</h3>' + table(cand["more"], True)
+             + '<h3 style="margin-top:14px">Prisen krever mindre enn selskapet har levert (syklisk: mindre enn 2 % for alltid)</h3>' + table(cand["less"], True)
+             + '<div class="src">Planen endres med <code>oq coverage set KODE --target full</code>; en full case starter med <code>oq case export KODE</code> og '
+             'Toolkitens <code>new_case.py</code>.</div></div>')
+    caveat = ('<div class="card"><div class="src"><b>Ikke testet mot avkastning.</b> Lageret har regnskapene slik de ser ut i dag, ikke slik de så ut på hver dato, '
+              'så en historisk test av denne skjermen ville sett fremtiden. Kravet gjelder for alltid; historikken er noen få år – sammenligningen sier hvor de spriker, '
+              'ikke hvem som har rett. Kurs: Yahoo via lageret (daglig sluttkurs, forsinket). Regnskap: Yahoo års- og kvartalstall via lageret. '
+              'Bygget med <code>oq case build --all</code>; se datoen på hver aksjeside.</div></div>')
+    return page("Prisen krever", "/screen", (
+        '<h1>Hva prisen krever</h1><div class="sub">Hele universet: veksten kursen betaler for, mot det selskapet har levert, med kvaliteten på tallene ved siden av.</div>'
+        + intro + cands + '<h2>Alle selskaper, per sektorgruppe</h2><div class="card">' + "".join(body) + '</div>' + caveat))
+
+
+def lcm_g() -> float:
+    from osloquant.dashboard import lightcase as lcm
+
+    return lcm.G_LONG_EST
+
+
+def mk_group_order() -> list[str]:
+    from osloquant.dashboard import market as mk
+
+    return mk.GROUP_ORDER + ["Other"]
 
 
 def claude_view_block(c, px: float | None) -> str:
@@ -1196,7 +1293,8 @@ def coverage_universe_block(universe: list[dict] | None, today) -> str:
             last_group = r["group"]
         views = " · ".join(x for x in ((f'du {E(r["oscar"]["rating"])} {r["oscar"]["target"]:g}' if r["oscar"] else ""),
                                        (f'Claude {E(r["claude"]["rating"])} {r["claude"]["target"]:g}' if r["claude"] else "")) if x) or "–"
-        lcs = (f'{r["lightcase_built"]}' + (f' <span class="warn-t">({r["lightcase_age"]} d)</span>' if r["lightcase_stale"] else f' ({r["lightcase_age"]} d)')) if r["lightcase_built"] else "–"
+        lcs = (f'{r["lightcase_built"]}' + (f' <span class="warn-t">({r["lightcase_age"]} d)</span>' if r["lightcase_stale"] else f' ({r["lightcase_age"]} d)')
+               + (f' {grade_chip(r["lightcase_quality"])}' if r.get("lightcase_quality") else "")) if r["lightcase_built"] else "–"
         rep = (f'{r["report"]["date"]}' + (f' · {E(str(r["report"]["rating"] or ""))} {r["report"]["tp"]:g}' if r["report"].get("tp") else "")) if r["report"] else "–"
         plan = (f'{E(cv.LEVEL_LABEL.get(r["target"], r["target"]))}' + (f' · {E(r["owner"])}' if r["owner"] else "") + (f' · {E(cv.RHYTHM_LABEL.get(r["rhythm"], r["rhythm"]))}' if r["rhythm"] else "")) if r["target"] else "–"
         nxt = f'{r["next"]["date"]:%d %b} ({(r["next"]["date"] - today).days} d)' if r.get("next") else "–"
