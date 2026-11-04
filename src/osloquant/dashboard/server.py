@@ -107,6 +107,7 @@ def stock_context(code: str) -> dict:
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
                 update_html=_update_html(code, c, today),
                 inversion_html=_inversion_html(code, c, lp[0] if lp else None),
+                baserate_html=_baserate_html(code),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -211,6 +212,17 @@ def _icon_bytes() -> bytes:
     from osloquant.dashboard import desktop
 
     return desktop.ico((16, 32, 48))
+
+
+def _baserate_html(code: str) -> str:
+    """D47: the newest report's estimates against the base rates (shown above the report box)."""
+    from osloquant.dashboard import baserate as bsr
+
+    try:
+        res = bsr.for_code(code)
+    except Exception as e:  # noqa: BLE001 – a missing store table must not take the stock page down
+        return f'<div class="src">Base rates could not be computed: {E(type(e).__name__)}</div>'
+    return f'<h2>Base rates for estimatene</h2><div class="card">{bsr.box_html(res, with_reason=False)}</div>' if res else ""
 
 
 def _inversion_html(code: str, c, price: float | None) -> str:
@@ -323,6 +335,7 @@ def create_app() -> Flask:
         form["premortem"] = dsc.premortem_from_form(f)                       # D46
         form["probs_deliberate"] = bool(f.get("probs_deliberate"))
         form["anchor_reason"] = (f.get("anchor_reason") or "").strip()
+        form["base_rate_reason"] = (f.get("base_rate_reason") or "").strip()            # D47
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))

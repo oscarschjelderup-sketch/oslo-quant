@@ -1,0 +1,46 @@
+# Published base rates for the D47 check (dashboard/baserate.py). Every number below is transcribed from the source
+# named with it; nothing is filled in from memory. Shares are in per cent of observations, buckets in fractions per year.
+#
+# Mauboussin, M. J., Callahan, D. and Majd, D. (2016): The Base Rate Book – Integrating the Past to Better Anticipate the
+# Future. Credit Suisse Global Financial Strategies, 26 September 2016. Exhibit 2, p. 22: base rates of sales growth,
+# full universe. Sample (p. 21): the top 1,000 global companies by market capitalisation each year, 1950–2015, dead
+# companies included, all sectors; growth is REAL (inflation-adjusted to 2015 dollars), so a nominal forecast is
+# deflated before it is looked up (p. 26 warns of exactly this). 53,266 three-year observations.
+# Read on 5 Nov 2026 from the public compilation at
+# https://mjbaldbard.wordpress.com/wp-content/uploads/2020/09/michael-mauboussin-e28093-base-rate-books-2015-2016.pdf
+# (book page + 64 = compiled page). The size-class table on pp. 24–25 has an error in the $325–700m column (its shares
+# are divided by the $0–325m total); it is not used here.
+distributions:
+  - name: "Mauboussin, Base Rate Book (1950–2015)"
+    metric: rev_cagr
+    real: true
+    n: 53266
+    sample: "top 1,000 global companies, 1950–2015, real 2015 USD"
+    source: "Mauboussin, Callahan & Majd, The Base Rate Book (Credit Suisse, 26 Sep 2016), Exhibit 2"
+    page: "p. 22"
+    median: 0.054
+    buckets:                      # [low, high, share %] – 3-year sales CAGR
+      - [null, -0.25, 0.6]
+      - [-0.25, -0.20, 0.4]
+      - [-0.20, -0.15, 1.0]
+      - [-0.15, -0.10, 2.2]
+      - [-0.10, -0.05, 5.2]
+      - [-0.05, 0.00, 13.2]
+      - [0.00, 0.05, 25.2]
+      - [0.05, 0.10, 21.3]
+      - [0.10, 0.15, 12.3]
+      - [0.15, 0.20, 6.7]
+      - [0.20, 0.25, 3.9]
+      - [0.25, 0.30, 2.3]
+      - [0.30, 0.35, 1.5]
+      - [0.35, 0.40, 1.0]
+      - [0.40, 0.45, 0.7]
+      - [0.45, null, 2.5]
+notes:
+  margin: >-
+    The book gives no distribution of margin changes. It gives persistence: the correlation of operating margin with
+    the margin 1, 3 and 5 years later is 0.91, 0.79 and 0.72 (p. 59; top 1,000, 1950–2015, ex financials and
+    utilities), and it advises starting from last year's margin and looking for reasons to move away from it (p. 60).
+  analysts: >-
+    The standard deviation of analysts' three-year sales growth estimates is 8.3 % against 18.7 % realised (p. 21):
+    forecasts are too narrow.

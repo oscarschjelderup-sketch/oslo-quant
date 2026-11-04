@@ -231,6 +231,12 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
     from osloquant.dashboard import discipline as dsc
 
     anchor = dsc.anchor_check(dsc.previous_view(jg.read_log(), code.upper()), float(price), float(form["target"]))   # D46
+    from osloquant.dashboard import baserate as bsr
+
+    try:
+        base_rate = bsr.row_field(bsr.for_code(code.upper()), form.get("base_rate_reason"))                          # D47
+    except Exception:  # noqa: BLE001 – no store statements: the row is written without the check, and R07 counts it
+        base_rate = None
     fields = dict(code=code, name=name, date=today, price=round(float(price), 4), rating=form["rating"], target=float(form["target"]),
                   horizon_months=int(form.get("horizon") or 12),
                   bear=form.get("bear"), base=form.get("base"), bull=form.get("bull"),
@@ -244,7 +250,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   desk_run=_desk_run(form.get("desk_run")),
                   premortem=[x.strip() for x in form.get("premortem") or dsc.premortem_from_form(form) if x and x.strip()] or None,
                   probs_deliberate=True if form.get("probs_deliberate") else None,
-                  anchor=anchor, anchor_reason=(form.get("anchor_reason") or "").strip() or None,
+                  anchor=anchor, anchor_reason=(form.get("anchor_reason") or "").strip() or None, base_rate=base_rate,
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()

@@ -419,6 +419,7 @@ def stock_page(code: str, ctx: dict) -> str:
         parts.append(ctx.get("inversion_html", ""))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
+    parts.append(ctx.get("baserate_html", ""))
     parts.append(lightcase_block(lc))
     parts.append(claude_view_block(c, px))
     if "desk_runs" in ctx:
@@ -821,6 +822,7 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 <div><label>Sannsynlighet bull</label><input name="p_bull" inputmode="decimal" placeholder="0.25" value="{val("p_bull")}"></div></div>
 {dsc.probs_box(f)}
 {dsc.anchor_box(prev, px, f)}
+{_baserate_form(code, f)}
 <div class="row3"><div><label>Konsensus kursmål (valgfritt, offentlig kilde)</label><input name="consensus_target" inputmode="decimal" value="{val("consensus_target")}"></div>
 <div style="grid-column:span 2"><label>Kilde og dato for konsensus (påkrevd hvis mål)</label><input name="consensus_source" placeholder="f.eks. selskapets IR-side, 2026-10-22" value="{val("consensus_source")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
@@ -830,6 +832,15 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 {ack_box(code, f)}
 {sizing_box(px, sz, val("position_shares"))}
 <button class="go" type="submit">Logg vurderingen</button></form></div>"""
+
+
+def _baserate_form(code: str, f: dict) -> str:
+    from osloquant.dashboard import baserate as bsr
+
+    try:
+        return bsr.box_html(bsr.for_code(code), f)
+    except Exception:  # noqa: BLE001 – the form must render without the store's statements
+        return ""
 
 
 def saw_claude_box(c, f: dict) -> str:
