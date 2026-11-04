@@ -506,6 +506,13 @@ def build_ctx(today: pd.Timestamp | None = None) -> Ctx:
     cases = bk.cases()
     uni = cv.universe(snap, cases, bk.watchlist(), today)
     lcs = {u["code"]: lcm.load(u["code"]) for u in uni}
+    from osloquant.dashboard import inversion as iv
+
+    by_code = {c.code: c for c in cases}
+    for u in uni:
+        if u["level"] == "full":
+            inv = iv.for_case(by_code.get(u["code"]), u.get("price"))
+            u["inversion"] = bool(inv and not inv.get("error"))
     try:
         health = dh.problems(dh.overview(snap.panel["close"], cases, snap.asof))
     except Exception as e:  # noqa: BLE001

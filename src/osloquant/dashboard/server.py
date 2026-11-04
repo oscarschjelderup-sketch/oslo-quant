@@ -106,6 +106,7 @@ def stock_context(code: str) -> dict:
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
                 update_html=_update_html(code, c, today),
+                inversion_html=_inversion_html(code, c, lp[0] if lp else None),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -210,6 +211,13 @@ def _icon_bytes() -> bytes:
     from osloquant.dashboard import desktop
 
     return desktop.ico((16, 32, 48))
+
+
+def _inversion_html(code: str, c, price: float | None) -> str:
+    """D51: what has to go wrong for a 30 % loss, from the model's sensitivity tables."""
+    from osloquant.dashboard import inversion as iv
+
+    return iv.block_html(iv.for_case(c, price), code)
 
 
 def _update_html(code: str, c, today) -> str:

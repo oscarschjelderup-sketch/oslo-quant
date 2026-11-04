@@ -416,6 +416,7 @@ def stock_page(code: str, ctx: dict) -> str:
              ctx.get("reports_html", ""), ctx.get("afterreport_html", "")]
     if c and (c.view or c.history):
         parts.append(case_block(c, px, ctx.get("rdcf")))
+        parts.append(ctx.get("inversion_html", ""))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
     parts.append(lightcase_block(lc))
