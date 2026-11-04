@@ -315,7 +315,7 @@ RULES = [
     Rule("R17", "Forutså du feilen?", "Gary Klein (pre-mortem etterpå)", "andel mislykkede caser der feilen sto i pre-mortem", m_foresight, 0.5, "high", 3, "måling",
          "Feilene står sjelden i pre-mortem: skriv pre-mortem fra bear-scenarioet og kill-kriteriene, ikke generelt", "R17 mot 50 %", "S"),
     Rule("R18", "Inverter: hva gir et tap på 30 %", "Charlie Munger", "andel fulle caser med en inversjonsliste fra modellen", m_inversion, 1.0, "high", 1, "beslutning",
-         "Fulle caser uten inversjon: bygg «hva må gå galt for −30 %» fra modellens følsomheter", "R18 til 100 %", "M"),
+         "Fulle caser uten inversjon: koble modellen til saken i researchbook.yaml (model: xlsx + map), så leses følsomhetstabellene (D51)", "R18 til 100 %", "S"),
     Rule("R19", "Hør bjørnen før du kjøper", "Munger (argumentér motsatt side); Klarman", "andel BUY med desk-kjøring eller nytt motargument krysset av", m_bear_heard, 1.0, "high", 1, "beslutning",
          "BUY uten at bjørnen er hørt: kjør desken på aksjen før skjemaet", "R19 til 100 %", "S"),
     Rule("R20", "Skriv blindt før andres syn", "Kahneman (uavhengige vurderinger)", "andel syn skrevet før Claudes, der Claude har et", m_blind, 0.8, "high", 2, "måling",

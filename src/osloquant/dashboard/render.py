@@ -167,14 +167,21 @@ def today_page(ctx: dict, static: bool = False) -> str:
     banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {asof:%A %d %b} – eldre enn siste virkedag ({expected:%d %b}). '
               'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
     urgency_word = {0: "Gjør først", 1: "I dag", 2: "Kan vente"}
-    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10, "report-tp": 15}
+    minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10, "report-tp": 15,
+               "update": 5, "forecast": 10, "chief": 10, "review": 30}
+    page_of = {"chief": "/chief", "review": "/review"}
+
+    def title_link(i):
+        if i.kind in page_of and not static:
+            return f'<a href="{page_of[i.kind]}">{E(i.title)}</a>'
+        return L(i.code, i.title)
     total_min = sum(minutes.get(i.kind, 5) for i in dec)
     if dec:
         summary = (f'<p style="margin:0 0 8px"><b>{len(dec)} ting, omtrent {total_min} minutter, i denne rekkefølgen:</b> '
-                   + " ".join(f'{n}) {E(i.code)}' for n, i in enumerate(dec, 1)) + '</p>')
+                   + " ".join(f'{n}) {E(i.code or i.kind)}' for n, i in enumerate(dec, 1)) + '</p>')
         dec_html = summary + "".join(
             f'<div class="item"><span class="tag {["u0", "u1", "u2"][i.urgency]}">{n}. {E(urgency_word[i.urgency])}</span>'
-            f'<span class="src">{E(i.kind)} · ~{minutes.get(i.kind, 5)} min</span><br><b>{L(i.code, i.title)}</b>'
+            f'<span class="src">{E(i.kind)} · ~{minutes.get(i.kind, 5)} min</span><br><b>{title_link(i)}</b>'
             f'<div class="why">{E(i.detail)}'
             + (f' <a href="/stock/{E(i.code)}/pretrade">Før du kjøper →</a>' if (not static and i.kind in ("pre-report", "post-report", "re-rate", "re-assess", "report-tp")) else '')
             + '</div></div>' for n, i in enumerate(dec, 1))
@@ -926,6 +933,11 @@ def fingerprint_block(fp: dict | None) -> str:
               'than about the companies. Not an error – a question to answer in the next view.</div></div>')
 
 
+def _px(v) -> str:
+    """A price, or a dash when there is none yet (a view logged today has no close after it)."""
+    return "–" if v is None or (isinstance(v, float) and v != v) else f"{v:.2f}"
+
+
 def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict], rel: dict | None = None, fp: dict | None = None,
                      h2h: dict | None = None, learn_html: str = "") -> str:
     body = ['<h1>Kalibrering</h1><div class="sub">What I said, what happened, how far off. Calls younger than their horizon are provisional and are not evidence.</div>']
@@ -951,7 +963,7 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
     if len(table):
         rows = "".join(
             f'<tr><td>#{r["seq"]}</td><td>{E({"claude": "Claude"}.get(r.get("analyst"), "du"))}</td><td>{link(r["code"])}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:.2f}</td><td>{r["target"]:g}</td>'
-            f'<td>{r.get("price_now", float("nan")):.2f}</td><td class="{cls(r.get("tsr"))}">{pct(r.get("tsr"))}</td><td class="{cls(r.get("excess_osebx"))}">{pct(r.get("excess_osebx"))}</td>'
+            f'<td>{_px(r.get("price_now"))}</td><td class="{cls(r.get("tsr"))}">{pct(r.get("tsr"))}</td><td class="{cls(r.get("excess_osebx"))}">{pct(r.get("excess_osebx"))}</td>'
             f'<td>{pct(r.get("vs_target"))}</td><td>{"" if pd.isna(r.get("in_band")) else ("yes" if r.get("in_band") else "no")}</td>'
             f'<td>{"✓" if r.get("direction_hit") is True else "✗" if r.get("direction_hit") is False else ""}</td><td>{E(r["status"])} ({r["days"]} d)</td></tr>'
             for _, r in table.iterrows())

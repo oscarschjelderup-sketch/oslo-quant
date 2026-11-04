@@ -184,8 +184,8 @@ def post_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = POS
         if not lr or not c.view:
             continue
         d, what = lr
-        if any(r["kind"] == "judgement" and pd.Timestamp(r["date"][:10]) >= d for r in c.history):
-            continue
+        if any(r["kind"] in ("judgement", "update") and pd.Timestamp(r["date"][:10]) >= d for r in c.history):
+            continue                     # a view, or an update of its probabilities (D48), dated after the report
         items.append(Item(c.code, "post-report", f"{c.name}: the view of {c.view.get('date')} predates the report of {d:%d %b}",
                           f"{what[:80]} is out ({(today - d).days} d ago) and the view has not been re-logged since. Re-assess and log the view "
                           "(even if unchanged) – until then the research book carries a pre-report view.", 1))
@@ -210,12 +210,61 @@ def report_tp_items(cases: list[bk.Case], today: pd.Timestamp) -> list[Item]:
     return items
 
 
+FORECAST_DAYS = 14            # a report this near asks for the quarterly forecast (D52)
+REVIEW_WINDOW = 21            # the last three weeks of a quarter ask for the error review (D49)
+
+
+def habit_items(cases: list[bk.Case], today: pd.Timestamp, rows: list[dict] | None = None, cal_doc: dict | None = None) -> list[Item]:
+    """The loops of 5 Nov 2026 as decision items, so they are done rather than built: the probability update after a
+    report (D48), the quarterly forecast before one (D52), the head of analysis's undecided proposals (D50) and, in
+    the last three weeks of a quarter, the error review of views older than 90 days (D49)."""
+    from osloquant.dashboard import chief as ch
+    from osloquant.dashboard import forecasts as fc
+    from osloquant.dashboard import review as rv
+    from osloquant.dashboard import updates as up
+
+    rows = jg.read_log() if rows is None else rows
+    names = {c.code: c.name for c in cases}
+    items = []
+    for p in up.pending(rows, cases, today, cal_doc):
+        t = p["trigger"]
+        items.append(Item(p["code"], "update", f"{names.get(p['code'], p['code'])}: har sannsynligheten endret seg etter {t['what'][:50]} ({t['date']})?",
+                          f"Vurderingen #{p['view_seq']} er eldre enn rapporten. Svar på aksjesiden – også «uendret» med én setning (Tetlock: små, hyppige oppdateringer)."
+                          + (f" {p['days']} dager uten svar teller som «ikke oppdatert»." if p["overdue"] else ""), 0 if p["overdue"] else 1))
+    own = {c.code for c in cases if c.view}
+    for code in sorted(own):
+        r = fc.upcoming(code, cases, today)
+        if not r or (pd.Timestamp(r["date"]) - today).days > FORECAST_DAYS:
+            continue
+        if any(f["report"]["date"] == r["date"] for f in fc.forecasts(rows, code)):
+            continue
+        left = (pd.Timestamp(r["date"]) - today).days
+        items.append(Item(code, "forecast", f"{names.get(code, code)}: logg kvartalsprognosen før rapporten {r['date']} ({left} d)",
+                          "Et 80 %-intervall for omsetning eller EBITDA – rapportleseren gir fasiten, og kalibreringen får et svar på uker i stedet for et år.", 1))
+    runs = ch.latest_runs(1)
+    if runs:
+        live = ch.proposals(runs[-1]["results"], ch.read_decisions())["live"]
+        if live:
+            items.append(Item("", "chief", f"Analysesjefen: {len(live)} forslag venter på godkjenning eller avvisning",
+                              f"Øverst: {live[0]['text'][:110]} – kjøringen av {runs[-1]['date']}.", 2))
+    q_end = (today + pd.offsets.QuarterEnd(0)).normalize()
+    if (q_end - today).days <= REVIEW_WINDOW:
+        done = {r["ref_seq"] for r in rv.reviews(rows, rv.quarter(today))}
+        due = [j for j in jg.judgements(rows, jg.DEFAULT_ANALYST) if (today - pd.Timestamp(j["date"])).days >= 90 and j["seq"] not in done]
+        if due:
+            items.append(Item("", "review", f"Feilgjennomgang {rv.quarter(today)}: {len(due)} vurderinger venter",
+                              f"Største avvik først, de samme spørsmålene hver gang (Dalio, Duke, Klein). Kvartalet slutter {q_end:%d %b}.", 1))
+    return items
+
+
 def merge_items(*groups: list[Item]) -> list[Item]:
     """One list, most urgent first; a code with a post-report item drops its 'moved 10 %' re-assess item, since the
-    post-report item already asks for the same thing with the better reason."""
+    post-report item already asks for the same thing with the better reason, and a code with an update question (D48)
+    drops its post-report item – answering the update is the lighter way to put the view on record after the report."""
     items = [i for g in groups for i in g]
     post = {i.code for i in items if i.kind == "post-report"}
-    items = [i for i in items if not (i.kind == "re-assess" and i.code in post)]
+    upd = {i.code for i in items if i.kind == "update"}
+    items = [i for i in items if not (i.kind == "re-assess" and i.code in post) and not (i.kind == "post-report" and i.code in upd)]
     return sorted(items, key=lambda i: (i.urgency, i.code))
 
 

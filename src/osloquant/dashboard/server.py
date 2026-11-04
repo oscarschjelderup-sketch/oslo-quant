@@ -47,7 +47,7 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     newest = [a for a in alerts if a.session == f"{snap.asof:%Y-%m-%d}"]
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
     decisions = td.merge_items(td.decisions(snap, cases, newest, today, watch), td.report_items(cases, today), td.pre_report_items(cases, today),
-                               td.post_report_items(cases, today), td.report_tp_items(cases, today))
+                               td.post_report_items(cases, today), td.report_tp_items(cases, today), _habit_items(cases, today))
     ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today),
                moves=td.target_moves(snap, cases, today), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
@@ -213,6 +213,16 @@ def _icon_bytes() -> bytes:
     from osloquant.dashboard import desktop
 
     return desktop.ico((16, 32, 48))
+
+
+def _habit_items(cases, today) -> list:
+    """D48–D52 on the front page; a failure here must never take the front page down."""
+    from osloquant.dashboard import calendar as cal
+
+    try:
+        return td.habit_items(cases, today, cal_doc=fd.read(cal.CAL_FEED))
+    except Exception as e:  # noqa: BLE001
+        return [td.Item("", "chief", "Løkkene fra 5. nov kunne ikke leses", f"{type(e).__name__}: {e}", 2)]
 
 
 def _forecast_html(code: str, c, today) -> str:
