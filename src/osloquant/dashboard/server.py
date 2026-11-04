@@ -108,6 +108,7 @@ def stock_context(code: str) -> dict:
                 update_html=_update_html(code, c, today),
                 inversion_html=_inversion_html(code, c, lp[0] if lp else None),
                 baserate_html=_baserate_html(code),
+                forecast_html=_forecast_html(code, c, today),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
@@ -214,6 +215,13 @@ def _icon_bytes() -> bytes:
     return desktop.ico((16, 32, 48))
 
 
+def _forecast_html(code: str, c, today) -> str:
+    """D52: an 80 % interval for the next report's numbers, answered by the report reader."""
+    from osloquant.dashboard import forecasts as fc
+
+    return fc.block_html(code, fc.upcoming(code, [c] if c else [], today), jg.read_log())
+
+
 def _baserate_html(code: str) -> str:
     """D47: the newest report's estimates against the base rates (shown above the report box)."""
     from osloquant.dashboard import baserate as bsr
@@ -307,6 +315,8 @@ def create_app() -> Flask:
         ctx = stock_context(code)
         if request.args.get("logged"):
             ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
+        if request.args.get("forecast"):
+            ctx["ok"] = [f"Forecast logged as row #{request.args['forecast']} in the judgement log."]
         if request.args.get("updated"):
             ctx["ok"] = [f"Update logged as row #{request.args['updated']} in the judgement log."]
         if request.args.get("checklist"):
@@ -357,6 +367,23 @@ def create_app() -> Flask:
             attach_desk(ctx, code, form["desk_run"])
             ctx["form"] = form                                    # the typed values win over the prefill
         return Response(rd.stock_page(code, ctx), status=400)
+
+    @app.post("/stock/<code>/forecast")
+    def forecast(code):
+        from osloquant.dashboard import forecasts as fc
+
+        if not code.isalnum():
+            abort(404)
+        code = code.upper()
+        f = request.form
+        report = {k: f.get(f"report_{k}") for k in ("date", "what", "source")} if f.get("report_date") else None
+        try:
+            row = fc.write(code, {k: f.get(k) for k in ("metric", "low", "mid", "high")}, report, pd.Timestamp.now().normalize())
+            return redirect(f"/stock/{code}?forecast={row['seq']}", code=303)
+        except (ValueError, RuntimeError) as e:
+            ctx = stock_context(code)
+            ctx["errors"] = [str(e)]
+            return Response(rd.stock_page(code, ctx), status=400)
 
     @app.post("/stock/<code>/update")
     def update(code):
@@ -510,6 +537,9 @@ def create_app() -> Flask:
             from osloquant.dashboard import updates as up
 
             learn_html += up.calibration_html(up.scoring(rows, table, pd.Timestamp.now().normalize(), bk.cases(), fd.read(cal.CAL_FEED)))   # D48
+        from osloquant.dashboard import forecasts as fcs
+
+        learn_html += fcs.calibration_html(fcs.scoring(rows))                                         # D52
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")

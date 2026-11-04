@@ -37,7 +37,7 @@ import pandas as pd
 
 LOG_FILE = "judgements.jsonl"
 GENESIS = "0" * 64
-KINDS = ("judgement", "kill_check", "note", "update", "review")     # update: D48, review: D49
+KINDS = ("judgement", "kill_check", "note", "update", "review", "forecast")     # update: D48, review: D49, forecast: D52
 RATINGS = ("BUY", "HOLD", "SELL")
 ANALYSTS = ("oscar", "claude")
 DEFAULT_ANALYST = "oscar"
@@ -47,6 +47,7 @@ REQUIRED = {
     "note": ("code", "date", "text"),
     "update": ("code", "date", "ref_seq", "trigger", "p_bear", "p_base", "p_bull"),
     "review": ("code", "date", "ref_seq", "quarter", "answers"),
+    "forecast": ("code", "date", "report", "metric", "low", "mid", "high"),
 }
 
 
@@ -117,6 +118,8 @@ def _validate(kind: str, fields: dict) -> None:
         probs = [float(fields[k]) for k in ("p_bear", "p_base", "p_bull")]
         if abs(sum(probs) - 1) > 0.011:
             raise ValueError("p_bear, p_base and p_bull must sum to 1")
+    if kind == "forecast" and not float(fields["low"]) <= float(fields["mid"]) <= float(fields["high"]):
+        raise ValueError("a forecast needs low <= mid <= high")
     if kind == "judgement":
         if fields["rating"] not in RATINGS:
             raise ValueError(f"rating must be one of {RATINGS}")

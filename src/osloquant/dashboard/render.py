@@ -419,6 +419,7 @@ def stock_page(code: str, ctx: dict) -> str:
         parts.append(ctx.get("inversion_html", ""))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
+    parts.append(ctx.get("forecast_html", ""))
     parts.append(ctx.get("baserate_html", ""))
     parts.append(lightcase_block(lc))
     parts.append(claude_view_block(c, px))

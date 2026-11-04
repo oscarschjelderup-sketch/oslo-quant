@@ -99,7 +99,7 @@ def m_brier(c):
 
 def m_forecasts_per_quarter(c):
     since = c.today - pd.Timedelta(days=91)
-    n = sum(1 for r in c.rows if jg.analyst_of(r) == jg.DEFAULT_ANALYST and r.get("kind") in ("judgement", "update")
+    n = sum(1 for r in c.rows if jg.analyst_of(r) == jg.DEFAULT_ANALYST and r.get("kind") in ("judgement", "update", "forecast")
             and pd.Timestamp(str(r["date"])[:10]) >= since)
     return float(n), n
 
@@ -286,8 +286,8 @@ RULES = [
          "Skriv scenariosannsynlighetene selv før modellen åpnes, og la Toolkit-malen stå tom for sannsynligheter", "R02 mot 90 %; Brier måler deg, ikke malen", "S"),
     Rule("R03", "Kalibrert: lav Brier på avsluttede vurderinger", "Tetlock / Good Judgment", "snitt Brier (tre scenarier), avsluttede vurderinger", m_brier, 0.5, "low", 10, "måling",
          "Brier er over 0,5: se pålitelighetsdiagrammet og om bear/bull-sannsynlighetene er for små", "R03 under 0,5", "M"),
-    Rule("R04", "Mange prognoser med rask fasit", "Tetlock (tilbakemelding); Mauboussin (utvalgsstørrelse)", "vurderinger og oppdateringer siste 91 dager", m_forecasts_per_quarter, 12, "high", 0, "måling",
-         "For få prognoser til å måle deg på: bygg kvartalsprognoser (80 %-intervall for neste rapports omsetning og EBITDA), avgjort av rapportleseren", "R04 fra få til 12+ per kvartal; kalibrering på måneder, ikke år", "M"),
+    Rule("R04", "Mange prognoser med rask fasit", "Tetlock (tilbakemelding); Mauboussin (utvalgsstørrelse)", "vurderinger, oppdateringer og kvartalsprognoser siste 91 dager", m_forecasts_per_quarter, 12, "high", 0, "måling",
+         "For få prognoser til å måle deg på: logg et 80 %-intervall for neste rapports omsetning og EBITDA på aksjesiden (D52) for hvert dekket selskap", "R04 fra få til 12+ per kvartal; kalibrering på måneder, ikke år", "M"),
     Rule("R05", "Oppdater når ny informasjon kommer", "Tetlock (oppdatering)", "andel rapporter etter et syn som er besvart innen 14 dager", m_updates_answered, 0.9, "high", 1, "måling",
          "Rapporter uten svar på «har sannsynligheten endret seg?»: svar på aksjesiden, også når svaret er «uendret»", "R05 mot 90 %", "S"),
     Rule("R06", "Oppdater i små steg", "Tetlock (superforecasters endrer lite og ofte)", "andel endrede oppdateringer der ingen sannsynlighet flyttet seg mer enn 15 pp", m_update_steps, 0.8, "high", 3, "beslutning",
