@@ -54,7 +54,10 @@ def test_the_shift_to_a_30_percent_loss_is_interpolated_along_each_axis(tmp_path
     assert single["EBITDA-margin"]["shift"] is None and single["EBITDA-margin"]["edge_value"] == pytest.approx(42.0)   # -2 pp only reaches 42: not extrapolated
     assert single["WACC"]["shift"] is None                                                 # 12 % gives 42: outside the table
     assert r["combos"][0] == {"growth": -0.01, "margin": 0.0, "value": pytest.approx(30.0), "steps": 1.0}
+    assert [x["driver"] for x in r["fragility"]] == ["vekst", "EBITDA-margin"] and r["fragility"][0]["h"] == pytest.approx(0.0)   # linear grid
+    assert iv.fragility([30.0, 50.0, 60.0], 1) == pytest.approx(-0.1) and iv.fragility([50.0], 0) is None                     # concave: fragile
     html = iv.block_html(r | {"file": "model.xlsx"}, "XYZ")
+    assert "Skjørhet rundt basis" in html and "lineær" in html
     assert "−30 %" in html and "-0.8 pp" in html and "ikke innenfor tabellen" in html and "aldri ekstrapolert" in html
 
 

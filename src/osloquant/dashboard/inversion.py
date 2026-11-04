@@ -101,7 +101,21 @@ def invert(g: dict, price: float, loss: float = LOSS) -> dict:
             if v is not None and v <= level and (dg < 0 or dm < 0):
                 out["combos"].append({"growth": dg, "margin": dm, "value": v, "steps": abs(dg / steps_r) + abs(dm / steps_c)})
     out["combos"] = sorted(out["combos"], key=lambda x: (x["steps"], -x["value"]))[:3]
+    out["fragility"] = []
+    for name, vals, base_i, step in (("vekst", col, r0, steps_r), ("EBITDA-margin", row, c0, steps_c)):
+        h = fragility(vals, base_i)
+        if h is not None:
+            out["fragility"].append({"driver": name, "h": h, "step": step})
     return out
+
+
+def fragility(values: list[float | None], i: int) -> float | None:
+    """Taleb et al. (IMF WP/12/216, 2012): H = [f(x - d) + f(x + d)] / 2 - f(x), here around the base point with one
+    grid step, scaled by f(x). Negative = concave: the value falls faster than it rises as the driver moves (fragile);
+    about zero = linear; positive = convex."""
+    if i <= 0 or i >= len(values) - 1 or any(v is None for v in (values[i - 1], values[i], values[i + 1])) or not values[i]:
+        return None
+    return ((values[i - 1] + values[i + 1]) / 2 - values[i]) / values[i]
 
 
 def for_case(c, price: float | None) -> dict | None:
@@ -143,9 +157,14 @@ def block_html(inv: dict | None, code: str) -> str:
         else:
             items.append(f'<li>{E(s["driver"])} alene: <b>{s["shift"] * 100:.2f} %</b> (basis {s["base"] * 100:.2f} %)</li>')
     combos = "".join(f'<li>vekst {_pp(x["growth"])} og EBITDA-margin {_pp(x["margin"])} sammen: verdi {x["value"]:.1f}</li>' for x in inv["combos"]) or "<li class=empty>ingen innenfor tabellen</li>"
+    frag = "".join(f'<li>{E(x["driver"])} (±{x["step"] * 100:.0f} pp): H = <b>{x["h"] * 100:+.1f} %</b> av verdien – '
+                   + ("skjør: verdien faller fortere enn den stiger" if x["h"] < -0.005 else "konveks: tåler bevegelsen" if x["h"] > 0.005 else "lineær")
+                   + '</li>' for x in inv.get("fragility") or [])
+    frag_html = (f'<h3>Skjørhet rundt basis (Taleb)</h3><ul>{frag}</ul>' if frag else "")
     return (f'<h2>Invertering: hva gir et tap på 30 %?</h2><div class="card"><p>Munger: snu problemet. Fra kursen {inv["price"]:.2f} til <b>{inv["level"]:.2f}</b> '
             f'(−30 %) må ett av dette skje i modellen ({E(code)}, {E(inv.get("file", ""))}, verdsatt {E(str(inv["model_date"]))}, DCF {inv["dcf_ps"]:.1f}):</p>'
-            f'<ul>{"".join(items)}</ul><h3>Billigste kombinasjoner i tabellen</h3><ul>{combos}</ul>'
+            f'<ul>{"".join(items)}</ul><h3>Billigste kombinasjoner i tabellen</h3><ul>{combos}</ul>{frag_html}'
             '<div class="src">Fra modellens følsomhetstabeller (Sensitivity 1 og 3 i Toolkit-arbeidsboken), lineært interpolert mellom tabellpunkter – aldri ekstrapolert. '
-            'Modellverdier er estimater (EST); kursen er siste sluttkurs i lageret (Yahoo, forsinket). Er en av linjene det bear-scenarioet ditt allerede beskriver? '
+            'Modellverdier er estimater (EST); kursen er siste sluttkurs i lageret (Yahoo, forsinket). Skjørhet: H = [f(−Δ) + f(+Δ)]/2 − f(0) delt på f(0) (Taleb mfl., IMF WP/12/216, 2012). '
+            'Er en av linjene det bear-scenarioet ditt allerede beskriver? '
             'Da er det pre-mortem-punktet.</div></div>')
