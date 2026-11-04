@@ -33,6 +33,12 @@ $output = & $oq dashboard --refresh-only 2>&1 | ForEach-Object { "$_" }
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "feeds exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
 
+# the desk (DECISIONS D41): six roles through every stock on today's close, a debate log per stock, no orders;
+# the result goes on the front page the digest writes next, so it runs before it. A failed desk never stops the digest.
+$output = & $oq desk run --daily --quiet 2>&1 | ForEach-Object { "$_" }
+$output | Out-File -FilePath $log -Append -Encoding utf8
+"desk exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
+
 # latest.html is the dashboard's front page (oq dashboard serves the live version at http://127.0.0.1:8060)
 $output = & $oq signals digest --notify --open --quiet 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE

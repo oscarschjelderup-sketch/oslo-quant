@@ -1994,6 +1994,83 @@ def signals_publish(
     console.print(f"written {target}")
 
 
+desk_app = typer.Typer(
+    help="The desk (DECISIONS D41): six roles through a stock before you judge it – scout, filter, analyst, bear, reply, risk – "
+         "every finding with a number and a source, a debate log per stock, and never a buy at the end. Paper only.",
+    no_args_is_help=True,
+)
+app.add_typer(desk_app, name="desk")
+
+
+@desk_app.command("run")
+def desk_run(
+    codes: str | None = typer.Argument(None, help="Comma-separated codes to force through the chain (manual run). Default: every stock (daily run)."),
+    daily: bool = typer.Option(False, "--daily", help="Mark the run as the daily one (the scheduled task); the default without codes."),
+    show: bool = typer.Option(True, "--show/--quiet", help="Print the outcome per stock."),
+) -> None:
+    """Run the desk and write the log under ~/osloquant-home/desk/ (private). Writes no judgement and no order."""
+    _setup()
+    from osloquant.dashboard import desk
+
+    wanted = _codes(codes)
+    run = desk.run(wanted, trigger="daily" if (daily or not wanted) else "manual")
+    console.print(f"desk {run.run_id} on the close of {run.session}: scanned {run.scanned}, flagged {run.flagged}, killed {run.killed}, "
+                  f"debated {run.debated}, parked {run.parked}, ready {run.ready}")
+    bad = [q for q in run.data_quality if not q["ok"]]
+    for q in bad:
+        console.print(f"  [yellow]data: {q['what']} – {q['note']}[/yellow]")
+    if show:
+        t = Table(show_header=True, header_style="bold")
+        for col in ("code", "outcome", "deciding finding"):
+            t.add_column(col)
+        for s in run.stocks:
+            t.add_row(s.code, desk.OUTCOME_LABEL.get(s.outcome, str(s.outcome)), s.reason[:110])
+        console.print(t)
+    if wanted and not run.stocks:
+        console.print("[red]no close on the newest session for the given codes[/red]")
+        raise typer.Exit(2)
+
+
+@desk_app.command("show")
+def desk_show(run_id: str | None = typer.Argument(None, help="A run id (default: the newest run)."),
+              code: str | None = typer.Option(None, "--code", help="One stock's full debate log.")) -> None:
+    """Print a stored run: the counts, and per stock the outcome – or one stock's whole log."""
+    _setup()
+    from osloquant.dashboard import desk
+
+    if run_id is None:
+        last = desk.latest()
+        run_id = last["run_id"] if last else None
+    run = desk.load_run(run_id) if run_id else None
+    if run is None:
+        console.print("[red]no such run[/red]")
+        raise typer.Exit(1)
+    console.print(f"{run.run_id} · close {run.session} · {run.trigger}: scanned {run.scanned}, flagged {run.flagged}, killed {run.killed}, debated {run.debated}, parked {run.parked}, ready {run.ready}")
+    for s in run.stocks:
+        if code and s.code != code.upper().removesuffix(".OL"):
+            continue
+        console.print(f"\n[bold]{s.code}[/bold] {s.name} – {desk.OUTCOME_LABEL.get(s.outcome, '')}: {s.reason}")
+        if code:
+            for i, f in enumerate(s.findings, 1):
+                flag = f" [{f.status}]" if f.status else ""
+                console.print(f"  {i:>2}. {f.role:<8} {f.claim}: {f.value}{flag}\n      {f.source} · per {f.asof}")
+
+
+@desk_app.command("stats")
+def desk_stats() -> None:
+    """How often the bear's veto was followed by the price reaching the kill level before the target – against the
+    stocks the desk let through. The only number that decides whether the desk is worth anything."""
+    _setup()
+    from osloquant.dashboard import desk
+
+    st = desk.veto_stats()
+    for g, label in (("veto", "bear's veto"), ("through", "let through")):
+        b = st[g]
+        share = "–" if b["share_right"] is None else f"{b['share_right'] * 100:.0f} %"
+        console.print(f"{label:<12} kill first {b['right']}, target first {b['wrong']}, neither {b['neither']}, pending {b['pending']}, unscorable {b['unscorable']} → right {share} of {b['decided']} decided")
+    console.print(f"window {st['horizon']} sessions after the run; first daily close at or beyond a level decides.")
+
+
 @app.command()
 def ui(
     host: str = typer.Option("127.0.0.1"),

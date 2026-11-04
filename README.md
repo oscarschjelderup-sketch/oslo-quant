@@ -47,6 +47,7 @@ oq lab                   # the documented strategies, tested for luck as well as
 oq check-factor GoldCrossFactor   # does a factor look into the future, or depend on its warm-up?
 oq ui                    # the dashboard at http://127.0.0.1:8050
 oq dashboard             # the decision dashboard at http://127.0.0.1:8060 (research book, signals, judgements)
+oq desk run SATS         # the desk: six roles through a stock, a debate log, never a buy (also daily after the close)
 ```
 
 `oq record` can be run again at any time. It fetches only what is missing. Everything is stored as SQLite
@@ -491,6 +492,14 @@ with their drivers (Brent, NOK, salmon export price, rates; freight is licensed 
 a chart, key figures, signals, announcements and headlines (links only), the case with a reverse DCF read from its
 model, and a form that appends one judgement – date and price set by the server, rationale and a kill criterion
 required, nothing editable afterwards. A calibration page and a watchlist complete it.
+
+The **desk** (`/desk`, `oq desk run`) sends a stock through six roles before you judge it – scout, filter, analyst,
+bear, reply, risk – each a set of rules over the data above, every finding a fixed claim with a number, a source and the
+time of the data, a debate log per stock that is kept and opens from the stock page and the judgement row. The bear
+must give three reasons with numbers; one reason the rules cannot rebut is a veto. The chain ends in "ready for a
+judgement" (the form prefilled, the debate attached), "parked" or "killed" – never in a buy – and the page keeps the
+one statistic that says whether it is worth anything: how often a veto was followed by the price reaching the kill
+level before the target. The daily run is part of the evening task (D41).
 
 `oq dashboard --refresh` fetches the feeds first (Oslo Børs NewsWeb, Norges Bank, SSB, Yahoo, media RSS – see
 `docs/dashboard/data-sources.md`); the evening signal task does this and writes the front page as `latest.html`.

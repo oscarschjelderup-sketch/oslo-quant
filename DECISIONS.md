@@ -566,3 +566,66 @@ First run (3 Nov 2026): the SATS view of 6 Oct carries three sentences, the mode
 ARPM threshold is not the model's price/mix threshold – ten divergences, now on the page. Claude's
 list is compared too but reported as "two analysts, two lists", not as an error. Dekning 2026-11-03, part 4
 (the Toolkit side: `kill_list_of` in rb_data.py, `KILL_TEXT` in elkem_data.py).
+
+## D41. The desk: six roles through a stock before the judgement, every point with a number, never a buy
+
+A six-bot "trading desk" from social media gave the structure: one job per role, hard hand-offs, an obligatory
+counter-argument, a log of everything. The content – memecoins, intraday, orders placed by the bots – was not taken,
+and neither was a language model: every role in `dashboard/desk.py` is a set of rules over data the dashboard already
+holds (the store's prices, the signals with their measured odds, NewsWeb announcements and insider notifications,
+Finanstilsynet's short register, the report reader, the research book and the judgement log, the toolkit model's
+reverse DCF, the light cases, the calibration page's error patterns). No new source, no key, no fetch: a run reads the
+caches and the store and reproduces for a given close.
+
+- **A role never writes free text.** Its output is a list of findings; a finding is a fixed claim (`CLAIMS`, the only
+  sentences a role can make), a value that must carry a number, a source and the time of the data, and is refused
+  without any of them. Estimates are marked EST, cached and delayed data are marked. A finding may quote a source (a
+  criterion's sentence, an announcement's title) – a quotation, never prose. The same rule as the pretrade page (D35),
+  now enforced by the data class.
+- **The roles, in order:** Scout (every stock: volume against its 60-session average, the day's move against the
+  sector group's median, a signal today, a new announcement, an insider notification, a move in the short register);
+  Filter (kills: no case and not watched, median turnover below the limit, a report inside five days with the previous
+  one not dealt with, a kill criterion already triggered in the latest reading, the price through the view's kill
+  level); Analyst (the market's implied margin and growth from the reverse DCF against the view, the light case's
+  implied growth, the newest toolkit report against the book, the outcome odds at 3/6/12 months with break-even on the
+  decided paths, the latest report's kill rows and LTM against the case, the distance to target and kill level);
+  Bear (reasons against buying, strongest first, one per kind, each with a number: a kill criterion nearer in the
+  report, a metric down year on year, Claude's lower view, what the light case says the price requires, a multiple
+  above the group, odds below break-even, a risk signal with its interval and grade, a public short, insider sells in
+  the window, same-group exposure and shared kill drivers in the paper book, the calibration's most common error
+  pattern, the view's own bear value); Reply (one rule per reason: expected value with the view's own probabilities,
+  distance to the threshold as a share of it, LTM against the case's estimate, shared drivers, the pattern against the
+  situation now, the signal's grade and interval, the short's 30-day direction, buys against sells, the full model's
+  reverse DCF or DCF value against the light case – each either rebuts with numbers or stands); Risk (the position at
+  the maximum loss with the kill level as the stop, the group's share of the paper sum after the buy, the group and
+  total loss at the kill levels, the dated events before the horizon – blocks over the limits).
+- **Hard hand-offs.** Fewer than three bear reasons with numbers stop the chain, and the chain checks this itself, not
+  only the bear. One reason that stands is a veto. Risk blocks over the limits in `dashboard.yaml` (`sizing`, and a
+  `desk:` section whose defaults are in `desk.DEFAULTS`: volume 2x, move 3 pp, turnover NOK 2m, report within 5 days,
+  group share 50 %, veto window 60 sessions). Without sizing limits Risk cannot size and blocks – nothing is ready
+  until the limits are Oscar's.
+- **Three end states and no fourth.** *Klar for vurdering* opens the judgement form prefilled from the view and the
+  Risk role, with the debate attached and the run id written on the row (`desk_run`, a new optional field; old rows are
+  untouched, the chain holds); *parkert* with the veto or the block visible; *drept* with the filter's reason. The
+  decision stays Oscar's: a parked or killed stock can still be judged, and the form then carries the log and the
+  reason. Nothing in the desk writes a judgement, an order or a watchlist entry; the one new write is the run log
+  itself, append-only under `~/osloquant-home/desk/` (private; `desk/` is added to the privacy test), the third thing
+  the dashboard may write after D2's two.
+- **The page.** `/desk`: today's run (scanned, flagged, killed, debated, parked, ready; time; the share the filter
+  killed against the 90 % the brief asks for; data quality per source), the stocks with the deciding finding, a run
+  button for one stock, the veto statistic, the earlier runs. The debate log per stock is chronological with role,
+  claim, number, source and data time, EST and delayed marks, and status – and opens from the stock page and from the
+  judgement row. The daily run is a step in the signal-watch task (`oq desk run --daily` before the digest), so the
+  front page and the evening file carry "Desk i dag".
+- **The only number that decides whether the desk is worth anything** is kept honestly (`veto_stats`): for every veto,
+  did the price reach the kill level before the target within the window (first daily close, adjusted, as the odds) –
+  right, wrong, neither, pending, unscorable – beside the same count for the stocks the desk let through. A veto on a
+  stock without a target or kill level is unscorable and says so. The page prints the verdict in words even when the
+  vetoes have not helped.
+- Tested on synthetic SATS, OUTLT and ELK with fictional numbers (`tests/test_desk.py`): the chain never ends in a buy
+  and leaves the log, the book and the watchlist byte-identical; the bear gets nothing through with fewer than three
+  numbered reasons, also when a patched bear hands over two; no finding without a claim from the table, a number, a
+  source and a time; the filter, the veto and the Risk block each end the chain with the reason visible; runs
+  reproduce for the same close and are never overwritten; the pages, the prefill and the row link; the veto statistic
+  on a known price path. A test on the frozen real data (prices, caches and the research-book copy, D16) runs where
+  that copy exists and asserts the same invariants without fixing the outcomes.

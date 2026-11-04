@@ -109,7 +109,7 @@ button.go { margin-top:12px; padding:9px 20px; border:0; border-radius:2px; back
 button.go:hover { background:var(--accent-dark); }
 """
 
-NAV = [("/", "I dag"), ("/coverage", "Dekning"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
+NAV = [("/", "I dag"), ("/desk", "Desk"), ("/coverage", "Dekning"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
 
 
 def pct(v, d=1, sign=True):
@@ -205,6 +205,10 @@ def today_page(ctx: dict, static: bool = False) -> str:
         from osloquant.dashboard import portfolio as pf
 
         body.append(pf.block_html(ctx["portfolio"], static))
+    if "desk" in ctx:
+        from osloquant.dashboard import deskpage
+
+        body.append(deskpage.front_block(ctx["desk"], static))
     # upcoming + kill
     up = "".join(f'<li><b>{e["date"]:%d %b}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"]) if e.get("code") else E(e["name"])} – {E(e["what"])}'
                  + (f' <span class="src">({E(e["source"])})</span>' if e.get("source") else '')
@@ -415,6 +419,12 @@ def stock_page(code: str, ctx: dict) -> str:
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
     parts.append(lightcase_block(lc))
     parts.append(claude_view_block(c, px))
+    if "desk_runs" in ctx:
+        from osloquant.dashboard import deskpage
+
+        parts.append(deskpage.stock_block(code, ctx["desk_runs"]))
+        if ctx.get("desk_attached"):
+            parts.append(deskpage.attached_html(*ctx["desk_attached"]))
     parts.append(judge_form(code, name, px, ctx["price_label"], ctx.get("form", {}), c, ctx.get("sizing")))
     return page(f"{code}", "", "\n".join(parts))
 
@@ -738,9 +748,10 @@ def case_block(c, px: float, rd: dict | None) -> str:
     rows = []
     for r in c.history:
         if r["kind"] == "judgement":
+            desk = (f' <a href="/desk/run/{E(r["desk_run"])}/{E(c.code)}" title="debattloggen fra desken">desk</a>' if r.get("desk_run") else "")
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:g}</td><td>{r["target"]:g}</td>'
                         f'<td>{r.get("bear", "–")} / {r.get("base", "–")} / {r.get("bull", "–")}</td><td>{r.get("p_bear", "–")} / {r.get("p_base", "–")} / {r.get("p_bull", "–")}</td>'
-                        f'<td>{_rationale(r)}{_position(r)}</td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+                        f'<td>{_rationale(r)}{_position(r)}{desk}</td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
         elif r["kind"] == "kill_check":
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">kill check: {E(r["criterion"])} – '
                         f'<b>{"BREACHED" if r["breached"] else "intact"}</b>, action: {E(r["action"])}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
@@ -774,11 +785,14 @@ def judge_form(code: str, name: str, px: float, label: str, f: dict, c, sz: dict
     sel = lambda opt: " selected" if (f.get("rating") or v.get("rating")) == opt else ""  # noqa: E731
     kill_default = "\n".join(c.kill) if c and not f else ""
     ck = str(f.get("checklist") or "")
+    dr = str(f.get("desk_run") or "")
     pre = (f'<div class="ok">Sjekklisten fra «Før du kjøper» er krysset av ({E(ck.replace(",", ", "))}) og skrives på raden.</div>' if ck else
            f'<div class="warn"><b>Skal du kjøpe?</b> Gå via <a href="/stock/{E(code)}/pretrade">Før du kjøper</a> først: hva markedet priser inn, oddsene, '
            'motargumentene, hendelsene før horisonten, posisjonsstørrelsen og sjekklisten – på én side. Et syn uten sjekkliste kan logges, men merkes slik.</div>')
+    if dr:
+        pre += f'<div class="ok">Desk-kjøringen {E(dr)} vedlegges raden (feltet desk_run); debattloggen står over skjemaet. Tallene under er forhåndsutfylt fra synet i boken og Risk-rollen – ingenting er skrevet for deg.</div>'
     return f"""<h2 id="judge">Ny vurdering</h2><div class="card">{pre}<form class="judge" method="post" action="/stock/{E(code)}/judge">
-<input type="hidden" name="checklist" value="{E(ck)}">
+<input type="hidden" name="checklist" value="{E(ck)}"><input type="hidden" name="desk_run" value="{E(dr)}">
 <div class="src">Writes one new row to the judgement log (~/osloquant-home/judgements.jsonl) and, if {E(code)} is not in the research book, adds it.
 Nothing earlier can be changed: a new view is a new row. Date = today; price = the last close {px:.2f} ({E(label)}).</div>
 <input type="hidden" name="name" value="{E(name)}">

@@ -61,6 +61,9 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
                        "only_claude": sum(bool(c.claude_view) and not c.view for c in cases),
                        **cv.counts(cv.universe(snap, cases, watch, today))}
     ctx["portfolio"] = pf.exposure(cases, {c.code: snap.group(c.code) for c in cases}, sizing.config())
+    from osloquant.dashboard import desk
+
+    ctx["desk"] = desk.front_summary(f"{snap.asof:%Y-%m-%d}")
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
         td.save_state(state)
@@ -95,13 +98,33 @@ def stock_context(code: str) -> dict:
     ents = rpdf.entries(code)
     reports_html = rpdf.block_html(code, ents, rpdf.revision(ents), rpdf.tp_mismatch(ents[0] if ents else None, c.view if c else None, c.history if c else None))
     from osloquant.dashboard import afterreport as ar
+    from osloquant.dashboard import desk
 
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
-                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code))
+                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code),
+                desk_runs=desk.runs_for(code))
+
+
+def attach_desk(ctx: dict, code: str, run_id: str) -> None:
+    """A stock page opened from a desk run (``?desk=<run id>``): the debate is attached above the form and, when the
+    run ended in "klar for vurdering", the form is prefilled from the view and the Risk role. Nothing is written."""
+    from osloquant.dashboard import desk
+
+    run = desk.load_run(run_id)
+    sr = run.stock(code) if run else None
+    if not sr:
+        ctx.setdefault("errors", []).append(f"no desk run {run_id} for {code}")
+        return
+    ctx["desk_attached"] = (run, sr)
+    form = dict(ctx.get("form") or {})
+    if sr.outcome == "ready" and sr.prefill:
+        form.update({k: v for k, v in sr.prefill.items() if v not in (None, "")})
+    form["desk_run"] = run.run_id
+    ctx["form"] = form
 
 
 def coverage_rows(cases, snap, today: pd.Timestamp) -> list[dict]:
@@ -236,6 +259,8 @@ def create_app() -> Flask:
             ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
         if request.args.get("checklist"):
             ctx["form"] = {"checklist": ",".join(k for k in request.args["checklist"].split(",") if k.replace("_", "").isalnum())}
+        if request.args.get("desk"):
+            attach_desk(ctx, code.upper(), request.args["desk"])
         return rd.stock_page(code.upper(), ctx)
 
     @app.post("/stock/<code>/judge")
@@ -252,6 +277,7 @@ def create_app() -> Flask:
         form["claude_exists"] = bool(f.get("claude_exists"))
         form["saw_claude"] = f.get("saw_claude") or None
         form["checklist"] = ",".join(k for k in (f.get("checklist") or "").split(",") if k.replace("_", "").isalnum())
+        form["desk_run"] = (f.get("desk_run") or "").strip()
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):
             try:
                 form[k] = _num(f.get(k))
@@ -269,7 +295,53 @@ def create_app() -> Flask:
                 errors.append(str(e))
         ctx = stock_context(code)
         ctx["errors"], ctx["form"] = errors, form
+        if form.get("desk_run"):
+            attach_desk(ctx, code, form["desk_run"])
+            ctx["form"] = form                                    # the typed values win over the prefill
         return Response(rd.stock_page(code, ctx), status=400)
+
+    @app.get("/desk")
+    def desk_page():
+        from osloquant.dashboard import desk, deskpage
+
+        runs = desk.index()[::-1]
+        last = desk.load_run(runs[0]["run_id"]) if runs else None
+        return deskpage.desk_page(last, runs, desk.veto_stats(), pd.Timestamp.now().normalize())
+
+    @app.post("/desk/run")
+    def desk_run():
+        from osloquant.dashboard import desk, deskpage
+
+        code = (request.form.get("code") or "").strip().upper().removesuffix(".OL")
+        if not code.isalnum():
+            runs = desk.index()[::-1]
+            return Response(deskpage.desk_page(desk.load_run(runs[0]["run_id"]) if runs else None, runs, desk.veto_stats(), pd.Timestamp.now().normalize(),
+                                               msg={"errors": ["a stock code has letters and digits only"]}), status=400)
+        run = desk.run([code], trigger="manual")
+        if run.stock(code) is None:
+            runs = desk.index()[::-1]
+            return Response(deskpage.desk_page(run, runs, desk.veto_stats(), pd.Timestamp.now().normalize(),
+                                               msg={"errors": [f"no close for {code} on the newest session in the store – nothing for the desk to read"]}), status=400)
+        return redirect(f"/desk/run/{run.run_id}/{code}", code=303)
+
+    @app.get("/desk/run/<run_id>")
+    def desk_run_page(run_id):
+        from osloquant.dashboard import desk, deskpage
+
+        run = desk.load_run(run_id)
+        if run is None:
+            abort(404)
+        return deskpage.run_page(run)
+
+    @app.get("/desk/run/<run_id>/<code>")
+    def desk_stock_page(run_id, code):
+        from osloquant.dashboard import desk, deskpage
+
+        run = desk.load_run(run_id) if code.isalnum() else None
+        sr = run.stock(code.upper()) if run else None
+        if sr is None:
+            abort(404)
+        return deskpage.stock_log_page(run, sr)
 
     @app.get("/calendar")
     def calendar_page():

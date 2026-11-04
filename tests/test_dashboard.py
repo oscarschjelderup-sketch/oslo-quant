@@ -99,7 +99,7 @@ def test_old_rows_cannot_be_overwritten(app):
     assert bk.case("AAA").view["rating"] == "HOLD" and bk.case("AAA").view_source == "log #2"
     # no route can edit or delete: the only writes are the two POSTs
     writes = {(r.rule, m) for r in client.application.url_map.iter_rules() for m in r.methods - {"GET", "HEAD", "OPTIONS"}}
-    assert writes == {("/stock/<code>/judge", "POST"), ("/watchlist", "POST")}
+    assert writes == {("/stock/<code>/judge", "POST"), ("/watchlist", "POST"), ("/desk/run", "POST")}   # the desk writes only its own log (D41)
     for method in ("put", "delete", "patch"):
         assert getattr(client, method)("/stock/AAA/judge").status_code == 405
     # an edited log is found, and nothing more can be written to it
@@ -225,7 +225,7 @@ def test_no_private_file_is_tracked():
     tracked = _tracked()
     for f in tracked:
         assert Path(f).name not in PRIVATE_NAMES, f
-        assert not f.startswith(("feeds/", "signals/", "monthly/")), f
+        assert not f.startswith(("feeds/", "signals/", "monthly/", "desk/")), f
 
 
 def test_no_tracked_file_holds_the_private_research_book():

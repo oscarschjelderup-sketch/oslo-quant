@@ -235,6 +235,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   consensus_source=(form.get("consensus_source") or "").strip() or None,
                   saw_claude={"yes": True, "no": False}.get(form.get("saw_claude")) if form.get("claude_exists") else None,
                   checklist=[k for k in str(form.get("checklist") or "").split(",") if k] or None,
+                  desk_run=_desk_run(form.get("desk_run")),
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()
@@ -242,6 +243,15 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
         _append_book_entry(code, name or code, today)
     mark_moved(code, row["seq"], today)
     return row
+
+
+def _desk_run(value) -> str | None:
+    """The id of the desk run a view was opened from (D41): kept on the row so the debate log can be found from it;
+    an id that is not a stored run is dropped rather than refused – the view is Oscar's whatever the desk said."""
+    from osloquant.dashboard import desk
+
+    v = str(value or "").strip()
+    return v if v and desk.RUN_ID.match(v) and desk.load_run(v) is not None else None
 
 
 def _groups() -> dict[str, str]:
