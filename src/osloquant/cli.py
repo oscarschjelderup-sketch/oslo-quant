@@ -2092,6 +2092,27 @@ def ui(
     main(host=host, port=port, debug=debug)
 
 
+@app.command("app")
+def app_window(
+    install: bool = typer.Option(False, "--install", help="Put an «Oslo Børs-dashbord» shortcut on the desktop and in the Start menu."),
+    port: int = typer.Option(8060),
+) -> None:
+    """Open the decision dashboard in its own app window, starting it in the background if it is not running (DECISIONS
+    D45). With --install: create the desktop and Start-menu shortcuts that do the same with one click."""
+    from osloquant.dashboard import desktop
+
+    if install:
+        try:
+            paths = desktop.install(port)
+        except RuntimeError as e:
+            raise typer.BadParameter(str(e)) from None
+        for p in paths:
+            console.print(f"shortcut: {p}")
+        console.print(f"icon and log: {desktop.app_dir()}")
+        return
+    raise typer.Exit(desktop.main(port))
+
+
 @app.command()
 def snapshot(
     out: Path = typer.Argument(..., help="Folder to write the copy to – outside the repository (it holds the private research book)."),

@@ -135,11 +135,12 @@ def page(title: str, active: str, body: str, generated: datetime | None = None, 
     nav = "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in NAV)
     search = '' if static else '<form action="/go" method="get"><input name="code" placeholder="Ticker, f.eks. MOWI"></form>'
     plotly = '' if static else '<script src="/static/plotly.min.js"></script>'
+    icon = '' if static else '<link rel="icon" href="/favicon.ico">'
     note = ('<div class="src">Static snapshot written by the evening job. Live dashboard: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
     gen = f'<div class="src">Generated {(generated or datetime.now()):%d %b %Y %H:%M}. Private: research book and judgements are read from ~/osloquant-home, never published.</div>{note}'
     return f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{E(title)} – Oslo Børs dashboard</title><style>{CSS}</style>{plotly}</head><body><div class="wrap">
+<title>{E(title)} – Oslo Børs dashboard</title>{icon}<style>{CSS}</style>{plotly}</head><body><div class="wrap">
 <nav class="top"><span class="brand">Oslo Børs · beslutninger</span>{nav}{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Prices: daily closes from Yahoo Finance via the oslo-quant store – delayed, not real time. Signal odds: measured on this store's history (oq signals score). Nothing here trades or advises.</div></div>

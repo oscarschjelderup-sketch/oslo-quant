@@ -50,6 +50,7 @@ oq dashboard             # the decision dashboard at http://127.0.0.1:8060 (rese
 oq desk run SATS         # the desk: six roles through a stock, a debate log, never a buy (also daily after the close)
 oq case build --all      # a light case for every company in the store, each with a quality grade (A/B/C)
 oq snapshot ../copy --cdn   # a static, clickable copy of the decision dashboard (outside the repo: it holds the book)
+oq app --install         # a desktop and Start-menu shortcut that opens the dashboard as an app window (Windows)
 ```
 
 `oq record` can be run again at any time. It fetches only what is missing. Everything is stored as SQLite

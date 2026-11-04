@@ -700,3 +700,18 @@ file. A page that fails is reported, and the rest of the copy is written. The cr
 marks the signals seen; a copy must not, so the app has a `SNAPSHOT` flag the front page respects. The copy holds what
 the dashboard shows – the research book, the judgement log, private cases – so it is refused inside the repository,
 and publishing it is the owner's act, not the command's.
+
+## D45. The dashboard as an app on the PC
+
+Opening the dashboard meant a terminal (`oq dashboard`) and a browser tab. `oq app --install` now puts a shortcut,
+"Oslo Børs-dashbord", on the desktop and in the Start menu (`dashboard/desktop.py`). The shortcut runs the module with
+the environment's `pythonw.exe`, so no console opens: if nothing answers on port 8060 it starts `oq dashboard
+--no-browser` in the background without a window (output to `~/osloquant-home/app/dashboard.log`), waits until the new
+`/ping` answers, and opens the dashboard in an app window – Edge or Chrome with `--app=`, its own window and taskbar
+entry, no address bar. A dashboard already running (a terminal, the evening task, Claude's preview, or one started
+before `/ping` existed) is reused, never started twice; a server that dies is reported in a message box that names the
+log. Closing the window leaves the server running, as a terminal-started one does. The icon – a teal square with
+three rising bars – is drawn in code and written as PNG and ICO without an image library; the dashboard serves it as
+its favicon, so the window and a browser tab carry it, and a snapshot (D44) copies it. Nothing here touches the
+research book; the only files written are the icon, the log and the two shortcuts. `oq app` does the same from a
+terminal.

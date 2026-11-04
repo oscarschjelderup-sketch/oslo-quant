@@ -42,6 +42,8 @@ def fname(path: str) -> str | None:
         return "idag.html"
     if path == "/static/plotly.min.js":
         return "plotly.min.js"
+    if path == "/favicon.ico":
+        return "favicon.ico"
     m = re.fullmatch(r"/reports/([A-Za-z0-9]+)/([\w.\-]+\.pdf)", path)
     if m:
         return f"reports/{m.group(1).upper()}/{m.group(2)}"

@@ -7,6 +7,7 @@ never steps a paper account. Bound to 127.0.0.1 only.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from importlib import resources
 from pathlib import Path
 
@@ -200,8 +201,24 @@ def _report(code: str) -> dict | None:
     return {"summary": s, "spec": rp.specs().get(code) or {}} if s else ({"summary": None, "spec": rp.specs().get(code)} if rp.specs().get(code) else None)
 
 
+@lru_cache(maxsize=1)
+def _icon_bytes() -> bytes:
+    """The app icon (D45) as the favicon, so the app window and the tab carry it."""
+    from osloquant.dashboard import desktop
+
+    return desktop.ico((16, 32, 48))
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
+
+    @app.get("/ping")
+    def ping():
+        return Response("ok", mimetype="text/plain")                # the app launcher's "is it up" (D45)
+
+    @app.get("/favicon.ico")
+    def favicon():
+        return Response(_icon_bytes(), mimetype="image/x-icon", headers={"Cache-Control": "max-age=86400"})
 
     @app.get("/static/plotly.min.js")
     def plotly_js():
