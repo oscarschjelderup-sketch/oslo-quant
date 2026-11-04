@@ -171,7 +171,14 @@ def validate_form(form: dict) -> list[str]:
         problems.append("a consensus target needs its source and date")
     from osloquant.dashboard import discipline as dsc
 
-    problems += dsc.premortem_problems(form.get("premortem") or dsc.premortem_from_form(form))                 # D46: no view without three reasons it could fail
+    problems += dsc.premortem_problems(form.get("premortem") or dsc.premortem_from_form(form))
+    if form.get("code"):
+        from osloquant.dashboard import story as sty
+
+        try:
+            problems += sty.problems(sty.parse(form), sty.for_code(str(form["code"]).upper()))           # D53: a full case states its story
+        except ValueError:
+            problems.append("the story's numbers must be numbers")                 # D46: no view without three reasons it could fail
     if form.get("claude_exists") and form.get("saw_claude") not in ("yes", "no"):
         problems.append("say whether you had read Claude's view on the company before writing this (it decides how the view is scored)")
     for k in ("target", "bear", "base", "bull"):
@@ -193,7 +200,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                     today: str | None = None) -> dict:
     """Append one judgement row. A company that is not in the research book gets an entry at the end of the yaml;
     a watched company is marked as moved. Returns the written row."""
-    problems = validate_form(form)
+    problems = validate_form(form | {"code": code})
     if problems:
         raise ValueError("; ".join(problems))
     already = triggered_now(code) if form["rating"] == "BUY" else []
@@ -251,6 +258,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   premortem=[x.strip() for x in form.get("premortem") or dsc.premortem_from_form(form) if x and x.strip()] or None,
                   probs_deliberate=True if form.get("probs_deliberate") else None,
                   anchor=anchor, anchor_reason=(form.get("anchor_reason") or "").strip() or None, base_rate=base_rate,
+                  story=_story_field(code, form),
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()
@@ -258,6 +266,16 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
         _append_book_entry(code, name or code, today)
     mark_moved(code, row["seq"], today)
     return row
+
+
+def _story_field(code: str, form: dict) -> dict | None:
+    """D53: the story, its three numbers, the model's three and the flags (None without a published report)."""
+    from osloquant.dashboard import story as sty
+
+    try:
+        return sty.row_field(sty.parse(form), sty.for_code(code.upper()))
+    except ValueError:
+        return None
 
 
 def _desk_run(value) -> str | None:

@@ -67,7 +67,8 @@ def test_the_form_shows_the_check_and_the_row_keeps_it(app, monkeypatch):  # noq
     (folder / "estimates_2026-11-02.json").write_text(json.dumps(_est([100, 115, 132.25, 152.0875, 160], [10, 12, 14, 16, 17])), encoding="utf-8")
     form = client.get("/stock/AAA").get_data(as_text=True)
     assert "Base rates (Mauboussin)" in form and 'name="base_rate_reason"' in form and "Utenfor 20–80-båndet" in form and "Base rates for estimatene" in form
-    assert client.post("/stock/AAA/judge", data=GOOD | {"base_rate_reason": "Fictional: new stores open in the plan"}).status_code == 303
+    story = {"story": "Fictional: new stores carry the growth for three years.", "story_rev_cagr": "15", "story_ebitda_m": "10.5"}   # D53 for a full case
+    assert client.post("/stock/AAA/judge", data=GOOD | story | {"base_rate_reason": "Fictional: new stores open in the plan"}).status_code == 303
     br = jg.read_log()[-1]["base_rate"]
     assert br["flags"] and br["reason"].startswith("Fictional") and br["estimates"] == "estimates_2026-11-02.json"
     assert br["items"][0]["metric"] == "rev_cagr" and br["items"][0]["forecast"] == pytest.approx(0.15)

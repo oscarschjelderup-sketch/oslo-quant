@@ -423,6 +423,9 @@ def stock_page(code: str, ctx: dict) -> str:
              ctx.get("reports_html", ""), ctx.get("afterreport_html", "")]
     if c and (c.view or c.history):
         parts.append(case_block(c, px, ctx.get("rdcf")))
+        from osloquant.dashboard import story as sty
+
+        parts.append(sty.stock_html(c.view))
         parts.append(ctx.get("inversion_html", ""))
         parts.append(report_block(code, ctx.get("report")))
         parts.append(odds_block(ctx.get("odds"), c.view or {}))
@@ -831,6 +834,7 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 {dsc.probs_box(f)}
 {dsc.anchor_box(prev, px, f)}
 {_baserate_form(code, f)}
+{_story_form(code, f)}
 <div class="row3"><div><label>Konsensus kursmål (valgfritt, offentlig kilde)</label><input name="consensus_target" inputmode="decimal" value="{val("consensus_target")}"></div>
 <div style="grid-column:span 2"><label>Kilde og dato for konsensus (påkrevd hvis mål)</label><input name="consensus_source" placeholder="f.eks. selskapets IR-side, 2026-10-22" value="{val("consensus_source")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
@@ -840,6 +844,15 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 {ack_box(code, f)}
 {sizing_box(px, sz, val("position_shares"))}
 <button class="go" type="submit">Logg vurderingen</button></form></div>"""
+
+
+def _story_form(code: str, f: dict) -> str:
+    from osloquant.dashboard import story as sty
+
+    try:
+        return sty.box_html(sty.for_code(code.upper()), f)
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _baserate_form(code: str, f: dict) -> str:

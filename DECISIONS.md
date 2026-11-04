@@ -804,3 +804,27 @@ of the company's reader spec), one per number and report, written before the rep
 report reader's printed figure of the same name – or the after-report loop's generic reading – answers it: inside or
 not, and the miss against the middle. The calibration page shows the share inside against the 80 % it should be, and
 says fewer than ten answers are too few. A number the reading does not print stays unanswered; nothing is guessed.
+
+## D53. Narrative against numbers
+
+Damodaran (*Narrative and Numbers*, 2017): a valuation is a story told in numbers, and the two must agree. For a full
+case – a company with a published report and its estimates – the judgement form now asks for the story in one
+sentence and the three numbers it needs: revenue growth a year over the first three estimate years, the EBITDA margin
+in the third year and EPS in the third year. The model's three stand beside them (from `estimates_*.json`). A story
+number more than one percentage point (growth, margin) or 10 % (EPS) from the model's is flagged – the story is bigger
+or smaller than the model – on the row (`story`) and on the stock page under the research book. Required for a full
+case, not asked without a report (there is no model to hold the story against). It does not change the model or the
+target; it makes the gap between what is said and what is computed visible when the view is written.
+
+## Also that night
+
+- **The loops on the front page.** An unanswered report asks for the probability update (D48) and replaces the
+  post-report item (D29) – answering the update, even "unchanged", puts the view on record after the report; a report
+  within 14 days asks for the quarterly forecast (D52) until it is logged; the stored chief run's undecided proposals
+  are one item (D50); in the last three weeks of a quarter the error review of views older than 90 days is one item
+  (D49). Without this they would be built and not used.
+- **Fragility** (Taleb et al., IMF WP/12/216, 2012) in the inversion block: H = [f(−Δ) + f(+Δ)]/2 − f(0) around the
+  base point of the growth × margin table, scaled by the value; negative is concave (the value falls faster than it
+  rises).
+- **Toolkit:** the same base-rate check in the research report – an exhibit in "What we do not know" and a `[flag]`
+  line in the build gate that never fails the build (Toolkit DECISIONS 2026-11-05).

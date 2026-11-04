@@ -73,6 +73,9 @@ Summen er de tre første minus innsatsen.
 | Fase 4: analysesjefen | 2 | 3 | 2 | 2 | 5 | ja, D50 |
 | 6. Invertering fra følsomheter | 3 | 1 | 2 | 2 | 4 | ja, D51 |
 | Kvartalsprognoser med rask fasit | 1 | 3 | 2 | 2 | 4 | ja, D52 |
-| 5. Fortelling mot tall | 2 | 1 | 2 | 3 | 2 | nei – krever at du skriver historien og tre tall per case; foreslått |
+| Løkkene på forsiden «I dag» | 2 | 2 | 1 | 1 | 4 | ja (oppdatering, prognose, forslag, feilgjennomgang) |
+| Skjørhet H (Taleb) i inverteringen | 1 | 1 | 2 | 1 | 3 | ja |
+| Base rates i Toolkit-rapporten | 2 | 1 | 2 | 1 | 4 | ja (Toolkit-grenen) |
+| 5. Fortelling mot tall | 2 | 1 | 2 | 2 | 3 | ja, D53 (påkrevd for full case: én setning og tre tall mot modellens) |
 | Unnlatelseslogg («pass») | 1 | 2 | 2 | 2 | 3 | nei – foreslått |
 | Katalysator med tidsvindu | 2 | 1 | 1 | 2 | 2 | nei |
