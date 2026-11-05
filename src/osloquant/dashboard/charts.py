@@ -19,11 +19,11 @@ def price_chart(snap: mk.Snapshot, code: str, case=None, sessions: int = 260) ->
     c = P["close"][code].dropna().iloc[-sessions:]
     v = P["volume"][code].reindex(c.index)
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.78, 0.22], vertical_spacing=0.03)
-    fig.add_trace(go.Scatter(x=c.index, y=c.values, name="Close", line=dict(color="#0f7c7c", width=2)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=c.index, y=c.values, name="Sluttkurs", line=dict(color="#0f7c7c", width=2)), row=1, col=1)
     for n, colr in ((20, "#7fb8b8"), (60, "#c98500")):
         if len(c) >= n:
             fig.add_trace(go.Scatter(x=c.index, y=c.rolling(n).mean(), name=f"MA{n}", line=dict(color=colr, width=1)), row=1, col=1)
-    fig.add_trace(go.Bar(x=v.index, y=v.values, name="Volume", marker_color="#b7c1c9"), row=2, col=1)
+    fig.add_trace(go.Bar(x=v.index, y=v.values, name="Volum", marker_color="#b7c1c9"), row=2, col=1)
     v_ = (case.view if case else None) or {}
     last_day, last_px = c.index[-1], float(c.iloc[-1])
     x_end = last_day
@@ -43,8 +43,8 @@ def price_chart(snap: mk.Snapshot, code: str, case=None, sessions: int = 260) ->
                                          textposition="middle left", textfont=dict(size=11, color=colr), name=label, showlegend=False, hoverinfo="skip"), row=1, col=1)
         d = pd.Timestamp(v_["date"])
         if v_.get("price") and d >= c.index[0]:
-            fig.add_trace(go.Scatter(x=[d], y=[v_["price"]], mode="markers", name="View", marker=dict(size=10, color="#c98500", symbol="diamond")), row=1, col=1)
-    title = f"{code} – daily close, 12 months (Yahoo Finance, delayed)" + (f"; cone to the view's bear / TP / bull at {x_end:%b %Y} (EST)" if x_end != last_day else "")
+            fig.add_trace(go.Scatter(x=[d], y=[v_["price"]], mode="markers", name="Synet", marker=dict(size=10, color="#c98500", symbol="diamond")), row=1, col=1)
+    title = f"{code} – daglig sluttkurs, 12 måneder (Yahoo Finance, forsinket)" + (f"; kjegle til synets bear / kursmål / bull i {x_end:%b %Y} (EST)" if x_end != last_day else "")
     fig.update_layout(height=440, margin=dict(l=44, r=16, t=60, b=16), legend=dict(orientation="h", y=1.01, yanchor="bottom", x=0), hovermode="x unified",
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", title=dict(text=title, font=dict(size=12.5), y=0.985, yanchor="top"),
                       font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"))
@@ -62,7 +62,7 @@ def short_chart(series: list[tuple[str, float]], code: str) -> str:
     fig = go.Figure(go.Scatter(x=x, y=y, mode="lines", line=dict(color="#b3261e", width=2, shape="hv"), name="Short %"))
     fig.update_layout(height=200, margin=dict(l=40, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                       font=dict(color="#4a5560"), showlegend=False,
-                      title=dict(text=f"{code} – public short positions, % of shares (Finanstilsynet)", font=dict(size=12)))
+                      title=dict(text=f"{code} – offentlige shortposisjoner, % av aksjene (Finanstilsynet)", font=dict(size=12)))
     fig.update_xaxes(gridcolor="#e6ebee")
     fig.update_yaxes(gridcolor="#e6ebee", rangemode="tozero", ticksuffix=" %")
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})

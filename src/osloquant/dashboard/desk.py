@@ -748,8 +748,9 @@ def bear(inp: Inputs, code: str, ctx: Ctx) -> list[Finding]:
     out.sort(key=lambda f: BEAR_RANK.get(f.kind, 9))
     out = out[:MAX_BEAR_REASONS]
     if len(out) < MIN_BEAR_REASONS:
-        return out + [Finding("bear", "too_few", f"{len(out)} grunner med tall (krav {MIN_BEAR_REASONS}); kildene gjennomgått: rapportleser, lett case, odds, signaler, shortregister, innsidere, porteføljen, kalibreringen, egen vurdering",
-                              "desk-reglene over kildene i oversikten", inp.session, t, status="stands")]
+        return out + [Finding("bear", "too_few", f"{len(out)} grunner med tall (krav {MIN_BEAR_REASONS})",
+                              "desk-reglene over rapportleser, lett case, odds, signaler, shortregister, innsidere, porteføljen, kalibreringen og egen vurdering",
+                              inp.session, t, status="stands")]
     return out
 
 

@@ -125,10 +125,13 @@ def block_html(res: dict | None) -> str:
 
     if not res:
         return ""
-    if not res["issues"]:
-        body = f'<span class="chip buy">én liste</span> modell {res["model_n"]} · syn {res["view_n"]} · leserregler {res["reader_n"]}'
-    else:
-        body = '<span class="chip risk">spriker</span> ' + " · ".join(E(i) for i in res["issues"])
     unchecked = (f'<div class="src">Ikke maskinsjekket av rapportleseren: {E("; ".join(res["unchecked"]))}</div>' if res.get("unchecked") else "")
-    return (f'<div class="sub" style="margin-top:6px"><b>Kill-listen mot modellen:</b> {body}</div>{unchecked}'
+    if not res["issues"]:
+        head = (f'<div class="sub" style="margin-top:6px"><b>Kill-listen mot modellen:</b> <span class="chip buy">én liste</span> '
+                f'modell {res["model_n"]} · syn {res["view_n"]} · leserregler {res["reader_n"]}</div>')
+    else:
+        items = "".join(f"<li>{E(i)}</li>" for i in res["issues"])
+        head = (f'<details style="margin-top:6px"><summary><b>Kill-listen mot modellen:</b> <span class="chip risk">spriker</span> '
+                f'{len(res["issues"])} avvik – modell {res["model_n"]} · syn {res["view_n"]} · leserregler {res["reader_n"]}</summary><ul>{items}</ul></details>')
+    return (f'{head}{unchecked}'
             + (f'<div class="src">Modellens liste: {E(str(res.get("source") or ""))}. Rettes i data-modulen (Toolkit) og logges på nytt som vurdering; ingen fil skrives om her (D40).</div>' if res.get("source") else ""))

@@ -70,6 +70,12 @@ def stock_section(sr: dk.StockRun, run: dk.DeskRun, static: bool = False, full: 
     return head + why + act + body
 
 
+def short_reason(text: str | None) -> str:
+    """The deciding finding in one line: runs stored before 5 Nov 2026 carried the bear's source list in the text."""
+    t = (text or "").split("; kildene gjennomgått")[0]
+    return t[:200]
+
+
 def quality_html(run: dk.DeskRun) -> str:
     items = "".join(f'<li>{"✓" if q["ok"] else "✗"} {E(q["what"])}: {E(str(q["asof"])[:19])}' + (f' – {E(q["note"])}' if q.get("note") else "") + '</li>' for q in run.data_quality)
     bad = sum(not q["ok"] for q in run.data_quality)
@@ -84,7 +90,7 @@ def run_header(run: dk.DeskRun, static: bool = False) -> str:
     def row(s: dk.StockRun) -> str:
         log = "" if static else f'<a href="/desk/run/{E(run.run_id)}/{E(s.code)}">logg</a>'
         return (f'<tr><td>{link(s.code, s.code, static)}</td><td>{E(s.name)}</td><td>{E(s.group)}</td><td><span class="chip {OUTCOME_CLASS.get(s.outcome, "plain")}">{E(dk.OUTCOME_LABEL.get(s.outcome, ""))}</span></td>'
-                f'<td style="white-space:normal;text-align:left">{E(s.reason[:200]) or "–"}</td><td>{log}</td></tr>')
+                f'<td style="white-space:normal;text-align:left">{E(short_reason(s.reason)) or "–"}</td><td>{log}</td></tr>')
 
     rows = "".join(row(s) for s in sorted(run.stocks, key=lambda s: (dk.OUTCOMES.index(s.outcome) if s.outcome in dk.OUTCOMES else 9, s.code)))
     turnover = f"{float(run.config.get('min_turnover_nok', 0)):,.0f}".replace(",", " ")
@@ -164,7 +170,7 @@ def stock_block(code: str, runs: list[dict], static: bool = False) -> str:
     def row(r: dict) -> str:
         log = "" if static else f'<a href="/desk/run/{E(r["run_id"])}/{E(code)}">logg</a>'
         return (f'<tr><td>{E(r["session"])}</td><td class="src">{E(r["finished_at"][11:16])} UTC · {E(r["trigger"])}</td><td><span class="chip {OUTCOME_CLASS.get(r["outcome"], "plain")}">{E(dk.OUTCOME_LABEL.get(r["outcome"], ""))}</span></td>'
-                f'<td style="white-space:normal;text-align:left">{E(r.get("reason") or "–")}</td><td>{log}</td></tr>')
+                f'<td style="white-space:normal;text-align:left">{E(short_reason(r.get("reason")) or "–")}</td><td>{log}</td></tr>')
 
     rows = "".join(row(r) for r in runs[:12])
     table = (f'<table><thead><tr><th>Sluttkurs</th><th>Kjørt</th><th>Utfall</th><th>Avgjørende funn</th><th></th></tr></thead><tbody>{rows}</tbody></table>' if rows

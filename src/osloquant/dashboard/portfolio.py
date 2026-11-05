@@ -97,7 +97,7 @@ def block_html(ex: dict, static: bool = False) -> str:
         return ""
     warn = warnings(ex)
     head = ('<div class="warn"><b>Boken som helhet:</b><ul>' + "".join(f"<li>{E(w)}</li>" for w in warn) + '</ul></div>' if warn
-            else '<div class="ok">The open views spread over more than one sector group and share no kill driver.</div>')
+            else '<div class="ok">De åpne synene er spredt over mer enn én sektorgruppe og deler ingen kill-driver.</div>')
     rows = "".join(
         f'<tr><td>{link(c["code"], c["name"], static)}</td><td>{E(c["group"])}</td>'
         f'<td>{"–" if c["loss_at_kill"] is None else format(c["loss_at_kill"], ",.0f").replace(",", " ")}</td>'

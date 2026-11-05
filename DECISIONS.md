@@ -846,3 +846,25 @@ date is part of the margin of safety). A BUY or SELL now names the kind of edge,
 and the catalyst with a date inside the horizon; HOLD is not asked. Stored on the row (`variant`), counted in the
 process score for views written from 5 Nov 2026, and when the date has passed with no kill check or view since, the
 front page asks whether it happened.
+
+## D56. The pages read as one thing: a nav that never squeezes, Norwegian labels, folded detail
+
+A visual pass over every page at 1400, 1250, 1100 and 900 px (headless Edge, 5 Nov 2026) found the nav squeezing
+its words below about 1250 px ("I dag" on two lines, the search cut off), four blocks that ran as walls of text, one
+table that overflowed, chart labels that overlapped, and headings and footers still in English from the first phases.
+
+- **The nav** is one row of whole words in four groups with a thin rule between them – the day (I dag, Desk,
+  Kalender), the universe (Dekning, Prisen krever, Sektorer, Porteføljer), yourself (Kalibrering, Feil, Analysesjef),
+  the machinery (Overvåkning, Datahelse). Nothing may wrap inside a word: below 1320 px the padding shrinks and the
+  brand drops to "Oslo Børs"; below 760 px the links wrap to a second row as whole tabs. `NAV_GROUPS` is the order;
+  `NAV` is kept flat for anything that reads it.
+- **Folded detail.** The kill-list comparison on the stock page is one line ("spriker – 10 avvik") that opens to the
+  list; the data-health box carries one line per case for it, and the case table's "Avvik" cell is a plain left-aligned
+  list, not a red paragraph. The desk's bear verdict no longer repeats the nine sources on every row (new runs write
+  the short form; old runs are shown short). The screen's candidate tables wrap their reading column instead of
+  running off the page. The portfolio chart's diamonds lost their text labels; the legend names them.
+- **Norwegian** on the front page's table, the calibration page, sectors, the watchlist, the light-case block, the
+  chart legends and titles, the footer. The analytic sentences the light case writes ("at a 9.5 % cost of capital …")
+  stay English for now: they are quoted by the desk, the screen and the tests, and are changed together or not at all.
+- Tests that pinned the English words were moved to the Norwegian ones; the source-labelling test accepts
+  "forsinket" as well as "delayed".

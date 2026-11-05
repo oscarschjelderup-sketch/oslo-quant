@@ -10,7 +10,7 @@ import pandas as pd
 
 from osloquant import signals as sg
 
-PRICE_SOURCE = "Yahoo Finance via oslo-quant store (daily close, delayed)"
+PRICE_SOURCE = "Yahoo Finance via oslo-quant-lageret (daglig sluttkurs, forsinket)"
 
 # The universe's sectors folded into the groups the dashboard shows, each with the driver that moves it.
 GROUPS = {

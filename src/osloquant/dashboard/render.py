@@ -21,13 +21,18 @@ CSS = """
 html { background:var(--bg); }
 body { margin:0; background:var(--bg); color:var(--text); font:13.5px/1.45 "Segoe UI",Arial,Helvetica,sans-serif; font-variant-numeric:tabular-nums; }
 .wrap { max-width:1320px; margin:0 auto; padding:0 22px 44px; }
-nav.top { display:flex; gap:2px; align-items:center; margin:0 -22px 18px; padding:0 22px; background:var(--accent-dark); min-height:40px; }
-nav.top a { padding:10px 12px; color:#e8f3f2; text-decoration:none; font-weight:600; font-size:13px; border-bottom:3px solid transparent; }
-nav.top a:hover { background:rgba(255,255,255,0.08); }
-nav.top a.on { background:#fff; color:var(--accent-dark); }
-nav.top .brand { font-weight:700; margin-right:16px; color:#fff; font-size:14px; letter-spacing:0.2px; }
-nav.top form { margin-left:auto; display:flex; gap:6px; }
+/* the nav: one row of whole words; at narrower widths the links wrap to a second row, nothing is squeezed or cut */
+nav.top { display:flex; align-items:center; margin:0 -22px 18px; padding:0 22px; background:var(--accent-dark); min-height:40px; }
+nav.top .brand { font-weight:700; margin-right:14px; color:#fff; font-size:14px; letter-spacing:0.2px; white-space:nowrap; flex:0 0 auto; }
+nav.top .links { display:flex; flex-wrap:wrap; align-items:stretch; flex:1 1 auto; min-width:0; }
+nav.top .links a { display:flex; align-items:center; padding:0 11px; min-height:40px; color:#e8f3f2; text-decoration:none; font-weight:600; font-size:13px; white-space:nowrap; border-bottom:3px solid transparent; }
+nav.top .links a:hover { background:rgba(255,255,255,0.08); }
+nav.top .links a.on { background:#fff; color:var(--accent-dark); }
+nav.top .sep { width:1px; background:rgba(255,255,255,0.22); margin:11px 5px; flex:0 0 auto; }
+nav.top form { margin-left:12px; display:flex; gap:6px; flex:0 0 auto; }
 nav.top input { padding:5px 9px; border:1px solid var(--accent-pale); border-radius:3px; background:#fff; color:var(--text); width:150px; font:inherit; }
+@media (max-width:1320px) { nav.top .links a { padding:0 8px; font-size:12.5px; } nav.top .brand .long { display:none; } nav.top input { width:120px; } nav.top .sep { margin:11px 3px; } }
+@media (max-width:760px) { nav.top { flex-wrap:wrap; padding-bottom:6px; } nav.top form { margin:6px 0 0 auto; } }
 a { color:var(--info); text-decoration:none; } a:hover { text-decoration:underline; }
 h1 { font-size:30px; font-weight:400; color:var(--accent); margin:6px 0 2px; letter-spacing:-0.2px; }
 h1 .code { font-size:15px; color:var(--muted); font-weight:400; margin-left:8px; }
@@ -96,6 +101,7 @@ details.card summary { color:var(--text); }
 .driver { font-size:12px; color:var(--muted); font-weight:400; margin-bottom:4px; }
 .bracket { display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
 .t { color:var(--buy); font-weight:700; } .k { color:var(--risk); font-weight:700; } .warn-t { color:var(--gold); }
+ul.issues { margin:0; padding-left:16px; } ul.issues li { margin:2px 0; } ul.issues details { display:inline; } ul.issues summary { display:inline; cursor:pointer; color:var(--risk); font-weight:600; }
 .err { background:var(--risk-bg); color:var(--risk); padding:8px 12px; border-left:4px solid var(--risk); margin:8px 0; }
 .ok { background:var(--buy-bg); color:var(--buy); padding:8px 12px; border-left:4px solid var(--buy); margin:8px 0; }
 .warn { background:var(--gold-bg); color:#6b4a00; padding:8px 12px; border-left:4px solid var(--gold); margin:8px 0; font-size:13px; }
@@ -109,7 +115,14 @@ button.go { margin-top:12px; padding:9px 20px; border:0; border-radius:2px; back
 button.go:hover { background:var(--accent-dark); }
 """
 
-NAV = [("/", "I dag"), ("/desk", "Desk"), ("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/review", "Feil"), ("/chief", "Analysesjef"), ("/funds", "Porteføljer"), ("/sectors", "Sektorer"), ("/calendar", "Kalender"), ("/calibration", "Kalibrering"), ("/watchlist", "Overvåkning"), ("/health", "Datahelse")]
+#: the nav in four groups, a thin rule between them: the day, the universe, yourself, the machinery
+NAV_GROUPS = [
+    [("/", "I dag"), ("/desk", "Desk"), ("/calendar", "Kalender")],
+    [("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/sectors", "Sektorer"), ("/funds", "Porteføljer")],
+    [("/calibration", "Kalibrering"), ("/review", "Feil"), ("/chief", "Analysesjef")],
+    [("/watchlist", "Overvåkning"), ("/health", "Datahelse")],
+]
+NAV = [item for group in NAV_GROUPS for item in group]
 
 
 def pct(v, d=1, sign=True):
@@ -132,18 +145,19 @@ def heat(v):
 
 
 def page(title: str, active: str, body: str, generated: datetime | None = None, static: bool = False) -> str:
-    nav = "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in NAV)
-    search = '' if static else '<form action="/go" method="get"><input name="code" placeholder="Ticker, f.eks. MOWI"></form>'
+    nav = '<span class="sep"></span>'.join(
+        "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in group) for group in NAV_GROUPS)
+    search = '' if static else '<form action="/go" method="get"><input name="code" placeholder="Ticker (MOWI)"></form>'
     plotly = '' if static else '<script src="/static/plotly.min.js"></script>'
     icon = '' if static else '<link rel="icon" href="/favicon.ico">'
-    note = ('<div class="src">Static snapshot written by the evening job. Live dashboard: <code>oq dashboard</code> → '
+    note = ('<div class="src">Statisk kopi skrevet av kveldsoppgaven. Det levende dashbordet: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
-    gen = f'<div class="src">Generated {(generated or datetime.now()):%d %b %Y %H:%M}. Private: research book and judgements are read from ~/osloquant-home, never published.</div>{note}'
+    gen = f'<div class="src">Generert {(generated or datetime.now()):%d %b %Y %H:%M}. Privat: research book og vurderingsloggen leses fra ~/osloquant-home og publiseres aldri.</div>{note}'
     return f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)} – Oslo Børs dashboard</title>{icon}<style>{CSS}</style>{plotly}</head><body><div class="wrap">
-<nav class="top"><span class="brand">Oslo Børs · beslutninger</span>{nav}{search}</nav>
+<nav class="top"><span class="brand">Oslo Børs<span class="long"> · beslutninger</span></span><span class="links">{nav}</span>{search}</nav>
 {body}
-<div class="foot">{gen}<div class="src">Prices: daily closes from Yahoo Finance via the oslo-quant store – delayed, not real time. Signal odds: measured on this store's history (oq signals score). Nothing here trades or advises.</div></div>
+<div class="foot">{gen}<div class="src">Kurser: daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret – forsinket, ikke sanntid. Signaloddsene er målt på lagerets egen historikk (oq signals score). Ingenting her handler eller gir råd.</div></div>
 </div></body></html>"""
 
 
@@ -204,11 +218,11 @@ def today_page(ctx: dict, static: bool = False) -> str:
                 + (f'; universet {cov["universe"]} selskaper – {cov["full"]} full case, {cov["light"]} lett case, {cov["watch"]} følges'
                    + (f', <span class="k">{cov["gap"]} under plan</span>' if cov.get("gap") else '') if cov.get("universe") else '')
                 + ('' if static else ' – <a href="/coverage">se Dekning</a>') + '.</div>') if cov and cov.get("claude") else ''
-    body.append('<h2>Research book mot kursmål</h2><div class="card"><table><thead><tr><th>Company</th><th>View</th><th>Close</th><th>Since view</th>'
-                '<th>TP</th><th>To TP</th><th>To bear</th><th>To bull</th><th>View from</th></tr></thead><tbody>'
-                + (rows or '<tr><td colspan="9" class="empty">no cases with a view</td></tr>') + '</tbody></table>'
-                f'<div class="src">Close: {E(ctx["price_label"])}. A move of 10 % or more since the view, or a report dated after the view, puts the case on '
-                'the decision list.</div>' + cov_line + '</div>')
+    body.append('<h2>Research book mot kursmål</h2><div class="card"><table><thead><tr><th>Selskap</th><th>Syn</th><th>Kurs</th><th>Siden synet</th>'
+                '<th>Kursmål</th><th>Til kursmål</th><th>Til bear</th><th>Til bull</th><th>Syn fra</th></tr></thead><tbody>'
+                + (rows or '<tr><td colspan="9" class="empty">ingen case med syn</td></tr>') + '</tbody></table>'
+                f'<div class="src">Kurs: {E(ctx["price_label"])}. En bevegelse på 10 % eller mer siden synet, eller en rapport datert etter synet, setter caset på '
+                'beslutningslisten.</div>' + cov_line + '</div>')
     if ctx.get("portfolio"):
         from osloquant.dashboard import portfolio as pf
 
@@ -220,14 +234,14 @@ def today_page(ctx: dict, static: bool = False) -> str:
     # upcoming + kill
     up = "".join(f'<li><b>{e["date"]:%d %b}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"]) if e.get("code") else E(e["name"])} – {E(e["what"])}'
                  + (f' <span class="src">({E(e["source"])})</span>' if e.get("source") else '')
-                 + (f'<details><summary>{len(e["kill"])} kill criteria to check at this event</summary><ul>'
+                 + (f'<details><summary>{len(e["kill"])} kill-kriterier å sjekke ved hendelsen</summary><ul>'
                     + "".join(f"<li>{E(k)}</li>" for k in e["kill"]) + '</ul></details>' if e.get("kill") else '') + '</li>' for e in ctx["upcoming"])
     ann = ctx.get("announcements")
     ann_html = ("".join(f'<li><b>{E(a["code"])}</b> {when(a["time"])} – <a href="{E(a["url"])}" target="_blank" rel="noopener">{E(a["title"])}</a></li>' for a in ann["items"])
-                or '<li class="empty">no announcements in the window</li>') + f'</ul><div class="src">{E(ann["source"])}</div>' if ann else \
-        '<li class="empty">announcements not fetched (oq dashboard --refresh)</li></ul>'
+                or '<li class="empty">ingen børsmeldinger i vinduet</li>') + f'</ul><div class="src">{E(ann["source"])}</div>' if ann else \
+        '<li class="empty">børsmeldinger ikke hentet (oq dashboard --refresh)</li></ul>'
     body.append('<div class="grid2"><div><h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
-                + (up or '<li class="empty">no events in the next 30 days</li>') + '</ul><div class="src">Research book, the issuers\' financial calendars on NewsWeb and Norges Bank; '
+                + (up or '<li class="empty">ingen hendelser de neste 30 dagene</li>') + '</ul><div class="src">Research book, selskapenes finanskalendere på NewsWeb og Norges Bank; '
                 + ('<a href="/calendar">hele kalenderen</a>' if not static else 'full calendar on the dashboard') + '.</div></div></div>'
                 '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
     if "insiders" in ctx:
@@ -253,8 +267,8 @@ def today_page(ctx: dict, static: bool = False) -> str:
 
 # ------------------------------------------------------------------------------------------------ Sektorer
 def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> str:
-    body = [f'<h1>Sektorer</h1><div class="sub">All {len(ret)} stocks by sector. Returns to the close of {asof:%d %b %Y} (Yahoo Finance, delayed). '
-            'Colour: green up, red down, full colour at ±10 %.</div>']
+    body = [f'<h1>Sektorer</h1><div class="sub">Alle {len(ret)} aksjene etter sektor. Avkastning til sluttkursen {asof:%d %b %Y} (Yahoo Finance, forsinket). '
+            'Farge: grønt opp, rødt ned, full farge ved ±10 %.</div>']
     for g in groups:
         sub = ret[ret["group"] == g].sort_values("m1", ascending=False)
         if sub.empty:
@@ -266,11 +280,11 @@ def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> s
             + (f'<td class="src">{r["date"]:%d %b}</td>' if r["stale"] else '<td></td>') + '</tr>' for code, r in sub.iterrows())
         d = drivers.get(g, [])
         dhtml = " · ".join(f'{E(x["label"])}: <b>{E(x["value"])}</b> <span class="src">({E(x["source"])})</span>' for x in d) or "–"
-        body.append(f'<div class="card sector"><h3><span>{E(g)} <span class="code">{len(sub)} stocks · avg {pct(avg["d1"])} d / {pct(avg["m1"])} m / {pct(avg["ytd"])} ytd</span></span></h3>'
-                    f'<div class="driver">Drivers: {dhtml}</div>'
-                    '<table class="heat"><thead><tr><th>Code</th><th>Name</th><th>Close</th><th>Day</th><th>Week</th><th>Month</th><th>YTD</th><th></th></tr></thead>'
+        body.append(f'<div class="card sector"><h3><span>{E(g)} <span class="code">{len(sub)} aksjer · snitt {pct(avg["d1"])} dag / {pct(avg["m1"])} mnd / {pct(avg["ytd"])} i år</span></span></h3>'
+                    f'<div class="driver">Drivere: {dhtml}</div>'
+                    '<table class="heat"><thead><tr><th>Kode</th><th>Navn</th><th>Kurs</th><th>Dag</th><th>Uke</th><th>Måned</th><th>I år</th><th></th></tr></thead>'
                     f'<tbody>{rows}</tbody></table></div>')
-    body.append('<div class="src">* YTD from the first close in the store (listed this year). A date after a row = that stock has no close for the newest session.</div>')
+    body.append('<div class="src">* I år fra første sluttkurs i lageret (notert i år). En dato etter en rad = aksjen mangler sluttkurs for siste økt.</div>')
     return page("Sektorer", "/sectors", "\n".join(body))
 
 
@@ -407,7 +421,7 @@ def stock_page(code: str, ctx: dict) -> str:
     keys = [("60 d høy / lav", f'{st["hi60"]:.2f} / {st["lo60"]:.2f}' if st.get("hi60") and st.get("lo60") else "–"),
             ("RSI 14", f'{st["rsi"]:.0f}' if st.get("rsi") is not None else "–"), ("MA20 / MA60", f'{st["ma20"]:.2f} / {st["ma60"]:.2f}' if st.get("ma60") else "–"),
             ("Trend", sg.trend_words(st))]
-    keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v_)}</li>" for k, v_ in keys) + '</ul><div class="src">Computed from the store\'s daily bars (delayed).</div>'
+    keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v_)}</li>" for k, v_ in keys) + '</ul><div class="src">Regnet fra lagerets daglige kurser (forsinket).</div>'
     sig = "".join(f'<div class="alert"><b>{E(a.kind)}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {chip_class(a)} odds">'
                   f'{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span><span class="d">{E(a.detail)}{bracket_line(a.signal)}</span></div>'
                   for a in ctx["alerts"]) or '<p class="empty">no signal in the last 10 sessions</p>'
@@ -964,19 +978,19 @@ def _px(v) -> str:
 
 def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict], rel: dict | None = None, fp: dict | None = None,
                      h2h: dict | None = None, learn_html: str = "") -> str:
-    body = ['<h1>Kalibrering</h1><div class="sub">What I said, what happened, how far off. Calls younger than their horizon are provisional and are not evidence.</div>']
-    chain = "verifies" if check.ok else "BROKEN: " + "; ".join(check.problems[:3])
-    body.append(f'<div class="src">Judgement log: {check.rows} rows, chain {E(chain)}, head {check.head[:16]}.</div>')
+    body = ['<h1>Kalibrering</h1><div class="sub">Hva jeg sa, hva som skjedde, hvor langt unna. Vurderinger yngre enn horisonten er foreløpige og ikke bevis.</div>']
+    chain = "verifiserer" if check.ok else "BRUTT: " + "; ".join(check.problems[:3])
+    body.append(f'<div class="src">Vurderingsloggen: {check.rows} rader, kjeden {E(chain)}, hode {check.head[:16]}.</div>')
     tiles = []
-    for label, key in (("Final (horizon reached)", "final"), ("All scored incl. provisional", "all_scored")):
+    for label, key in (("Endelige (horisonten nådd)", "final"), ("Alle scorede, også foreløpige", "all_scored")):
         s = summary.get(key, {"n": 0})
-        tiles.append(f'<div class="card"><h3>{E(label)}: {s["n"]} calls</h3>' + (
-            f'<ul class="kv"><li>Direction right (vs OSEBX): <b>{pct(s["direction_hit_rate"], 0, False)}</b></li>'
-            f'<li>Price vs target: mean {pct(s["mean_vs_target"])}, mean absolute {pct(s["mean_abs_vs_target"], 1, False)}</li>'
-            f'<li>Mean total return {pct(s["mean_tsr"])}, excess vs OSEBX {pct(s.get("mean_excess_osebx"))}</li>'
-            f'<li>Inside the bear-bull band: {pct(s.get("in_band_rate"), 0, False)}</li>'
-            + (f'<li>Scenario Brier score: {s["mean_brier"]:.2f} (0 = perfect, 0.67 = uniform)</li>' if "mean_brier" in s else '') + '</ul>'
-            if s["n"] else '<p class="empty">none yet</p>') + '</div>')
+        tiles.append(f'<div class="card"><h3>{E(label)}: {s["n"]} vurderinger</h3>' + (
+            f'<ul class="kv"><li>Retning riktig (mot OSEBX): <b>{pct(s["direction_hit_rate"], 0, False)}</b></li>'
+            f'<li>Kurs mot kursmål: snitt {pct(s["mean_vs_target"])}, snitt absolutt {pct(s["mean_abs_vs_target"], 1, False)}</li>'
+            f'<li>Snitt totalavkastning {pct(s["mean_tsr"])}, meravkastning mot OSEBX {pct(s.get("mean_excess_osebx"))}</li>'
+            f'<li>Innenfor bear–bull-båndet: {pct(s.get("in_band_rate"), 0, False)}</li>'
+            + (f'<li>Brier-skår for scenarioene: {s["mean_brier"]:.2f} (0 = perfekt, 0,67 = uniform)</li>' if "mean_brier" in s else '') + '</ul>'
+            if s["n"] else '<p class="empty">ingen ennå</p>') + '</div>')
     body.append('<div class="grid2">' + "".join(tiles) + '</div>')
     body.append(benchmarks_block(table[table["analyst"] == "oscar"] if len(table) and "analyst" in table else table, summary))
     body.append(analysts_block(summary, h2h))
@@ -988,17 +1002,17 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
         rows = "".join(
             f'<tr><td>#{r["seq"]}</td><td>{E({"claude": "Claude"}.get(r.get("analyst"), "du"))}</td><td>{link(r["code"])}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:.2f}</td><td>{r["target"]:g}</td>'
             f'<td>{_px(r.get("price_now"))}</td><td class="{cls(r.get("tsr"))}">{pct(r.get("tsr"))}</td><td class="{cls(r.get("excess_osebx"))}">{pct(r.get("excess_osebx"))}</td>'
-            f'<td>{pct(r.get("vs_target"))}</td><td>{"" if pd.isna(r.get("in_band")) else ("yes" if r.get("in_band") else "no")}</td>'
+            f'<td>{pct(r.get("vs_target"))}</td><td>{"" if pd.isna(r.get("in_band")) else ("ja" if r.get("in_band") else "nei")}</td>'
             f'<td>{"✓" if r.get("direction_hit") is True else "✗" if r.get("direction_hit") is False else ""}</td><td>{E(r["status"])} ({r["days"]} d)</td></tr>'
             for _, r in table.iterrows())
-        body.append('<h2>Per vurdering</h2><div class="card"><table><thead><tr><th>#</th><th>Hvem</th><th>Code</th><th>Date</th><th>View</th><th>Price</th><th>TP</th><th>Now</th>'
-                    '<th>TSR</th><th>vs OSEBX</th><th>vs TP</th><th>In band</th><th>Direction</th><th>Status</th></tr></thead>'
-                    f'<tbody>{rows}</tbody></table><div class="src">Total return from the call price on the adjusted series (dividends included); OSEBX from the store; '
-                    'prices delayed. Direction for BUY/SELL = sign of the excess over OSEBX.</div></div>')
+        body.append('<h2>Per vurdering</h2><div class="card"><table><thead><tr><th>#</th><th>Hvem</th><th>Selskap</th><th>Dato</th><th>Syn</th><th>Kurs</th><th>Kursmål</th><th>Nå</th>'
+                    '<th>Totalavk.</th><th>mot OSEBX</th><th>mot kursmål</th><th>I båndet</th><th>Retning</th><th>Status</th></tr></thead>'
+                    f'<tbody>{rows}</tbody></table><div class="src">Totalavkastning fra kursen i vurderingen på den justerte serien (utbytte med); OSEBX fra lageret; '
+                    'kursene er forsinket. Retning for BUY/SELL = fortegnet på meravkastningen mot OSEBX.</div></div>')
         if {"tsr", "excess_osebx", "direction_hit"} <= set(table.columns):
             per = (table[table["analyst"] == "oscar"] if "analyst" in table else table).groupby("code").agg(n=("seq", "count"), tsr=("tsr", "mean"), ex=("excess_osebx", "mean"), hit=("direction_hit", "mean"))
             prow = "".join(f'<tr><td>{link(code)}</td><td>{int(r["n"])}</td><td>{pct(r["tsr"])}</td><td>{pct(r["ex"])}</td><td>{pct(r["hit"], 0, False)}</td></tr>' for code, r in per.iterrows())
-            body.append(f'<h2>Per case</h2><div class="card"><table><thead><tr><th>Code</th><th>Calls</th><th>Mean TSR</th><th>Mean vs OSEBX</th><th>Direction right</th></tr></thead><tbody>{prow}</tbody></table></div>')
+            body.append(f'<h2>Per case</h2><div class="card"><table><thead><tr><th>Selskap</th><th>Vurderinger</th><th>Snitt totalavk.</th><th>Snitt mot OSEBX</th><th>Retning riktig</th></tr></thead><tbody>{prow}</tbody></table></div>')
         else:
             body.append('<h2>Per case</h2><div class="card"><p class="empty">No call has a price after its date yet (a view logged today is scored from tomorrow).</p></div>')
     kb = sum(bool(k["breached"]) for k in kills)
@@ -1021,16 +1035,16 @@ def benchmarks_block(table: pd.DataFrame, summary: dict) -> str:
                 'OSEBX, «kursen står stille» and consensus from its first session after the call.</p></div>')
     fin = scored[scored["status"] == "final"]
     rows = []
-    for label, t in (("Final calls", fin), ("All scored (incl. provisional)", scored)):
+    for label, t in (("Endelige vurderinger", fin), ("Alle scorede (også foreløpige)", scored)):
         if not len(t):
-            rows.append(f'<tr><td>{E(label)}</td><td colspan="4" class="empty">none yet</td></tr>')
+            rows.append(f'<tr><td>{E(label)}</td><td colspan="4" class="empty">ingen ennå</td></tr>')
             continue
         osebx = t["direction_hit"].dropna()
         flat = t["beat_flat"].dropna() if "beat_flat" in t else pd.Series(dtype=bool)
         cons = t["beat_consensus"].dropna() if "beat_consensus" in t else pd.Series(dtype=bool)
         cell = lambda b: f'<b>{pct(b.astype(bool).mean(), 0, False)}</b> <span class="src">({int(b.astype(bool).sum())} av {len(b)})</span>' if len(b) else '–'  # noqa: E731
         rows.append(f'<tr><td>{E(label)}</td><td>{cell(osebx)}</td><td>{pct(t["excess_osebx"].mean()) if t["excess_osebx"].notna().any() else "–"}</td>'
-                    f'<td>{cell(flat)}</td><td>{cell(cons) if len(cons) else "<span class=src>no consensus logged</span>"}</td></tr>')
+                    f'<td>{cell(flat)}</td><td>{cell(cons) if len(cons) else "<span class=src>ingen konsensus logget</span>"}</td></tr>')
     return ('<h2>Er jeg bedre enn referansene?</h2><div class="card"><table class="odds"><thead><tr><th></th><th>Retning riktig mot OSEBX</th>'
             '<th>Meravkastning mot OSEBX, snitt</th><th>Kursmålet nærmere enn «kursen står stille»</th><th>Kursmålet nærmere enn konsensus</th></tr></thead>'
             f'<tbody>{"".join(rows)}</tbody></table><div class="src">«Kursen står stille»: hvor ofte mitt kursmål bommet mindre på sluttkursen enn en '
@@ -1043,8 +1057,8 @@ def reliability_block(rel: dict) -> str:
     n_final, pending = rel.get("final_calls", 0), rel.get("pending_calls", 0)
     head = '<h2>Oppgitt sannsynlighet mot det som skjedde</h2><div class="card">'
     if not rel.get("pairs"):
-        return (head + f'<p class="empty">No final call with scenario probabilities yet ({pending} pending). The plot appears when the first '
-                'horizon has passed; until then there is nothing to calibrate against.</p></div>')
+        return (head + f'<p class="empty">Ingen endelig vurdering med scenariosannsynligheter ennå ({pending} venter). Plottet kommer når den første '
+                'horisonten er nådd; før det er det ingenting å kalibrere mot.</p></div>')
     import plotly.graph_objects as go
 
     b = rel["buckets"]
@@ -1108,16 +1122,16 @@ def watchlist_page(entries: list[dict], ret: pd.DataFrame, alerts: list[sg.Alert
                     f'<td>{"–" if r is None else format(r["close"], ".2f")}</td>'
                     + "".join(f'<td{heat(r[k]) if r is not None else ""}>{pct(r[k]) if r is not None else "–"}</td>' for k in ("d1", "w1", "m1", "ytd"))
                     + f'<td>{E(sig)}</td><td>{E(e.get("note", ""))}</td><td class="src">{E(str(e.get("added", "")))}</td>'
-                    f'<td>{"moved to the book " + E(str(moved)) if moved else link(code, "write a case view →")}</td></tr>')
+                    f'<td>{"moved to the book " + E(str(moved)) if moved else link(code, "skriv et syn →")}</td></tr>')
     form = ('<form method="post" action="/watchlist" class="judge" style="display:grid;grid-template-columns:140px 1fr auto;gap:8px;align-items:end">'
             '<div><label>Ticker</label><input name="code" required></div><div><label>Hvorfor følger jeg den?</label><input name="note" required minlength="5"></div>'
             '<div><button class="go" type="submit">Legg til</button></div></form>')
     m = "".join(f'<div class="err">{E(x)}</div>' for x in msg.get("errors", [])) + "".join(f'<div class="ok">{E(x)}</div>' for x in msg.get("ok", []))
-    body = ['<h1>Overvåkning</h1><div class="sub">Companies followed without a full case. Writing a view on the stock page moves a company into the research book.</div>',
+    body = ['<h1>Overvåkning</h1><div class="sub">Selskaper som følges uten full case. Et syn skrevet på aksjesiden flytter selskapet inn i research book.</div>',
             m, f'<div class="card">{form}</div>',
-            '<div class="card"><table class="heat"><thead><tr><th>Code</th><th>Name</th><th>Close</th><th>Day</th><th>Week</th><th>Month</th><th>YTD</th><th>Signals (10 sessions)</th>'
-            '<th>Note</th><th>Added</th><th></th></tr></thead><tbody>' + ("".join(rows) or '<tr><td colspan="11" class="empty">nothing watched yet</td></tr>') + '</tbody></table>'
-            '<div class="src">Prices: Yahoo Finance via the store, delayed. Stored privately in ~/osloquant-home/watchlist.yaml.</div></div>']
+            '<div class="card"><table class="heat"><thead><tr><th>Kode</th><th>Navn</th><th>Kurs</th><th>Dag</th><th>Uke</th><th>Måned</th><th>I år</th><th>Signaler (10 økter)</th>'
+            '<th>Notat</th><th>Lagt til</th><th></th></tr></thead><tbody>' + ("".join(rows) or '<tr><td colspan="11" class="empty">ingenting følges ennå</td></tr>') + '</tbody></table>'
+            '<div class="src">Kurser: Yahoo Finance via lageret, forsinket. Lagres privat i ~/osloquant-home/watchlist.yaml.</div></div>']
     return page("Overvåkning", "/watchlist", "\n".join(body))
 
 
@@ -1138,12 +1152,12 @@ def lightcase_block(lc: dict | None) -> str:
     cur = lc["currency"]["reporting"]
     p, m, r, rv, pe = lc["profit"], lc["multiples"], lc["returns"], lc["reverse"], lc.get("peers") or {}
     fx = lc["currency"].get("fx")
-    fxs = "" if cur == "NOK" else f' · {E(cur)}NOK {fx:.4f} ({E(str(lc["currency"].get("fx_date")))})' if fx else f" · no {E(cur)}NOK rate"
+    fxs = "" if cur == "NOK" else f' · {E(cur)}NOK {fx:.4f} ({E(str(lc["currency"].get("fx_date")))})' if fx else f" · ingen {E(cur)}NOK-kurs"
     figs = "".join(f'<tr><td>{E(lab)}</td><td>{_mn(p[k]["value"])}</td><td class="src">{E(str(p[k]["period"] or "–"))}</td></tr>'
-                   for lab, k in (("Revenue", "revenue"), ("EBIT", "ebit"), ("Net income", "net_income"), ("Free cash flow", "fcf")))
+                   for lab, k in (("Omsetning", "revenue"), ("EBIT", "ebit"), ("Resultat", "net_income"), ("Fri kontantstrøm", "fcf")))
     b = lc["balance"]
-    figs += (f'<tr><td>Net debt</td><td>{_mn(b.get("net_debt"))}</td><td class="src">{E(str(b.get("date") or "–"))}</td></tr>'
-             f'<tr><td>Equity</td><td>{_mn(b.get("equity"))}</td><td class="src">{E(str(b.get("date") or "–"))}</td></tr>')
+    figs += (f'<tr><td>Netto gjeld</td><td>{_mn(b.get("net_debt"))}</td><td class="src">{E(str(b.get("date") or "–"))}</td></tr>'
+             f'<tr><td>Egenkapital</td><td>{_mn(b.get("equity"))}</td><td class="src">{E(str(b.get("date") or "–"))}</td></tr>')
     mult = [("P/E", m.get("pe"), pe.get("pe"), pe.get("n_pe")), ("P/B", m.get("pb"), pe.get("pb"), pe.get("n_pb"))]
     if not lc["financial"]:
         mult.insert(1, ("EV/EBIT", m.get("ev_ebit"), pe.get("ev_ebit"), pe.get("n_ev_ebit")))
@@ -1152,31 +1166,31 @@ def lightcase_block(lc: dict | None) -> str:
         mrows += f'<tr><td>FCF yield</td><td><b>{pct(m["fcf_yield"], 1, False)}</b></td><td></td></tr>'
     rets = " · ".join(x for x in (f'ROE {pct(r.get("roe"), 0, False)}' if r.get("roe") is not None else "",
                                   f'ROIC {pct(r.get("roic"), 0, False)}' if r.get("roic") is not None else "",
-                                  f'tax {pct(r.get("tax_rate"), 0, False)} ({E(str(r.get("tax_period")))})') if x)
+                                  f'skatt {pct(r.get("tax_rate"), 0, False)} ({E(str(r.get("tax_period")))})') if x)
     warn = "".join(f"<li>{E(w)}</li>" for w in lc.get("warnings", []))
     from osloquant.dashboard import lightcase as lcm
 
     q, n, h = lcm.quality(lc), lcm.normalised(lc), lcm.history(lc)
     qline = (f'<p>{grade_chip(q)} <b>Kvalitet {q["grade"]}</b>'
-             + (": " + E("; ".join(q["issues"])) if q["issues"] else ": price, shares, currency, LTM and quarters in place")
+             + (": " + E("; ".join(q["issues"])) if q["issues"] else ": kurs, aksjer, valuta, LTM og kvartaler på plass")
              + ("".join(f' <span class="src">· {E(x)}</span>' for x in q["notes"])) + '</p>')
     hist = ""
     if h.get("years"):
-        hist = (f'<div class="src">History {h["from"]}–{h["to"]}: revenue {pct(h.get("rev_cagr"))} a year, EBIT {pct(h.get("ebit_cagr"))} a year, '
-                f'EBIT margin {pct(h.get("margin_avg"), 1, False)} on average ({pct(h.get("margin_min"), 1, False)} to {pct(h.get("margin_max"), 1, False)})'
-                + (f', ROIC {pct(h.get("roic_avg"), 0, False)} on average' if h.get("roic_avg") is not None and not lc["financial"] else "")
-                + (f', ROE {pct(h.get("roe_avg"), 0, False)} on average' if h.get("roe_avg") is not None and lc["financial"] else "")
-                + ' (annual table below the figures; Yahoo annual statements).</div>')
-    norm = f'<div class="sub" style="margin-bottom:8px">On the average margin: {E(n["reads"])}.</div>' if n else ""
+        hist = (f'<div class="src">Historikk {h["from"]}–{h["to"]}: omsetning {pct(h.get("rev_cagr"))} per år, EBIT {pct(h.get("ebit_cagr"))} per år, '
+                f'EBIT-margin {pct(h.get("margin_avg"), 1, False)} i snitt ({pct(h.get("margin_min"), 1, False)} til {pct(h.get("margin_max"), 1, False)})'
+                + (f', ROIC {pct(h.get("roic_avg"), 0, False)} i snitt' if h.get("roic_avg") is not None and not lc["financial"] else "")
+                + (f', ROE {pct(h.get("roe_avg"), 0, False)} i snitt' if h.get("roe_avg") is not None and lc["financial"] else "")
+                + ' (årstabellen under tallene; Yahoo årsregnskap).</div>')
+    norm = f'<div class="sub" style="margin-bottom:8px">På snittmarginen: {E(n["reads"])}.</div>' if n else ""
     return (f'<h2>Lett case – grunnlaget for tallene</h2><div class="card"><div class="sub" style="margin-bottom:8px"><b>{E(lcm.reading(lc).get("reads") or rv.get("reads") or "")}</b></div>'
             + norm + qline + hist
             + (f'<div class="warn"><ul>{warn}</ul></div>' if warn else "")
-            + f'<div class="grid2"><div><table class="odds"><thead><tr><th>{E(cur)} m</th><th></th><th>Period</th></tr></thead><tbody>{figs}</tbody></table></div>'
-            f'<div><table class="odds"><thead><tr><th></th><th>{E(lc["code"])}</th><th>{E(pe.get("group", "group"))} median</th></tr></thead><tbody>{mrows}</tbody></table>'
+            + f'<div class="grid2"><div><table class="odds"><thead><tr><th>{E(cur)} m</th><th></th><th>Periode</th></tr></thead><tbody>{figs}</tbody></table></div>'
+            f'<div><table class="odds"><thead><tr><th></th><th>{E(lc["code"])}</th><th>median {E(pe.get("group", "gruppen"))}</th></tr></thead><tbody>{mrows}</tbody></table>'
             f'<div class="src" style="margin-top:6px">{rets}</div></div></div>'
-            f'<div class="src">Price {lc["price"]["value"]:.2f} NOK ({E(lc["price"]["date"])}, {E(lc["price"]["source"])}); market value NOK {_mn(lc.get("mcap_nok"), 1e9)} bn; '
-            f'reports in {E(cur)}{fxs}. Statements: {E(lc["statements_source"])}, quarters to {E(str(lc.get("quarters_through")))}. '
-            f'Group medians: {E(pe.get("note", ""))}. Cost of capital and long-run growth are EST. Built {E(lc["built_at"])} (oq case build).</div></div>')
+            f'<div class="src">Kurs {lc["price"]["value"]:.2f} NOK ({E(lc["price"]["date"])}, {E(lc["price"]["source"])}); markedsverdi NOK {_mn(lc.get("mcap_nok"), 1e9)} mrd; '
+            f'rapporterer i {E(cur)}{fxs}. Regnskap: {E(lc["statements_source"])}, kvartaler til {E(str(lc.get("quarters_through")))}. '
+            f'Gruppemedianer: {E(pe.get("note", ""))}. Kapitalkostnad og langsiktig vekst er EST. Bygget {E(lc["built_at"])} (oq case build).</div></div>')
 
 
 def grade_chip(q: dict | None) -> str:
@@ -1210,9 +1224,9 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
         roic = ("–" if r["financial"] else f'{pct(r.get("now"), 0, False)} / {pct(r.get("roic_avg"), 0, False)} <span class="src">mot {pct(r.get("wacc"), 1, False)} EST</span>')
         return (f'<tr><td>{link(r["code"], r["name"])}</td>' + (f'<td class="src">{E(r["group"])}</td>' if with_group else "")
                 + f'<td>{_level_chip(r["level"]) if r["level"] else "–"}</td><td>{grade_chip(r["quality"])}</td>'
-                f'<td><b>{req(r)}</b> <span class="src">{E(r["basis"])}</span></td><td>{hist(r)}</td>'
+                f'<td><b>{req(r)}</b> <span class="src">{E(r["basis"])}</span></td><td style="white-space:normal">{hist(r)}</td>'
                 f'<td>{gap}</td>'
-                f'<td>{roic}</td><td class="{verdict_cls}">{E(r["label"])}</td></tr>')
+                f'<td>{roic}</td><td class="{verdict_cls}" style="white-space:normal">{E(r["label"])}</td></tr>')
     head = ('<thead><tr><th>Selskap</th>{grp}<th>Nivå</th><th>Kvalitet</th><th>Prisen krever</th><th>Sammenlignet med (omsetning; bank: ROE; syklisk: 2 % EST)</th>'
             '<th>Spenn</th><th>ROIC nå / snitt</th><th>Lesning</th></tr></thead>')
 
@@ -1380,7 +1394,7 @@ def analysts_block(summary: dict, h2h: dict | None) -> str:
 
     def col(s: dict) -> str:
         if not s.get("n"):
-            return '<td colspan="4" class="empty">none scored yet</td>'
+            return '<td colspan="4" class="empty">ingen scoret ennå</td>'
         return (f'<td>{s["n"]}</td><td>{pct(s.get("direction_hit_rate"), 0, False)}</td><td>{pct(s.get("mean_abs_vs_target"), 1, False)}</td>'
                 f'<td>{pct(s.get("beat_flat_rate"), 0, False) if s.get("beat_flat_rate") is not None else "–"}</td>')
     rows = "".join(f'<tr><td>{E(lab)}</td>{col(s)}</tr>' for lab, s in (
@@ -1392,7 +1406,7 @@ def analysts_block(summary: dict, h2h: dict | None) -> str:
                         f'<td>{E(x["claude"]["rating"])} {x["claude"]["target"]:g}</td><td>{pct(x["claude"]["vs_target"])}</td><td>{E(x["closer"])}</td></tr>' for x in h2h["rows"])
         hh = ('<h3 style="margin-top:10px">Side om side (nyeste syn per selskap)</h3><table class="odds"><thead><tr><th>Selskap</th><th>Du</th><th>Kurs mot ditt mål</th>'
               f'<th>Claude</th><th>Kurs mot Claudes mål</th><th>Nærmest</th></tr></thead><tbody>{hrows}</tbody></table>')
-    return ('<h2>Du og Claude</h2><div class="card"><table class="odds"><thead><tr><th></th><th>Scored</th><th>Retning riktig mot OSEBX</th>'
+    return ('<h2>Du og Claude</h2><div class="card"><table class="odds"><thead><tr><th></th><th>Scoret</th><th>Retning riktig mot OSEBX</th>'
             f'<th>Snittavvik fra kursmål</th><th>Nærmere enn «kursen står stille»</th></tr></thead><tbody>{rows}</tbody></table>{hh}'
             '<div class="src">Inkluderer provisoriske vurderinger – de er ikke bevis før horisonten er nådd. Blind/etter: dine syn på selskaper Claude også har vurdert, '
             'delt etter svaret ditt i skjemaet. Toppen av siden er dine tall alene.</div></div>')
@@ -1428,8 +1442,8 @@ def frontier_chart(b: dict) -> str:
         e = f["est"]
         if e.get("vol") is None:
             continue
-        fig.add_trace(go.Scatter(x=[e["vol"]], y=[e["ret"]], mode="markers+text", name=f["name"], text=[f["name"]], textposition="top center",
-                                 textfont=dict(size=10.5, color=cols[i % len(cols)]), marker=dict(size=11, color=cols[i % len(cols)], symbol="diamond")))
+        fig.add_trace(go.Scatter(x=[e["vol"]], y=[e["ret"]], mode="markers", name=f["name"], marker=dict(size=11, color=cols[i % len(cols)], symbol="diamond"),
+                                 hovertemplate=f'{f["name"]}: vol %{{x:.1%}}, E[r] %{{y:.1%}}<extra></extra>'))
     fig.update_layout(height=430, margin=dict(l=50, r=20, t=40, b=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="closest",
                       font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), legend=dict(orientation="h", y=-0.18, x=0, font=dict(size=11)),
                       title=dict(text=f"Forventet avkastning mot volatilitet, {b['lookback_years']:.0f} års historikk til {b['asof']} (EST – se teksten)", font=dict(size=12.5)))

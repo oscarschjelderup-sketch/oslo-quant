@@ -287,7 +287,7 @@ def test_the_desk_page_runs_one_stock_and_the_log_opens_from_the_stock_page_and_
     run_id = r.headers["Location"].split("/")[-2]
     log = client.get(f"/desk/run/{run_id}/SATS").get_data(as_text=True)
     assert "Debattlogg" in log and "Bjørn" in log and "Analytikeren svarer" in log and "klar for vurdering" in log and "forsinket" in log and "EST" in log
-    assert "Yahoo Finance via oslo-quant store" in log                        # the source line on the findings
+    assert "Yahoo Finance via oslo-quant-lageret" in log                      # the source line on the findings
     assert client.get(f"/desk/run/{run_id}").status_code == 200 and client.get("/desk/run/20200101T000000-daily/SATS").status_code == 404
     assert client.get("/desk/run/../x/SATS").status_code == 404
     assert client.post("/desk/run", data={"code": "../x"}).status_code == 400

@@ -297,8 +297,12 @@ def problems(ov: dict) -> list[str]:
     if not ov["testdata"]["present"]:
         out.append("frozen test data missing: the deterministic tests will skip")
     for ch in ov.get("cases") or []:
+        kills = [i for i in ch["issues"] if i.startswith("kill-listen:")]
         for i in ch["issues"]:
-            out.append(f"{ch['code']}: {i}")
+            if not i.startswith("kill-listen:"):
+                out.append(f"{ch['code']}: {i}")
+        if kills:                                             # one line, not one per divergence; the stock page lists them
+            out.append(f"{ch['code']}: kill-listen spriker ({len(kills)} avvik – se aksjesiden)")
     return out
 
 
@@ -343,9 +347,16 @@ def page_html(ov: dict) -> str:
         age = f' ({r["view_age"]} d)' if r["view_age"] is not None else ""
         gap = f' ({r["lightcase_gap"] * 100:+.0f} %)' if r["lightcase_gap"] is not None else ""
         tp = f' (TP {r["report_tp"]:g})' if isinstance(r.get("report_tp"), (int, float)) else ""
+        plain = [i for i in r["issues"] if not i.startswith("kill-listen:")]
+        kills = [i for i in r["issues"] if i.startswith("kill-listen:")]
+        items = "".join(f"<li>{E(i)}</li>" for i in plain)
+        if kills:
+            items += (f'<li><details><summary>kill-listen spriker: {len(kills)} avvik</summary><ul>'
+                      + "".join(f"<li>{E(k.removeprefix('kill-listen: '))}</li>" for k in kills) + '</ul></details></li>')
+        cell = f'<ul class="issues">{items}</ul>' if items else '<span class="t">ok</span>'
         return (f'<tr><td>{link(r["code"])}</td><td>{E(r["view_date"])}{age}</td><td>{E(r["lightcase_built"] or "–")}{gap}</td>'
                 f'<td>{E(r["report_date"] or "–")}{tp}</td><td>{E(r["model_date"] or "–")}</td>'
-                f'<td style="white-space:normal" class="{"k" if r["issues"] else ""}">{E("; ".join(r["issues"]) or "ok")}</td></tr>')
+                f'<td style="white-space:normal;text-align:left;font-weight:400">{cell}</td></tr>')
 
     ch_rows = "".join(_case_row(r) for r in ov.get("cases") or [])
     cases_html = ('<div class="card"><h3>Caser: alder og avvik mellom kilder</h3><table class="odds"><thead><tr><th>Case</th><th>Syn (alder)</th><th>Lett case (kurs mot lageret)</th>'

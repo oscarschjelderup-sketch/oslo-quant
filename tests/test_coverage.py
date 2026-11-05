@@ -210,6 +210,6 @@ def test_price_chart_draws_the_cone_to_the_views_values(app):  # noqa: F811
     client, snap = app
     c = bk.case("AAA")
     html = price_chart(snap, "AAA", c)
-    assert "TP NOK 120" in html and "Bear NOK 70" in html and "Bull NOK 150" in html and "cone to the view" in html
+    assert "TP NOK 120" in html and "Bear NOK 70" in html and "Bull NOK 150" in html and "kjegle til synets" in html
     plain = price_chart(snap, "BBB", None)
-    assert "cone" not in plain and "Close" in plain
+    assert "kjegle" not in plain and "Sluttkurs" in plain

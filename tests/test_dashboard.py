@@ -147,7 +147,7 @@ def test_every_page_renders_and_labels_its_sources(app):
         r = client.get(url)
         assert r.status_code == 200, url
         text = r.get_data(as_text=True)
-        assert "delayed" in text, url
+        assert "forsinket" in text or "delayed" in text, url               # every page says its prices are delayed
     assert "Dette krever en vurdering fra deg" in client.get("/").get_data(as_text=True)
     sectors = client.get("/sectors").get_data(as_text=True)
     assert "not free" in sectors and "Baltic" in sectors                      # freight is said to be unavailable
@@ -374,7 +374,7 @@ def test_consensus_target_needs_a_source_and_the_calibration_page_shows_benchmar
     assert row["consensus_target"] == 140.0 and row["consensus_source"] == "IR page, 2026-10-22"
     page = client.get("/calibration").get_data(as_text=True)
     assert "Er jeg bedre enn referansene?" in page and "kursen står stille" in page
-    assert "Oppgitt sannsynlighet mot det som skjedde" in page and "pending" in page       # no final call yet: plot withheld
+    assert "Oppgitt sannsynlighet mot det som skjedde" in page and "venter" in page        # no final call yet: plot withheld
 
 
 # ------------------------------------------------------------------------------------------------ before the report (night: D22)
