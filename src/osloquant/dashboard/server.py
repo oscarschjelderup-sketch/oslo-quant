@@ -366,6 +366,8 @@ def create_app() -> Flask:
         form["probs_deliberate"] = bool(f.get("probs_deliberate"))
         form["anchor_reason"] = (f.get("anchor_reason") or "").strip()
         form["base_rate_reason"] = (f.get("base_rate_reason") or "").strip()            # D47
+        for k in ("variant_kind", "variant_edge", "catalyst", "catalyst_by"):              # D55
+            form[k] = (f.get(k) or "").strip()
         for k in ("story", "story_rev_cagr", "story_ebitda_m", "story_eps"):                # D53
             form[k] = (f.get(k) or "").strip()
         for k in ("target", "bear", "base", "bull", "p_bear", "p_base", "p_bull", "kill_level", "position_shares", "consensus_target"):

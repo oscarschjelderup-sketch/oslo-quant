@@ -837,3 +837,12 @@ reason (at least fifteen characters) and whether the company was inside the circ
 view without a target – total return against OSEBX for twelve months – and a pass inside the circle that beat OSEBX by
 more than 20 percentage points is a *possible omission* (the threshold is mine). The calibration page lists them; the
 head of analysis counts passes as forecasts in R04. Cheap on purpose: one sentence and a tick.
+
+## D55. Variant perception and the catalyst
+
+Marks ("It's Not Easy", 2015: different and better than the consensus), Mauboussin and Callahan ("Who Is On the Other
+Side?": behavioural, analytical, informational or technical edges) and Klarman (a catalyst closes the gap, and its
+date is part of the margin of safety). A BUY or SELL now names the kind of edge, what the price misses in one sentence,
+and the catalyst with a date inside the horizon; HOLD is not asked. Stored on the row (`variant`), counted in the
+process score for views written from 5 Nov 2026, and when the date has passed with no kill check or view since, the
+front page asks whether it happened.

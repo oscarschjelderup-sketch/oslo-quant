@@ -4,6 +4,7 @@ temporary home (never the real research book or judgement log)."""
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -25,6 +26,8 @@ PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pag
 GOOD = {"rating": "BUY", "target": "130", "rationale": "Margins recover as the price increases stick; cheap on 2027.",
         "kill": "Gross margin below 40%\nNet debt above 3x EBITDA", "bear": "80", "base": "125", "bull": "160",
         "p_bear": "0.25", "p_base": "0.5", "p_bull": "0.25", "horizon": "12", "kill_level": "85",
+        "variant_kind": "analytical", "variant_edge": "Fictional: the market extrapolates one weak quarter",
+        "catalyst": "Fictional: the next report shows the margin", "catalyst_by": (date.today() + timedelta(days=60)).isoformat(),
         "premortem_1": "Fictional reason one: prices stopped rising", "premortem_2": "Fictional reason two: costs grew faster", "premortem_3": "Fictional reason three: a competitor cut prices"}
 
 

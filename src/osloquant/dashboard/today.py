@@ -241,6 +241,11 @@ def habit_items(cases: list[bk.Case], today: pd.Timestamp, rows: list[dict] | No
         left = (pd.Timestamp(r["date"]) - today).days
         items.append(Item(code, "forecast", f"{names.get(code, code)}: logg kvartalsprognosen før rapporten {r['date']} ({left} d)",
                           "Et 80 %-intervall for omsetning eller EBITDA – rapportleseren gir fasiten, og kalibreringen får et svar på uker i stedet for et år.", 1))
+    from osloquant.dashboard import variant as vrt
+
+    for d in vrt.due(cases, today):
+        items.append(Item(d["code"], "catalyst", f"{d['name']}: skjedde katalysatoren innen {d['by']}?",
+                          f"«{d['catalyst'][:90]}» ({d['days']} d siden). Logg en kill-sjekk eller en ny vurdering – Klarman: datoen er en del av sikkerhetsmarginen.", 1))
     runs = ch.latest_runs(1)
     if runs:
         live = ch.proposals(runs[-1]["results"], ch.read_decisions())["live"]

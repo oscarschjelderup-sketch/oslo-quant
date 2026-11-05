@@ -839,6 +839,7 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 {dsc.anchor_box(prev, px, f)}
 {_baserate_form(code, f)}
 {_story_form(code, f)}
+{_variant_form(f)}
 <div class="row3"><div><label>Konsensus kursmål (valgfritt, offentlig kilde)</label><input name="consensus_target" inputmode="decimal" value="{val("consensus_target")}"></div>
 <div style="grid-column:span 2"><label>Kilde og dato for konsensus (påkrevd hvis mål)</label><input name="consensus_source" placeholder="f.eks. selskapets IR-side, 2026-10-22" value="{val("consensus_source")}"></div></div>
 <label>Begrunnelse (påkrevd)</label><textarea name="rationale" required minlength="20">{val("rationale")}</textarea>
@@ -848,6 +849,12 @@ Nothing earlier can be changed: a new view is a new row. Date = today; price = t
 {ack_box(code, f)}
 {sizing_box(px, sz, val("position_shares"))}
 <button class="go" type="submit">Logg vurderingen</button></form></div>"""
+
+
+def _variant_form(f: dict) -> str:
+    from osloquant.dashboard import variant as vrt
+
+    return vrt.box_html(f)
 
 
 def _story_form(code: str, f: dict) -> str:

@@ -3,6 +3,8 @@ judgement whose loss at the kill level is over the limit is refused without writ
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 
 from osloquant import judgements as jg
@@ -11,6 +13,8 @@ from osloquant.dashboard import sizing
 
 CFG = {"paper_capital": 100000, "max_loss": 2000, "max_position": 0.25}
 FORM = {"rating": "BUY", "target": 130, "rationale": "A rationale that says why, long enough.", "kill": ["margin below 10%"],
+        "variant_kind": "analytical", "variant_edge": "Fictional: the market extrapolates one weak quarter", "catalyst": "Fictional: the next report",
+        "catalyst_by": (date.today() + timedelta(days=60)).isoformat(),
         "premortem": ["Fictional reason one: prices stopped rising", "Fictional reason two: costs grew faster", "Fictional reason three: a competitor cut prices"]}
 
 

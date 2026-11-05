@@ -172,6 +172,9 @@ def validate_form(form: dict) -> list[str]:
     from osloquant.dashboard import discipline as dsc
 
     problems += dsc.premortem_problems(form.get("premortem") or dsc.premortem_from_form(form))
+    from osloquant.dashboard import variant as vrt
+
+    problems += vrt.problems(vrt.parse(form), form.get("rating"), datetime.now().strftime("%Y-%m-%d"), int(form.get("horizon") or 12))   # D55
     if form.get("code"):
         from osloquant.dashboard import story as sty
 
@@ -259,6 +262,7 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
                   probs_deliberate=True if form.get("probs_deliberate") else None,
                   anchor=anchor, anchor_reason=(form.get("anchor_reason") or "").strip() or None, base_rate=base_rate,
                   story=_story_field(code, form),
+                  variant=_variant_field(form),
                   source="dashboard", **pos)
     row = jg.append("judgement", fields)
     book = sg.load_book()
@@ -266,6 +270,12 @@ def write_judgement(code: str, name: str | None, form: dict, price: float, price
         _append_book_entry(code, name or code, today)
     mark_moved(code, row["seq"], today)
     return row
+
+
+def _variant_field(form: dict) -> dict | None:
+    from osloquant.dashboard import variant as vrt
+
+    return vrt.row_field(vrt.parse(form), form.get("rating"))
 
 
 def _story_field(code: str, form: dict) -> dict | None:

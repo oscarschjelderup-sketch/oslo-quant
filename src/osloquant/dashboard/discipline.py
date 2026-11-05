@@ -43,6 +43,7 @@ ITEM_LABEL = {
     "debated": "kjørt gjennom desken (bjørnen hørt)",
     "not_anchored": "kursmålet fulgte ikke bare kursen",
     "base_rate": "estimatene innenfor base rate (eller begrunnet)",
+    "variant": "variant og katalysator med dato (BUY/SELL)",
 }
 
 
@@ -114,6 +115,8 @@ def process_items(row: dict) -> dict[str, bool | None]:
         "debated": bool(row.get("desk_run")),
         "not_anchored": None if not a else (a.get("kind") is None or bool(row.get("anchor_reason"))),
         "base_rate": None if not br else (not br.get("flags") or bool(br.get("reason"))),
+        "variant": (None if row.get("rating") not in ("BUY", "SELL") or str(row.get("date", ""))[:10] < "2026-11-05"
+                    else bool((row.get("variant") or {}).get("by"))),
     }
 
 
