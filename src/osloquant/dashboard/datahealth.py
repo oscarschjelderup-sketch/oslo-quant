@@ -279,23 +279,23 @@ def problems(ov: dict) -> list[str]:
     out = []
     p = ov["prices"]
     if p["stale"]:
-        out.append(f"{len(p['stale'])} stocks without a close on {p['asof']}: {', '.join(p['stale'][:8])}")
+        out.append(f"{len(p['stale'])} aksjer uten sluttkurs {p['asof']}: {', '.join(p['stale'][:8])}")
     for f in ov["feeds"]:
         if f["status"] != "ok":
-            out.append(f"feed {f['feed']}: {f['status']}" + (f" ({f['age_days']} d old, limit {f['limit_days']})" if f["age_days"] is not None else ""))
+            out.append(f"feed {f['feed']}: {f['status']}" + (f" ({f['age_days']} d gammel, grense {f['limit_days']})" if f["age_days"] is not None else ""))
     for r in ov["reports"]:
         if r["status"] != "ok" and r.get("oscar_view", True):
-            out.append(f"report reader {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
+            out.append(f"rapportleseren {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
     lg = ov["log"]
     if lg["chain_ok"] is False or lg["problems"]:
-        out.append("judgement log: " + "; ".join(lg["problems"][:2]))
+        out.append("vurderingsloggen: " + "; ".join(lg["problems"][:2]))
     d = ov.get("dividends")
     if d is None:
-        out.append("dividend audit never run (oq data audit)")
+        out.append("utbytterevisjonen er aldri kjørt (oq data audit)")
     elif d.get("missed"):
-        out.append(f"{len(d['missed'])} ex-dividend notices with no Yahoo adjustment ({', '.join(list(d['missed_yield_by_code'])[:5])})")
+        out.append(f"{len(d['missed'])} ex-utbyttemeldinger uten Yahoo-justering ({', '.join(list(d['missed_yield_by_code'])[:5])})")
     if not ov["testdata"]["present"]:
-        out.append("frozen test data missing: the deterministic tests will skip")
+        out.append("frosne testdata mangler: de deterministiske testene hopper over")
     for ch in ov.get("cases") or []:
         kills = [i for i in ch["issues"] if i.startswith("kill-listen:")]
         for i in ch["issues"]:
@@ -341,7 +341,7 @@ def page_html(ov: dict) -> str:
     rp_rows = "".join(f'<tr><td>{link(r["code"])}</td><td class="{"k" if r["status"] != "ok" else ""}">{E(r["status"])}</td><td>{E(str(r["latest"] or "–"))[:60]}</td>'
                       f'<td>{E(str(r["published"] or "–"))}</td><td style="white-space:normal">{E(", ".join(r["missing"]))}</td><td>{r["kill_rules"]} av {r["kill_texts"]}</td></tr>' for r in ov["reports"])
     reports = ('<div class="card"><h3>Rapportleseren</h3><table class="odds"><thead><tr><th>Case</th><th>Status</th><th>Siste rapport lest</th><th>Publisert</th>'
-               f'<th>Rader ikke funnet</th><th>Kill-regler</th></tr></thead><tbody>{rp_rows or "<tr><td colspan=6 class=empty>no research-book cases</td></tr>"}</tbody></table>'
+               f'<th>Rader ikke funnet</th><th>Kill-regler</th></tr></thead><tbody>{rp_rows or "<tr><td colspan=6 class=empty>ingen caser i research book</td></tr>"}</tbody></table>'
                '<div class="src">Spesifikasjon per selskap i ~/osloquant-home/reports.yaml; test en ny med oq reports dryrun.</div></div>')
     def _case_row(r: dict) -> str:
         age = f' ({r["view_age"]} d)' if r["view_age"] is not None else ""
@@ -366,19 +366,19 @@ def page_html(ov: dict) -> str:
     lg = ov["log"]
     d = ov.get("dividends")
     if d is None:
-        div = '<p class="empty">Not run. <code>oq data audit</code> checks every NewsWeb ex-dividend notice since 2010 against Yahoo\'s adjustments (64 calls, a few minutes).</p>'
+        div = '<p class="empty">Ikke kjørt. <code>oq data audit</code> sjekker hver ex-utbyttemelding på NewsWeb siden 2010 mot Yahoos justeringer (64 kall, noen minutter).</p>'
     else:
         miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{E(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
-                       f'<td>{pct(m["yield"], 1, False)}{" (before a later split – not a yield)" if m.get("yield_doubtful") else ""}</td>'
+                       f'<td>{pct(m["yield"], 1, False)}{" (før en senere splitt – ikke en yield)" if m.get("yield_doubtful") else ""}</td>'
                        f'<td><a href="{E(m["url"])}" target="_blank" rel="noopener">NewsWeb</a></td></tr>' for m in d["missed"])
-        susp = f' Amounts that predate a later split ({E(", ".join(d.get("split_suspect_codes", [])))}) are listed but not summed.' if d.get("split_suspect_codes") else ""
-        div = (f'<p>{d["notices"]} ex-dividend notices with an amount since {E(d["since"])} on {d["stocks"]} stocks; <b>{len(d["missed"])}</b> with no Yahoo adjustment '
-               f'(yield above 0.3 %). Missed yield by stock (pct points): {E(", ".join(f"{k} {v * 100:.1f}" for k, v in list(d["missed_yield_by_code"].items())[:10]))}.{susp}</p>'
-               f'<details><summary>Every missed notice</summary><table class="odds"><thead><tr><th>Aksje</th><th>Ex-dato</th><th>Beløp</th><th>Kurs</th><th>Yield</th><th></th></tr></thead>'
-               f'<tbody>{miss}</tbody></table></details><div class="src">Fetched {E(_fmt_dt(d.get("fetched_at")))}. A missed dividend shows as a price drop in the adjusted series: '
-               'false risk signals that day and a lower total return for that stock-year. Lower bound: issuers that file ex-dates in other categories are not seen.</div>')
+        susp = f' Beløp fra før en senere splitt ({E(", ".join(d.get("split_suspect_codes", [])))}) er listet, men ikke summert.' if d.get("split_suspect_codes") else ""
+        div = (f'<p>{d["notices"]} ex-utbyttemeldinger med beløp siden {E(d["since"])} på {d["stocks"]} aksjer; <b>{len(d["missed"])}</b> uten Yahoo-justering '
+               f'(yield over 0,3 %). Tapt yield per aksje (prosentpoeng): {E(", ".join(f"{k} {v * 100:.1f}" for k, v in list(d["missed_yield_by_code"].items())[:10]))}.{susp}</p>'
+               f'<details><summary>Hver manglende melding</summary><table class="odds"><thead><tr><th>Aksje</th><th>Ex-dato</th><th>Beløp</th><th>Kurs</th><th>Yield</th><th></th></tr></thead>'
+               f'<tbody>{miss}</tbody></table></details><div class="src">Hentet {E(_fmt_dt(d.get("fetched_at")))}. Et utbytte Yahoo ikke har justert for vises som et kursfall i den justerte serien: '
+               'falske risikosignaler den dagen og lavere totalavkastning for aksjen det året. Nedre grense: utstedere som melder ex-datoer i andre kategorier fanges ikke.</div>')
     log_card = (f'<div class="grid2"><div class="card"><h3>Vurderingsloggen</h3><ul class="kv"><li><b>Rader</b>: {lg["rows"]}</li>'
-                f'<li><b>Kjede</b>: {"verifies" if lg["chain_ok"] else ("BROKEN" if lg["chain_ok"] is False else "empty")}</li>'
+                f'<li><b>Kjede</b>: {"verifiserer" if lg["chain_ok"] else ("BRUTT" if lg["chain_ok"] is False else "tom")}</li>'
                 f'<li><b>Sist logget</b>: {E(_fmt_dt(lg["last_logged_at"]))}</li><li><b>Head</b>: {E(str(lg["head"] or "–"))}</li></ul>'
                 + ("".join(f'<div class="err">{E(x)}</div>' for x in lg["problems"]) if lg["problems"] else "") + '</div>'
                 f'<div class="card"><h3>Frosne testdata</h3><p>{"present" if ov["testdata"]["present"] else "<b>missing</b>"} – {E(ov["testdata"]["path"])}, prices to {E(ov["testdata"]["frozen_to"])}; '
