@@ -20,6 +20,8 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+from osloquant.dashboard.dates import dato
+
 E = html.escape
 LOSS = 0.30
 
@@ -162,7 +164,7 @@ def block_html(inv: dict | None, code: str) -> str:
                    + '</li>' for x in inv.get("fragility") or [])
     frag_html = (f'<h3>Skjørhet rundt basis (Taleb)</h3><ul>{frag}</ul>' if frag else "")
     return (f'<h2>Invertering: hva gir et tap på 30 %?</h2><div class="card"><p>Munger: snu problemet. Fra kursen {inv["price"]:.2f} til <b>{inv["level"]:.2f}</b> '
-            f'(−30 %) må ett av dette skje i modellen ({E(code)}, {E(inv.get("file", ""))}, verdsatt {E(str(inv["model_date"]))}, DCF {inv["dcf_ps"]:.1f}):</p>'
+            f'(−30 %) må ett av dette skje i modellen ({E(code)}, {E(inv.get("file", ""))}, verdsatt {dato(inv["model_date"])}, DCF {inv["dcf_ps"]:.1f}):</p>'
             f'<ul>{"".join(items)}</ul><h3>Billigste kombinasjoner i tabellen</h3><ul>{combos}</ul>{frag_html}'
             '<div class="src">Fra modellens følsomhetstabeller (Sensitivity 1 og 3 i Toolkit-arbeidsboken), lineært interpolert mellom tabellpunkter – aldri ekstrapolert. '
             'Modellverdier er estimater (EST); kursen er siste sluttkurs i lageret (Yahoo, forsinket). Skjørhet: H = [f(−Δ) + f(+Δ)]/2 − f(0) delt på f(0) (Taleb mfl., IMF WP/12/216, 2012). '

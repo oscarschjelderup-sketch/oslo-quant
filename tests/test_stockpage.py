@@ -103,3 +103,38 @@ def test_live_multiples_and_dividends_from_the_light_case_and_actions():
     divs = [{"date": "2025-05-02", "dividend": 1.0}, {"date": "2026-03-04", "dividend": 1.5}, {"date": "2026-08-24", "dividend": 0.5}]
     total, last = sp._dividends_12m(divs, pd.Timestamp("2026-11-04"))
     assert total == 2.0 and last == "2026-08-24"
+
+
+def test_dates_are_written_in_norwegian_everywhere_a_person_reads_them(app):  # noqa: F811
+    from osloquant.dashboard import dates as dt
+
+    assert dt.dato("2026-11-09") == "9. nov. 2026" and dt.dato(pd.Timestamp("2026-03-04"), False) == "4. mars"
+    assert dt.dato("2026-11-09", weekday=True) == "mandag 9. nov. 2026" and dt.maaned("2026-10-01") == "okt. 2026"
+    assert dt.dato_tid("2026-11-05T17:43:04Z") == "5. nov. 18:43"                     # UTC shown as Oslo time
+    assert dt.dato(None) == "" and dt.dato("ikke en dato") == "ikke en dato"
+    client, _ = app
+    page = client.get("/aksje/AAA").get_data(as_text=True)
+    assert "Plotly.register({moduleType:'locale',name:'no'" in page and "setPlotConfig({locale:'no'})" in page
+    assert '"value":"%-d. %b"' in page                                                # date ticks as «27. sep.»
+    bar = page.split('class="stockbar"', 1)[1].split('<nav class="tabs"', 1)[0]
+    assert re.search(r"sluttkurs \d{1,2}\. (jan\.|feb\.|mars|april|mai|juni|juli|aug\.|sep\.|okt\.|nov\.|des\.) \d{4}", bar)
+    visible = re.sub(r"<[^>]+>", " ", bar)                                            # data-r keeps ISO for the script
+    assert not re.search(r"\d{4}-\d{2}-\d{2}", visible)                              # no ISO date a person reads in the bar
+    for eng in ("Jan ", "Feb ", "Mar ", "Apr ", "Jun ", "Jul ", "Aug ", "Sep ", "Oct ", "Nov ", "Dec ", "Monday", "Friday"):
+        assert eng not in visible, eng
+
+
+def test_the_last_date_pass_changes_what_is_read_never_what_is_sent():
+    from osloquant.dashboard.dates import norske_datoer
+
+    html = ('<p>Logget 2026-10-22T08:47:16Z, rapport 2026-11-02, hentet 2026-11-09 17:47:07 UTC, publisert 2026-10-22 15:00.</p>'
+            '<a href="/report/SATS/2026-11-02.pdf" data-r=\'{"x0": "2026-09-17"}\'>estimates_2026-11-02.json</a>'
+            '<textarea name="kill">Pris under 30 innen 2026-12-31</textarea><script>var d="2026-01-01";</script><code>2026-02-03</code>'
+            '<td>2026-13-45</td>')
+    out = norske_datoer(html)
+    assert "Logget 22. okt. 2026 10:47," in out                                       # UTC stamp in Oslo time (summer)
+    assert "rapport 2. nov. 2026," in out and "hentet 9. nov. 2026 18:47," in out and "publisert 22. okt. 2026 15:00." in out
+    assert 'href="/report/SATS/2026-11-02.pdf"' in out and '"x0": "2026-09-17"' in out   # attributes untouched
+    assert "estimates_2026-11-02.json" in out                                          # file names untouched
+    assert "innen 2026-12-31</textarea>" in out and 'var d="2026-01-01"' in out and "<code>2026-02-03</code>" in out
+    assert "<td>2026-13-45</td>" in out                                                # not a date: left as written

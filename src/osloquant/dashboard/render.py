@@ -10,6 +10,16 @@ from functools import lru_cache
 import pandas as pd
 
 from osloquant import signals as sg
+from osloquant.dashboard.dates import (
+    DATE_HOVER,
+    DATE_TICKS,
+    PLOTLY_LOCALE,
+    dato,
+    dato_tid,
+    norske_datoer,
+    periode,
+    stempel,
+)
 
 E = html.escape
 
@@ -199,17 +209,17 @@ def page(title: str, active: str, body: str, generated: datetime | None = None, 
     nav = '<span class="sep"></span>'.join(
         "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in group) for group in NAV_GROUPS)
     search = '' if static else '<form action="/go" method="get"><input name="code" placeholder="Ticker (MOWI)"></form>'
-    plotly = '' if static else '<script src="/static/plotly.min.js"></script>'
+    plotly = '' if static else '<script src="/static/plotly.min.js"></script>' + PLOTLY_LOCALE
     icon = '' if static else '<link rel="icon" href="/favicon.ico">'
     note = ('<div class="src">Statisk kopi skrevet av kveldsoppgaven. Det levende dashbordet: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
-    gen = f'<div class="src">Generert {(generated or datetime.now()):%d %b %Y %H:%M}. Privat: research book og vurderingsloggen leses fra ~/osloquant-home og publiseres aldri.</div>{note}'
-    return f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    gen = f'<div class="src">Generert {dato_tid((generated or datetime.now()), True)}. Privat: research book og vurderingsloggen leses fra ~/osloquant-home og publiseres aldri.</div>{note}'
+    return norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)} – Oslo Børs dashboard</title>{icon}<style>{CSS}</style>{plotly}</head><body><div class="wrap">
 <nav class="top"><span class="brand">Oslo Børs<span class="long"> · beslutninger</span></span><span class="links">{nav}</span>{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Kurser: daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret – forsinket, ikke sanntid. Signaloddsene er målt på lagerets egen historikk (oq signals score). Ingenting her handler eller gir råd.</div></div>
-</div></body></html>"""
+</div></body></html>""")
 
 
 def link(code: str, text: str | None = None, static: bool = False) -> str:
@@ -229,7 +239,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
     while expected.weekday() >= 5:
         expected -= pd.Timedelta(days=1)
     stale = asof.normalize() < expected if asof is not None and asof == asof else True
-    banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {asof:%A %d %b} – eldre enn siste virkedag ({expected:%d %b}). '
+    banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {dato(asof, False, weekday=True)} – eldre enn siste virkedag ({dato(expected, False)}). '
               'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
     urgency_word = {0: "Gjør først", 1: "I dag", 2: "Kan vente"}
     minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10, "report-tp": 15,
@@ -253,9 +263,9 @@ def today_page(ctx: dict, static: bool = False) -> str:
     else:
         nxt = ctx["upcoming"][0] if ctx.get("upcoming") else None
         dec_html = ('<p style="font-size:16px;margin:4px 0"><b>Ingenting krever en vurdering i dag.</b> Gå til forelesning.</p>'
-                    + (f'<div class="src">Neste dato: {nxt["date"]:%d %b} – {L(nxt["code"], nxt["name"])}, {E(nxt["what"])}.</div>' if nxt else ''))
-    body = [f'<h1>I dag <span class="code">{today:%A %d %b %Y}</span></h1>',
-            f'<div class="sub">Siste sluttkurs: {asof:%A %d %b %Y} (Yahoo, forsinket). Signaler dekker {E(", ".join(ctx["sessions"]) or "–")}.</div>',
+                    + (f'<div class="src">Neste dato: {dato(nxt["date"], False)} – {L(nxt["code"], nxt["name"])}, {E(nxt["what"])}.</div>' if nxt else ''))
+    body = [f'<h1>I dag <span class="code">{dato(today, weekday=True)}</span></h1>',
+            f'<div class="sub">Siste sluttkurs: {dato(asof, weekday=True)} (Yahoo, forsinket). Signaler dekker {E(", ".join(ctx["sessions"]) or "–")}.</div>',
             banner,
             f'<div class="card decide"><h2>Dette krever en vurdering fra deg ({len(dec)})</h2>{dec_html}</div>']
     # cases vs target
@@ -263,7 +273,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
         f'<tr><td>{L(m["code"], m["name"])}</td><td>{E(m["rating"] or "")}</td><td>{m["price"]:.2f}</td><td class="{cls(m["since"])}">{pct(m["since"])}</td>'
         f'<td>{m["target"]:g}</td><td class="{cls(m["to_tp"])}">{pct(m["to_tp"])}</td><td>{pct(m["to_bear"])}</td><td>{pct(m["to_bull"])}</td>'
         f'<td class="src">{E(str(m["view_date"]))} · {E(m["view_source"])}'
-        + (f' <span class="warn-t">· før rapporten {m["stale_report"]:%d %b}</span>' if m.get("stale_report") is not None else '') + '</td></tr>' for m in ctx["moves"])
+        + (f' <span class="warn-t">· før rapporten {dato(m["stale_report"], False)}</span>' if m.get("stale_report") is not None else '') + '</td></tr>' for m in ctx["moves"])
     cov = ctx.get("coverage")
     cov_line = (f'<div class="src">Dekning: {cov["n"]} selskaper, Claude har syn på {cov["claude"]}' + (f', {cov["only_claude"]} uten ditt syn' if cov["only_claude"] else '')
                 + (f'; universet {cov["universe"]} selskaper – {cov["full"]} full case, {cov["light"]} lett case, {cov["watch"]} følges'
@@ -283,7 +293,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
 
         body.append(deskpage.front_block(ctx["desk"], static))
     # upcoming + kill
-    up = "".join(f'<li><b>{e["date"]:%d %b}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"]) if e.get("code") else E(e["name"])} – {E(e["what"])}'
+    up = "".join(f'<li><b>{dato(e["date"], False)}</b> ({(e["date"] - ctx["today"]).days} d) {L(e["code"], e["name"]) if e.get("code") else E(e["name"])} – {E(e["what"])}'
                  + (f' <span class="src">({E(e["source"])})</span>' if e.get("source") else '')
                  + (f'<details><summary>{len(e["kill"])} kill-kriterier å sjekke ved hendelsen</summary><ul>'
                     + "".join(f"<li>{E(k)}</li>" for k in e["kill"]) + '</ul></details>' if e.get("kill") else '') + '</li>' for e in ctx["upcoming"])
@@ -318,7 +328,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
 
 # ------------------------------------------------------------------------------------------------ Sektorer
 def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> str:
-    body = [f'<h1>Sektorer</h1><div class="sub">Alle {len(ret)} aksjene etter sektor. Avkastning til sluttkursen {asof:%d %b %Y} (Yahoo Finance, forsinket). '
+    body = [f'<h1>Sektorer</h1><div class="sub">Alle {len(ret)} aksjene etter sektor. Avkastning til sluttkursen {dato(asof)} (Yahoo Finance, forsinket). '
             'Farge: grønt opp, rødt ned, full farge ved ±10 %.</div>']
     for g in groups:
         sub = ret[ret["group"] == g].sort_values("m1", ascending=False)
@@ -328,7 +338,7 @@ def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> s
         rows = "".join(
             f'<tr><td>{link(code)}</td><td>{E(r["name"])}</td><td>{r["close"]:.2f}</td>'
             + "".join(f'<td{heat(r[k])}>{pct(r[k])}{"*" if k == "ytd" and r["ytd_from_listing"] else ""}</td>' for k in ("d1", "w1", "m1", "ytd"))
-            + (f'<td class="src">{r["date"]:%d %b}</td>' if r["stale"] else '<td></td>') + '</tr>' for code, r in sub.iterrows())
+            + (f'<td class="src">{dato(r["date"], False)}</td>' if r["stale"] else '<td></td>') + '</tr>' for code, r in sub.iterrows())
         d = drivers.get(g, [])
         dhtml = " · ".join(f'{E(x["label"])}: <b>{E(x["value"])}</b> <span class="src">({E(x["source"])})</span>' for x in d) or "–"
         body.append(f'<div class="card sector"><h3><span>{E(g)} <span class="code">{len(sub)} aksjer · snitt {pct(avg["d1"])} dag / {pct(avg["m1"])} mnd / {pct(avg["ytd"])} i år</span></span></h3>'
@@ -366,7 +376,7 @@ def view_box(c, px: float, price_label: str) -> str:
                    + _fact_rows([("Kurs (siste sluttkurs)", f'{px:.2f}'), ("Kursmål (12 mnd)", f'{tp:g}'), ("Opp-/nedside", f'<span class="{cls(up)}">{pct(up, 0)}</span>'),
                                  ("Bear / bull", f'{v["bear"]:g} / {v["bull"]:g}' if v.get("bear") and v.get("bull") else None),
                                  ("Sannsynlighet bear / base / bull", f'{v["p_bear"]:.0%} / {v["p_base"]:.0%} / {v["p_bull"]:.0%}' if v.get("p_bear") is not None else None),
-                                 ("Horisont", f'{v.get("horizon_months", 12)} mnd'), ("Syn fra", f'{E(str(v.get("date")))} <span class="src">({E(c.view_source)})</span>'),
+                                 ("Horisont", f'{v.get("horizon_months", 12)} mnd'), ("Syn fra", f'{dato(v.get("date"))} <span class="src">({E(c.view_source)})</span>'),
                                  ("Kill-nivå", f'{v["kill_level"]:g}' if v.get("kill_level") else None),
                                  ("Konsensus kursmål", f'{float(v["consensus_target"]):g} <span class="src">({E(str(v.get("consensus_source", "")))})</span>' if v.get("consensus_target") else None)])
                    + '<div class="src">Ditt syn (EST). Kurs: ' + E(price_label) + '.</div></div>')
@@ -388,7 +398,7 @@ def capital_box(lc: dict | None) -> str:
             ("EV/EBIT (LTM)", f'{m["ev_ebit"]:.1f}x' if m.get("ev_ebit") else None), ("P/E (LTM)", f'{m["pe"]:.1f}x' if m.get("pe") else None),
             ("P/B", f'{m["pb"]:.2f}x' if m.get("pb") else None), ("FCF-yield", pct(m.get("fcf_yield"), 1, False) if m.get("fcf_yield") is not None else None),
             ("Rapporteringsvaluta", E(cur) + (f' · {E(cur)}NOK {lc["currency"]["fx"]:.3f}' if lc["currency"].get("fx") and cur != "NOK" else ""))])
-            + f'<div class="src">Yahoo-regnskap via lageret, kvartaler til {E(str(lc.get("quarters_through")))}; LTM = {E(str(pr["ebit"]["period"]))}.</div></div>')
+            + f'<div class="src">Yahoo-regnskap via lageret, kvartaler til {dato(lc.get("quarters_through"))}; LTM = {periode(pr["ebit"]["period"])}.</div></div>')
     return "".join(out)
 
 
@@ -397,7 +407,7 @@ def event_box(next_event: dict | None, today=None) -> str:
         return ""
     d = next_event["date"]
     days = f' ({(d - today).days} d)' if today is not None else ''
-    return f'<div class="box"><h4>Neste hendelse</h4><div><b>{d:%d %b %Y}</b>{days}<br>{E(next_event["what"])}</div><div class="src">{E(next_event["source"])}</div></div>'
+    return f'<div class="box"><h4>Neste hendelse</h4><div><b>{dato(d)}</b>{days}<br>{E(next_event["what"])}</div><div class="src">{E(next_event["source"])}</div></div>'
 
 
 def case_columns(c, px: float, lc: dict | None) -> str:
@@ -439,7 +449,7 @@ def key_figures(lc: dict | None, px: float) -> str:
            "net_debt": lc["balance"].get("net_debt")}
     mn = lambda v: "–" if v is None else f"{v / 1e6:,.0f}".replace(",", " ")  # noqa: E731
     mg = lambda e, rv: "–" if not e or not rv else f"{e / rv * 100:.1f} %"  # noqa: E731
-    head = "".join(f"<th>{a['year']}</th>" for a in years) + f'<th class="ltm">{E(str(pr["ebit"]["period"] or "LTM")).replace("LTM to ", "LTM ")}</th>'
+    head = "".join(f"<th>{a['year']}</th>" for a in years) + f'<th class="ltm">{periode(pr["ebit"]["period"]) if pr["ebit"]["period"] else "LTM"}</th>'
     rows = []
     for label, key in (("Omsetning", "revenue"), ("EBIT", "ebit"), ("Resultat", "net_income"), ("Fri kontantstrøm", "fcf"), ("Netto gjeld", "net_debt")):
         rows.append(f'<tr><td>{label} ({E(cur)} m)</td>' + "".join(f"<td>{mn(a.get(key))}</td>" for a in years) + f'<td class="ltm">{mn(ltm.get(key))}</td></tr>')
@@ -499,7 +509,7 @@ def insider_study_line(side: str = "buy") -> str:
     word = "kjøp" if side == "buy" else "salg"
     ci = f'[{h["ci_lo"] * 100:+.1f}, {h["ci_hi"] * 100:+.1f}]' if h.get("ci_lo") is not None else "–"
     top = f'; de to største aksjene bærer {_p(h["top2_stocks_share"])} av summen' if h.get("top2_stocks_share") is not None else ""
-    return (f'<div class="src" style="white-space:normal">Innsideres {word} på Oslo Børs {E(str(m.get("from")))}–{E(str(m.get("to")))}, 60 handelsdager: '
+    return (f'<div class="src" style="white-space:normal">Innsideres {word} på Oslo Børs {dato(m.get("from"))}–{dato(m.get("to"))}, 60 handelsdager: '
             f'snitt {pct(h["mean_excess"])} mot de 64 aksjene {ci} (95 %), median {pct(h["median_excess"])}, trimmet 5 % {pct(h.get("trimmed_5"))}, '
             f'positiv i {_p(h["hit"])} av {_int(h["n"])} tilfeller, t {h.get("t_cluster")} med klynger på måned × aksje{top}. '
             'Se docs/dashboard/insider-study.md – ikke en fordel man kan handle på.</div>')
@@ -510,7 +520,7 @@ def insider_block(code: str, ins: dict | None) -> str:
     if ins is None:
         return ""
     items = ins.get("items") or []
-    rows = "".join(f'<tr><td>{pd.Timestamp(i["time"]).tz_convert("Europe/Oslo"):%d %b %Y}</td><td><span class="chip plain">'
+    rows = "".join(f'<tr><td>{dato(pd.Timestamp(i["time"]).tz_convert("Europe/Oslo"))}</td><td><span class="chip plain">'
                    f'{E(SIDE_NO.get(i["side"], i["side"]))}</span></td><td style="white-space:normal;text-align:left"><a href="{E(i["url"])}" target="_blank" rel="noopener">'
                    f'{E(i["title"][:110])}</a> <span class="src">«{E(i.get("why", ""))}»</span></td></tr>' for i in items)
     itab = (f'<table><tbody>{rows}</tbody></table>' if rows else '<p class="empty">Ingen meldepliktig innsidehandel i bufferen.</p>')
@@ -518,10 +528,10 @@ def insider_block(code: str, ins: dict | None) -> str:
     if s:
         hold = ", ".join(f"{E(h)} {v:.2f} %" for h, v in s["holders"][:5]) or "ingen over 0,5 %"
         ch = ins.get("short_change_30")
-        sh = (f'<p><b>{s["now"]:.2f} %</b> av aksjene shortet offentlig ({E(s["date"])})'
+        sh = (f'<p><b>{s["now"]:.2f} %</b> av aksjene shortet offentlig ({dato(s["date"])})'
               + (f', {ch:+.2f} prosentpoeng siste 30 dager' if ch is not None else '') + f'. Posisjoner: {hold}.</p>{ins.get("short_chart", "")}'
               f'<div class="src">Finanstilsynet, shortregisteret: bare posisjoner på 0,5 % eller mer er offentlige, og bare de siste to årene; '
-              f'{E(str(s.get("fetched_at") or ""))}.</div>')
+              f'hentet {E(stempel(s.get("fetched_at")))}.</div>')
     else:
         sh = ('<p class="empty">Ikke i shortregisteret: ingen offentlig shortposisjon på 0,5 % eller mer de siste to årene '
               '(eller ikke hentet ennå – oq dashboard --refresh).</p>')
@@ -536,7 +546,7 @@ def insider_front(rows: list[dict], shorts_moved: list[dict], static: bool = Fal
     L = lambda c, t=None: link(c, t, static)  # noqa: E731
     a = "".join(f'<li>{when(i["time"])} {L(i["code"])} <b>{E(SIDE_NO.get(i["side"], i["side"]))}</b> – '
                 f'<a href="{E(i["url"])}" target="_blank" rel="noopener">{E(i["title"][:90])}</a></li>' for i in rows)
-    b = "".join(f'<li>{L(m["code"])} short {m["now"]:.2f} % ({m["change"]:+.2f} pp på 7 dager, {E(m["date"])})'
+    b = "".join(f'<li>{L(m["code"])} short {m["now"]:.2f} % ({m["change"]:+.2f} pp på 7 dager, {dato(m["date"])})'
                 + (f' – {E(m["holders"][0][0])}' if m["holders"] else '') + '</li>' for m in shorts_moved)
     if not a and not b:
         body = '<p class="empty">No insider trade or short move of 0.25 pp or more in followed stocks in the last 7 days.</p>'
@@ -615,11 +625,11 @@ def report_block(code: str, rep: dict | None) -> str:
     kill_t = ('<h3 style="margin-top:14px">Kill-kriterier</h3><table class="odds"><thead><tr><th>Kriterium</th><th>Status</th><th>Nå</th><th>Forrige rapport</th>'
               '<th>Grense</th></tr></thead><tbody>' + "".join(krow) + '</tbody></table>')
     cinfo = s.get("consensus")
-    csrc = (f'Konsensus: {E(cinfo["source"])}, {cinfo.get("contributors") or "?"} analytikere, publisert {E(str(cinfo.get("published")))} '
+    csrc = (f'Konsensus: {E(cinfo["source"])}, {cinfo.get("contributors") or "?"} analytikere, publisert {stempel(cinfo.get("published")) if "T" in str(cinfo.get("published")) else dato(cinfo.get("published"))} '
             f'(<a href="{E(cinfo["url"])}" target="_blank" rel="noopener">kilde</a>).' if cinfo else 'Ingen offentlig konsensus funnet for dette kvartalet.')
     foot = (f'<div class="src">Tallene er lest fra rapportens tabeller (side oppgitt; ✓ = stemmer med endringen rapporten selv skriver). LTM = siste hele år + hittil i år − samme periode i fjor. '
             f'{csrc} Casen: {E(case.get("_file", "–"))} (Equity Research Toolkit, privat), verdier for {s["year"]} er casens egne estimater (EST). '
-            f'Lest {E(s["analysed_at"].replace("T", " ").replace("Z", " UTC"))}. Ingen tekst er generert: alt er tall med kilde.</div>')
+            f'Lest {stempel(s["analysed_at"])}. Ingen tekst er generert: alt er tall med kilde.</div>')
     head = (f'<h3>Siste kvartalsrapport: <a href="{E(s["url"])}" target="_blank" rel="noopener">{E(s["title"])}</a> '
             f'<span class="src">({when(s["published"])}, <a href="/report/{E(code)}/{s["message_id"]}.pdf">PDF</a>)</span></h3>')
     return f'<div class="card">{head}{figures}{case_t}{kill_t}{foot}</div>'
@@ -674,7 +684,7 @@ def odds_block(o, view: dict) -> str:
     if all(view.get(k) is not None for k in ("p_bear", "p_base", "p_bull")):
         mine = (f'<div class="src" style="margin-top:6px">Ditt syn: bear {_p(view["p_bear"])} / base {_p(view["p_base"])} / bull {_p(view["p_bull"])} – '
                 'sannsynligheter for verdier ved horisonten, ikke for hvilket nivå som nås først. Ikke samme spørsmål, men et stort avvik er verdt en ny titt.</div>')
-    foot = (f'<div class="src">Kurs {o.price:.2f} ({o.asof:%d %b %Y}, Yahoo Finance daglig sluttkurs via oslo-quant, forsinket; justerte kurser, utbytte reinvestert). Kill-nivå {o.kill:g}: {E(o.kill_source)}. '
+    foot = (f'<div class="src">Kurs {o.price:.2f} ({dato(o.asof)}, Yahoo Finance daglig sluttkurs via oslo-quant, forsinket; justerte kurser, utbytte reinvestert). Kill-nivå {o.kill:g}: {E(o.kill_source)}. '
             f'Simulering: 10 000 baner av {E(o.code)}s egne daglige avkastninger siden {E(s0.extra.get("since", "?"))}, trukket i blokker på 20 handelsdager, fast frø; '
             f'utvalgets egen årlige drift {pct(s0.extra.get("drift"))} er med; volatilitet i utvalget {pct(s0.extra.get("vol"), 0, False)}, nå {pct(o.sigma, 0, False)}. '
             f'Historiske tilfeller: hver månedsstart siden 2010 på de 64 aksjene, nivåene lagt like langt unna målt i aksjens egen volatilitet den gang '
@@ -762,7 +772,7 @@ def when(t: str) -> str:
     try:
         ts = pd.Timestamp(t)
         ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts
-        return E(f"{ts.tz_convert('Europe/Oslo'):%d %b %H:%M}")
+        return E(f"{dato_tid(ts.tz_convert('Europe/Oslo'))}")
     except (ValueError, TypeError):
         return E(t)
 
@@ -799,23 +809,23 @@ def case_history_card(c) -> str:
     for r in c.history:
         if r["kind"] == "judgement":
             desk = (f' <a href="/desk/run/{E(r["desk_run"])}/{E(c.code)}" title="debattloggen fra desken">desk</a>' if r.get("desk_run") else "")
-            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:g}</td><td>{r["target"]:g}</td>'
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{dato(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:g}</td><td>{r["target"]:g}</td>'
                         f'<td>{r.get("bear", "–")} / {r.get("base", "–")} / {r.get("bull", "–")}</td><td>{r.get("p_bear", "–")} / {r.get("p_base", "–")} / {r.get("p_bull", "–")}</td>'
-                        f'<td>{_rationale(r)}{_position(r)}{desk}</td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+                        f'<td>{_rationale(r)}{_position(r)}{desk}</td><td class="src">{stempel(r.get("logged_at"))}</td></tr>')
         elif r["kind"] == "update":
             pr = " / ".join("–" if p is None else f"{float(p):.0%}" for p in (r.get("p_bear"), r.get("p_base"), r.get("p_bull")))
-            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">oppdatering av #{r["ref_seq"]} etter {E(str((r.get("trigger") or {}).get("what")))}: '
-                        f'<b>{pr}</b>{"" if r.get("changed") else " (uendret – " + E(str(r.get("reason") or "")) + ")"}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{dato(r["date"])}</td><td colspan="5">oppdatering av #{r["ref_seq"]} etter {E(str((r.get("trigger") or {}).get("what")))}: '
+                        f'<b>{pr}</b>{"" if r.get("changed") else " (uendret – " + E(str(r.get("reason") or "")) + ")"}</td><td></td><td class="src">{stempel(r.get("logged_at"))}</td></tr>')
         elif r["kind"] == "pass":
-            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">lar være ved {r["price"]:g}: {E(r["reason"])}</td><td></td>'
-                        f'<td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{dato(r["date"])}</td><td colspan="5">lar være ved {r["price"]:g}: {E(r["reason"])}</td><td></td>'
+                        f'<td class="src">{stempel(r.get("logged_at"))}</td></tr>')
         elif r["kind"] == "review":
-            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">feilgjennomgang {E(str(r.get("quarter")))} av #{r["ref_seq"]}</td><td></td>'
-                        f'<td class="src">{E(r.get("logged_at", ""))}</td></tr>')
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{dato(r["date"])}</td><td colspan="5">feilgjennomgang {E(str(r.get("quarter")))} av #{r["ref_seq"]}</td><td></td>'
+                        f'<td class="src">{stempel(r.get("logged_at"))}</td></tr>')
         elif r["kind"] == "kill_check":
-            rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">kill check: {E(r["criterion"])} – '
-                        f'<b>{"BREACHED" if r["breached"] else "intact"}</b>, action: {E(r["action"])}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
-    hist = ('<table><thead><tr><th>#</th><th>Dato</th><th>Syn</th><th>Kurs</th><th>Kursmål</th><th>Bear/base/bull</th><th>Sannsynligheter</th><th>Begrunnelse</th><th>Logget (UTC)</th></tr></thead><tbody>'
+            rows.append(f'<tr><td>#{r["seq"]}</td><td>{dato(r["date"])}</td><td colspan="5">kill check: {E(r["criterion"])} – '
+                        f'<b>{"BREACHED" if r["breached"] else "intact"}</b>, action: {E(r["action"])}</td><td></td><td class="src">{stempel(r.get("logged_at"))}</td></tr>')
+    hist = ('<table><thead><tr><th>#</th><th>Dato</th><th>Syn</th><th>Kurs</th><th>Kursmål</th><th>Bear/base/bull</th><th>Sannsynligheter</th><th>Begrunnelse</th><th>Logget</th></tr></thead><tbody>'
             + ("".join(rows) or '<tr><td colspan="9" class="empty">ingen rader i loggen ennå – synet er fra researchbook.yaml</td></tr>') + '</tbody></table>')
     return f'<div class="card"><h3>Vurderingshistorikk (append-only)</h3>{hist}</div>'
 
@@ -828,7 +838,7 @@ def case_rdcf_card(c, rd: dict | None) -> str:
                f'<tr><td>EBIT margin, final year</td><td><b>{pct(rd["rd_m_last"], 1, False)}</b></td><td>{pct(rd["rd_m_last_ours"], 1, False)}</td><td>{pct(rd["rd_m_last_ref"], 1, False)} last actual</td></tr>'
                f'<tr><td>Revenue CAGR</td><td><b>{pct(rd["rd_cagr"], 1, False)}</b></td><td>{pct(rd["rd_cagr_ours"], 1, False)}</td><td>{pct(rd["rd_cagr_ref"], 1, False)} history</td></tr>'
                f'<tr><td>WACC</td><td><b>{pct(rd["rd_wacc"], 1, False)}</b></td><td>{pct(rd["rd_wacc_ours"], 1, False)}</td><td></td></tr></tbody></table>'
-               f'<div class="src">Reverse DCF at the model price {rd["price"]:.2f} ({rd["price_date"]:%d %b %Y}); DCF {rd["dcf"]:.1f}, TP {rd["tp"]} {E(str(rd["rating"]))}; '
+               f'<div class="src">Reverse DCF at the model price {rd["price"]:.2f} ({dato(rd["price_date"])}); DCF {rd["dcf"]:.1f}, TP {rd["tp"]} {E(str(rd["rating"]))}; '
                f'each pp of margin ≈ NOK {rd["rd_k"]:.1f}/share. Source: {E(rd["file"])} (Equity Research Toolkit, private). Model values are estimates (EST).</div>')
     elif rd:
         rdh = f'<p class="err">{E(rd["error"])}</p>'
@@ -845,7 +855,7 @@ def case_view_card(c, px: float) -> str:
     ladder = ladder_svg(px, {"bear": v.get("bear"), "dcf": v.get("base"), "target": v.get("target"), "bull": v.get("bull")}) if v.get("target") else ""
     kill = "".join(f"<li>{E(k)}</li>" for k in c.kill) or "<li class=empty>ingen</li>"
     return (f'<div class="card"><h3>Synet nå – {E(v.get("rating", "?"))} kursmål {v.get("target", "?")} '
-            f'<span class="src">({E(str(v.get("date")))}, {E(c.view_source)})</span></h3><div class="ladder">{ladder}</div>'
+            f'<span class="src">({dato(v.get("date"))}, {E(c.view_source)})</span></h3><div class="ladder">{ladder}</div>'
             f'<div class="src">Bear / DCF-base / kursmål / bull er synets egne anslag (EST).</div><h3 style="margin-top:12px">Kill-kriterier</h3><ul>{kill}</ul></div>')
 
 
@@ -1031,7 +1041,7 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
     body.append(fingerprint_block(fp))
     if len(table):
         rows = "".join(
-            f'<tr><td>#{r["seq"]}</td><td>{E({"claude": "Claude"}.get(r.get("analyst"), "du"))}</td><td>{link(r["code"])}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:.2f}</td><td>{r["target"]:g}</td>'
+            f'<tr><td>#{r["seq"]}</td><td>{E({"claude": "Claude"}.get(r.get("analyst"), "du"))}</td><td>{link(r["code"])}</td><td>{dato(r["date"])}</td><td>{E(r["rating"])}</td><td>{r["price"]:.2f}</td><td>{r["target"]:g}</td>'
             f'<td>{_px(r.get("price_now"))}</td><td class="{cls(r.get("tsr"))}">{pct(r.get("tsr"))}</td><td class="{cls(r.get("excess_osebx"))}">{pct(r.get("excess_osebx"))}</td>'
             f'<td>{pct(r.get("vs_target"))}</td><td>{"" if pd.isna(r.get("in_band")) else ("ja" if r.get("in_band") else "nei")}</td>'
             f'<td>{"✓" if r.get("direction_hit") is True else "✗" if r.get("direction_hit") is False else ""}</td><td>{E(r["status"])} ({r["days"]} d)</td></tr>'
@@ -1183,12 +1193,12 @@ def lightcase_block(lc: dict | None) -> str:
     cur = lc["currency"]["reporting"]
     p, m, r, rv, pe = lc["profit"], lc["multiples"], lc["returns"], lc["reverse"], lc.get("peers") or {}
     fx = lc["currency"].get("fx")
-    fxs = "" if cur == "NOK" else f' · {E(cur)}NOK {fx:.4f} ({E(str(lc["currency"].get("fx_date")))})' if fx else f" · ingen {E(cur)}NOK-kurs"
-    figs = "".join(f'<tr><td>{E(lab)}</td><td>{_mn(p[k]["value"])}</td><td class="src">{E(str(p[k]["period"] or "–"))}</td></tr>'
+    fxs = "" if cur == "NOK" else f' · {E(cur)}NOK {fx:.4f} ({dato(lc["currency"].get("fx_date"))})' if fx else f" · ingen {E(cur)}NOK-kurs"
+    figs = "".join(f'<tr><td>{E(lab)}</td><td>{_mn(p[k]["value"])}</td><td class="src">{periode(p[k]["period"])}</td></tr>'
                    for lab, k in (("Omsetning", "revenue"), ("EBIT", "ebit"), ("Resultat", "net_income"), ("Fri kontantstrøm", "fcf")))
     b = lc["balance"]
-    figs += (f'<tr><td>Netto gjeld</td><td>{_mn(b.get("net_debt"))}</td><td class="src">{E(str(b.get("date") or "–"))}</td></tr>'
-             f'<tr><td>Egenkapital</td><td>{_mn(b.get("equity"))}</td><td class="src">{E(str(b.get("date") or "–"))}</td></tr>')
+    figs += (f'<tr><td>Netto gjeld</td><td>{_mn(b.get("net_debt"))}</td><td class="src">{periode(b.get("date"))}</td></tr>'
+             f'<tr><td>Egenkapital</td><td>{_mn(b.get("equity"))}</td><td class="src">{periode(b.get("date"))}</td></tr>')
     mult = [("P/E", m.get("pe"), pe.get("pe"), pe.get("n_pe")), ("P/B", m.get("pb"), pe.get("pb"), pe.get("n_pb"))]
     if not lc["financial"]:
         mult.insert(1, ("EV/EBIT", m.get("ev_ebit"), pe.get("ev_ebit"), pe.get("n_ev_ebit")))
@@ -1197,7 +1207,7 @@ def lightcase_block(lc: dict | None) -> str:
         mrows += f'<tr><td>FCF yield</td><td><b>{pct(m["fcf_yield"], 1, False)}</b></td><td></td></tr>'
     rets = " · ".join(x for x in (f'ROE {pct(r.get("roe"), 0, False)}' if r.get("roe") is not None else "",
                                   f'ROIC {pct(r.get("roic"), 0, False)}' if r.get("roic") is not None else "",
-                                  f'skatt {pct(r.get("tax_rate"), 0, False)} ({E(str(r.get("tax_period")))})') if x)
+                                  f'skatt {pct(r.get("tax_rate"), 0, False)} ({periode(r.get("tax_period"))})') if x)
     warn = "".join(f"<li>{E(w)}</li>" for w in lc.get("warnings", []))
     from osloquant.dashboard import lightcase as lcm
 
@@ -1219,9 +1229,9 @@ def lightcase_block(lc: dict | None) -> str:
             + f'<div class="grid2"><div><table class="odds"><thead><tr><th>{E(cur)} m</th><th></th><th>Periode</th></tr></thead><tbody>{figs}</tbody></table></div>'
             f'<div><table class="odds"><thead><tr><th></th><th>{E(lc["code"])}</th><th>median {E(pe.get("group", "gruppen"))}</th></tr></thead><tbody>{mrows}</tbody></table>'
             f'<div class="src" style="margin-top:6px">{rets}</div></div></div>'
-            f'<div class="src">Kurs {lc["price"]["value"]:.2f} NOK ({E(lc["price"]["date"])}, {E(lc["price"]["source"])}); markedsverdi NOK {_mn(lc.get("mcap_nok"), 1e9)} mrd; '
-            f'rapporterer i {E(cur)}{fxs}. Regnskap: {E(lc["statements_source"])}, kvartaler til {E(str(lc.get("quarters_through")))}. '
-            f'Gruppemedianer: {E(pe.get("note", ""))}. Kapitalkostnad og langsiktig vekst er EST. Bygget {E(lc["built_at"])} (oq case build).</div></div>')
+            f'<div class="src">Kurs {lc["price"]["value"]:.2f} NOK ({dato(lc["price"]["date"])}, {E(lc["price"]["source"])}); markedsverdi NOK {_mn(lc.get("mcap_nok"), 1e9)} mrd; '
+            f'rapporterer i {E(cur)}{fxs}. Regnskap: {E(lc["statements_source"])}, kvartaler til {dato(lc.get("quarters_through"))}. '
+            f'Gruppemedianer: {E(pe.get("note", ""))}. Kapitalkostnad og langsiktig vekst er EST. Bygget {stempel(lc["built_at"])} (oq case build).</div></div>')
 
 
 def grade_chip(q: dict | None) -> str:
@@ -1314,7 +1324,7 @@ def claude_view_block(c, px: float | None) -> str:
         return ""
     since = f" · {pct(px / v['price'] - 1)} since" if px and v.get("price") else ""
     kill = "".join(f"<li>{E(k)}</li>" for k in v.get("kill") or [])
-    return (f'<details class="card"><summary><b>Claudes syn</b> – logget {E(v["date"])} (rad #{v["seq"]}). Skriv ditt eget først; skjemaet spør om du har lest dette.</summary>'
+    return (f'<details class="card"><summary><b>Claudes syn</b> – logget {dato(v["date"])} (rad #{v["seq"]}). Skriv ditt eget først; skjemaet spør om du har lest dette.</summary>'
             f'<p style="margin-top:8px"><b>{E(v["rating"])} kursmål {v["target"]:g}</b> (kurs da {v["price"]:g}{since}) · bear / base / bull {v["bear"]:g} / {v["base"]:g} / {v["bull"]:g} '
             f'med {v["p_bear"]:.0%} / {v["p_base"]:.0%} / {v["p_bull"]:.0%} · horisont {v.get("horizon_months", 12)} mnd</p>'
             f'<p>{E(v.get("thesis", ""))}</p><h3>Kill-kriterier</h3><ul>{kill}</ul>'
@@ -1334,7 +1344,7 @@ def coverage_page(rows: list[dict], today, h2h: dict | None = None, universe: li
     body = []
     for r in rows:
         agree = "" if not (r["oscar"] and r["claude"]) else ("✓" if r["oscar"]["rating"] == r["claude"]["rating"] else "✗")
-        nxt = f'{r["next"]["date"]:%d %b} ({(r["next"]["date"] - today).days} d)' if r.get("next") else "–"
+        nxt = f'{dato(r["next"]["date"], False)} ({(r["next"]["date"] - today).days} d)' if r.get("next") else "–"
         body.append(f'<tr><td>{link(r["code"], r["name"])}</td><td class="src">{E(r["group"])}</td><td>{"–" if r["price"] is None else format(r["price"], ".2f")}</td>'
                     f'{view(r["oscar"])}{view(r["claude"])}<td>{agree}</td><td>{E(r.get("reads") or "")}</td><td>{nxt}</td></tr>')
     n_o, n_c = sum(bool(r["oscar"]) for r in rows), sum(bool(r["claude"]) for r in rows)
@@ -1406,7 +1416,7 @@ def coverage_universe_block(universe: list[dict] | None, today) -> str:
                + (f' {grade_chip(r["lightcase_quality"])}' if r.get("lightcase_quality") else "")) if r["lightcase_built"] else "–"
         rep = (f'{r["report"]["date"]}' + (f' · {E(str(r["report"]["rating"] or ""))} {r["report"]["tp"]:g}' if r["report"].get("tp") else "")) if r["report"] else "–"
         plan = (f'{E(cv.LEVEL_LABEL.get(r["target"], r["target"]))}' + (f' · {E(r["owner"])}' if r["owner"] else "") + (f' · {E(cv.RHYTHM_LABEL.get(r["rhythm"], r["rhythm"]))}' if r["rhythm"] else "")) if r["target"] else "–"
-        nxt = f'{r["next"]["date"]:%d %b} ({(r["next"]["date"] - today).days} d)' if r.get("next") else "–"
+        nxt = f'{dato(r["next"]["date"], False)} ({(r["next"]["date"] - today).days} d)' if r.get("next") else "–"
         body.append(f'<tr><td>{link(r["code"], r["name"])}</td><td>{"–" if r["price"] is None else format(r["price"], ".2f")}</td><td>{_level_chip(r["level"])}</td>'
                     f'<td>{views}</td><td class="src">{lcs}</td><td class="src">{rep}</td><td class="src">{plan}</td>'
                     f'<td class="{"k" if r["gap"] else ""}">{"under plan" if r["gap"] else ""}</td><td class="src">{E((r.get("plan") or {}).get("note") or "")}</td><td>{nxt}</td></tr>')
@@ -1497,7 +1507,7 @@ def nav_chart(series: dict[str, dict], title: str, height: int = 320) -> str:
     fig.update_layout(height=height, margin=dict(l=44, r=16, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="x unified",
                       font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), legend=dict(orientation="h", y=-0.14, x=0, font=dict(size=11)),
                       title=dict(text=title, font=dict(size=12.5)))
-    fig.update_xaxes(gridcolor="#e6ebee")
+    fig.update_xaxes(gridcolor="#e6ebee", tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER)
     fig.update_yaxes(gridcolor="#e6ebee")
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
 
@@ -1563,7 +1573,7 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                    'Porteføljene som ikke bruker snitt (likevekt, minimum varians, risikoparitet) er de minst sårbare for dette.</div></div>')
     body = ['<h1>Porteføljer</h1><div class="sub">Modellporteføljer satt sammen av lagerets aksjer: hvor de ligger mot den effisiente fronten og kapitalmarkedslinjen, '
             'hvordan oppskriften gjorde det ut av prøven, og hvordan de går som papirfond fra den dagen de ble skrevet.</div>',
-            f'<div class="src">Bygget {E(b["built_at"])} på kurser til {E(b["asof"])} ({len(b["stocks"])} aksjer med tre års historikk). Risikofri rente: {E(b["rf_label"])}. Alt EST der det står.</div>',
+            f'<div class="src">Bygget {stempel(b["built_at"])} på kurser til {dato(b["asof"])} ({len(b["stocks"])} aksjer med tre års historikk). Risikofri rente: {E(b["rf_label"])}. Alt EST der det står.</div>',
             f'<div class="card">{frontier_chart(b)}<div class="src">Fronten og CML er regnet på de samme inndataene som fondene – de sier hva inndataene sier, ikke hva som skjer. '
             'Diamantene er fondene slik de står i dag.</div></div>',
             '<h2>Fondene i dag</h2><div class="grid">' + "".join(cards) + '</div>', bt_html, track_html, inputs_html]

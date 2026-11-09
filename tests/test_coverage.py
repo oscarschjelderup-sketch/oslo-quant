@@ -166,7 +166,7 @@ def test_coverage_page_lists_both_views_and_agreement():
              "claude": {"rating": "SELL", "target": 40.0, "since": None, "to_tp": -0.2}, "reads": None, "next": None}]
     html = rd.coverage_page(rows, today)
     assert "2 selskaper" in html and "du har syn på 1, Claude på 2" in html and "Bare Claude har syn på 1" in html
-    assert "✗" in html and "12 Nov (10 d)" in html
+    assert "✗" in html and "12. nov. (10 d)" in html
 
 
 # ------------------------------------------------------------------------------------------------ report layout (D32)

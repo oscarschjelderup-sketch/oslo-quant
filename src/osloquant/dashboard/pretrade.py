@@ -17,6 +17,7 @@ import pandas as pd
 from osloquant import signals as sg
 from osloquant.dashboard import book as bk
 from osloquant.dashboard import market as mk
+from osloquant.dashboard.dates import dato
 
 CHECKLIST = [("read_report", "Jeg har lest siste rapport fra selskapet (ikke bare sammendraget)"),
              ("knows_kill", "Jeg kjenner kill-kriteriene og kursnivået der caset er brutt"),
@@ -201,7 +202,7 @@ def page_html(ctx: dict) -> str:
         bb = ('<table class="odds"><thead><tr><th></th><th>Verdi</th><th>Fra kursen</th><th>Sannsynlighet</th></tr></thead><tbody>'
               + "".join(f'<tr><td>{lab}</td><td>{float(v[k]):g}</td><td class="{cls(float(v[k]) / px - 1)}">{pct(float(v[k]) / px - 1, 0)}</td><td>{v.get("p_" + k) if v.get("p_" + k) is not None else "–"}</td></tr>'
                         for lab, k in (("Bear", "bear"), ("Base", "base"), ("Bull", "bull")) if v.get(k) is not None)
-              + f'</tbody></table><div class="src">Din vurdering {E(str(v.get("date")))} ({E(str(c.view_source))}).'
+              + f'</tbody></table><div class="src">Din vurdering {dato(v.get("date"))} ({E(str(c.view_source))}).'
               + (f' Begrunnelsen: «{E(str(v.get("thesis"))[:400])}»' if v.get("thesis") else " Ingen begrunnelse på raden (synkronisert fra research book).") + '</div>')
     else:
         bb = '<p class="empty">Ingen vurdering logget: bull og bear settes i skjemaet.</p>'
@@ -213,7 +214,7 @@ def page_html(ctx: dict) -> str:
                  f'<div><h3>Mot kjøp (sitert fra kildene)</h3>{ag_html}</div></div>')
     # 4 events
     ev = ctx["events"]
-    ev_html = ("<ul class='news'>" + "".join(f'<li><b>{e["date"]:%d %b %Y}</b> ({(e["date"] - ctx["today"]).days} d) {E(e["name"])} – {E(e["what"])} <span class="src">({E(e["source"])})</span></li>' for e in ev) + "</ul>"
+    ev_html = ("<ul class='news'>" + "".join(f'<li><b>{dato(e["date"])}</b> ({(e["date"] - ctx["today"]).days} d) {E(e["name"])} – {E(e["what"])} <span class="src">({E(e["source"])})</span></li>' for e in ev) + "</ul>"
                if ev else '<p class="empty">Ingen datert hendelse i kalenderen før horisonten – sjekk selskapets finanskalender (oq dashboard --refresh).</p>')
     ev_html = f'<h2>4. Hendelser før horisonten ({ctx["months"]} mnd)</h2><div class="card">{ev_html}<div class="src">Research book, finanskalendere på NewsWeb, Norges Banks møtekalender.</div></div>'
     # 5 position

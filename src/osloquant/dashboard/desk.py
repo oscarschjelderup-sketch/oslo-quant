@@ -47,6 +47,7 @@ from osloquant import judgements as jg
 from osloquant import signals as sg
 from osloquant.dashboard import book as bk
 from osloquant.dashboard import market as mk
+from osloquant.dashboard.dates import dato
 
 # ------------------------------------------------------------------------------------------------ constants
 ROLES = ("scout", "filter", "analyst", "bear", "reply", "risk", "desk")
@@ -438,7 +439,7 @@ def scout(inp: Inputs, code: str, forced: bool = False) -> list[Finding]:
         items = [x for x in ann["items"] if x["code"] == code and x["time"][:10] > f"{prev:%Y-%m-%d}"]
         if items:
             a0 = items[0]
-            out.append(Finding("scout", "announcement", f"{len(items)} melding(er) siden {prev:%d %b}; siste «{a0['title'][:90]}» ({a0.get('category') or 'ukjent kategori'})",
+            out.append(Finding("scout", "announcement", f"{len(items)} melding(er) siden {dato(prev, False)}; siste «{a0['title'][:90]}» ({a0.get('category') or 'ukjent kategori'})",
                                f"NewsWeb (buffer; {ann['source']})", a0["time"], t, delayed=True, detail=a0["title"]))
     cutoff = f"{inp.snap.asof - pd.Timedelta(days=3):%Y-%m-%d}"
     mine = sorted((i for i in _insider_items(inp, code) if i["time"][:10] >= cutoff and i.get("side") in ("buy", "sell", "subscription")),
@@ -498,7 +499,7 @@ def filter_role(inp: Inputs, code: str) -> list[Finding]:
             d, what = prev
             done = [r for r in c.history if r["kind"] in ("judgement", "kill_check") and str(r.get("date", ""))[:10] >= f"{d:%Y-%m-%d}"]
             if not done:
-                out.append(Finding("filter", "report_unread", f"rapport {nxt['date']:%d %b} om {(nxt['date'] - inp.today).days} d; forrige ({d:%d %b}: {what[:40]}) har 0 vurderinger/kill-sjekker etter seg",
+                out.append(Finding("filter", "report_unread", f"rapport {dato(nxt['date'], False)} om {(nxt['date'] - inp.today).days} d; forrige ({dato(d, False)}: {what[:40]}) har 0 vurderinger/kill-sjekker etter seg",
                                    f"{nxt['source']}; vurderingsloggen", f"{nxt['date']:%Y-%m-%d}", t, status="killed", detail=str(nxt["what"])))
     for hit in bk.triggered_now(code) if c else []:
         out.append(Finding("filter", "kill_triggered", hit if _DIGIT.search(hit) else f"{hit} (1 kriterium utløst)", "rapportleseren (siste rapportlesing)", inp.session, t,
@@ -953,7 +954,7 @@ def risk(inp: Inputs, code: str, ctx: Ctx) -> tuple[list[Finding], dict | None]:
             blocked = blocked or la > lim + 1e-6
     months = int(v.get("horizon_months") or 12)
     evs = pt.events_before_horizon(c, code, inp.today, months)
-    out.append(Finding("risk", "events", f"{len(evs)} hendelser før horisonten ({months} mnd)" + ("; " + "; ".join(f"{e['date']:%d %b} {e['name'] if not e.get('code') else ''} {str(e['what'])[:30]}".replace("  ", " ") for e in evs[:4]) if evs else ""),
+    out.append(Finding("risk", "events", f"{len(evs)} hendelser før horisonten ({months} mnd)" + ("; " + "; ".join(f"{dato(e['date'], False)} {e['name'] if not e.get('code') else ''} {str(e['what'])[:30]}".replace("  ", " ") for e in evs[:4]) if evs else ""),
                        "research book, finanskalendere på NewsWeb, Norges Banks møtekalender", inp.session, t))
     if blocked:
         return out, None

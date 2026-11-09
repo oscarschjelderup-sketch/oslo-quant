@@ -18,6 +18,7 @@ import pandas as pd
 
 from osloquant import judgements as jg
 from osloquant.dashboard import feeds as fd
+from osloquant.dashboard.dates import dato
 
 FEED_MAX_AGE_DAYS = {"announcements": 3, "news": 3, "rates": 7, "fx": 7, "brent": 7, "salmon": 14, "shorts": 7, "insiders": 7, "calendar": 14}
 GAP_RUN = 20                 # consecutive missing sessions that count as a source gap, not a thin day
@@ -307,7 +308,9 @@ def problems(ov: dict) -> list[str]:
 
 
 def _fmt_dt(s: str | None) -> str:
-    return s.replace("T", " ").replace("Z", " UTC") if s else "–"
+    from osloquant.dashboard.dates import stempel
+
+    return stempel(s) if s else "–"
 
 
 def page_html(ov: dict) -> str:
@@ -368,7 +371,7 @@ def page_html(ov: dict) -> str:
     if d is None:
         div = '<p class="empty">Ikke kjørt. <code>oq data audit</code> sjekker hver ex-utbyttemelding på NewsWeb siden 2010 mot Yahoos justeringer (64 kall, noen minutter).</p>'
     else:
-        miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{E(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
+        miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{dato(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
                        f'<td>{pct(m["yield"], 1, False)}{" (før en senere splitt – ikke en yield)" if m.get("yield_doubtful") else ""}</td>'
                        f'<td><a href="{E(m["url"])}" target="_blank" rel="noopener">NewsWeb</a></td></tr>' for m in d["missed"])
         susp = f' Beløp fra før en senere splitt ({E(", ".join(d.get("split_suspect_codes", [])))}) er listet, men ikke summert.' if d.get("split_suspect_codes") else ""

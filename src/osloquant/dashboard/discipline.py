@@ -24,6 +24,8 @@ import re
 
 import pandas as pd
 
+from osloquant.dashboard.dates import dato
+
 E = html.escape
 PREMORTEM_N = 3
 PREMORTEM_MIN_CHARS = 15
@@ -197,7 +199,7 @@ def anchor_box(prev: dict | None, px: float, f: dict) -> str:
         band = (f' Et nytt kursmål {"over" if move > 0 else "under"} {lo:.1f} følger kursen (flytter seg minst halvparten så mye samme vei) og blir merket.')
     if abs(move) >= STICKY_MOVE:
         band += f' Et kursmål innenfor 2 % av {float(prev["target"]):g} etter en slik bevegelse blir merket som «fast».'
-    return (f'<div class="src" style="margin:8px 0"><b>Forrige syn</b> {E(prev["date"])}: {E(prev["rating"])} {float(prev["target"]):g} ved kurs {float(prev["price"]):g}. '
+    return (f'<div class="src" style="margin:8px 0"><b>Forrige syn</b> {dato(prev["date"])}: {E(prev["rating"])} {float(prev["target"]):g} ved kurs {float(prev["price"]):g}. '
             f'Kursen er {move * 100:+.1f} % siden.{band} Er det caset som har endret seg, eller kursen? '
             f'<input name="anchor_reason" placeholder="hvis merket: hva i caset endret seg (valgfritt)" value="{E(str(f.get("anchor_reason") or ""))}" style="margin-top:4px"></div>')
 
@@ -215,7 +217,7 @@ def grid_html(g: dict) -> str:
     miss = "; ".join(f'{E(ITEM_LABEL.get(k, k))}: mangler i {n}' for k, n in g["missing_counts"].items()) or "ingenting mangler"
     def pc(v):
         return "–" if v is None else f"{v * 100:.0f} %"
-    rows = "".join(f'<tr><td>{E(e["code"])} #{e["seq"]}</td><td>{E(e["date"])}</td><td>{E(e["rating"])}</td>'
+    rows = "".join(f'<tr><td>{E(e["code"])} #{e["seq"]}</td><td>{dato(e["date"])}</td><td>{E(e["rating"])}</td>'
                    f'<td>{pc(e["score"])}</td><td class="src">{E(", ".join(ITEM_LABEL.get(k, k) for k in e["missing"]) or "–")}</td>'
                    f'<td>{E(str(e["status"]))}</td><td>{"–" if e["hit"] is None else ("riktig" if e["hit"] else "feil")}</td></tr>' for e in g["rows"])
     return ('<h2>Beslutning mot utfall</h2><div class="card"><p>Prosessen måles på det raden inneholdt da vurderingen ble skrevet, ikke på hvordan det gikk '

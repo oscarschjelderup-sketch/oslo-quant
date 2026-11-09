@@ -41,8 +41,10 @@ def write(name: str, doc: dict) -> None:
 
 def _age(doc: dict | None) -> str:
     if not doc or not doc.get("fetched_at"):
-        return "not fetched"
-    return f"fetched {doc['fetched_at'].replace('T', ' ').replace('Z', ' UTC')}"
+        return "ikke hentet"
+    from osloquant.dashboard.dates import stempel
+
+    return f"hentet {stempel(doc['fetched_at'])}"
 
 
 # ------------------------------------------------------------------------------------------------ readers (pages)
@@ -102,7 +104,9 @@ def company_news(code: str, name: str, names: dict[str, str] | None = None) -> d
 def _value(doc: dict | None, label: str, fmt: str) -> dict | None:
     if not doc or doc.get("error") or doc.get("value") is None:
         return {"label": label, "value": "unavailable", "source": (doc or {}).get("error") or "not fetched (oq dashboard --refresh)"}
-    return {"label": label, "value": fmt.format(doc["value"]) + (f" ({doc['date']})" if doc.get("date") else ""),
+    from osloquant.dashboard.dates import dato
+
+    return {"label": label, "value": fmt.format(doc["value"]) + (f" ({dato(doc['date'])})" if doc.get("date") else ""),
             "source": f"{doc.get('source', '')}, {_age(doc)}" + ("; delayed" if doc.get("delayed") else "")}
 
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 import pandas as pd
 
 from osloquant.dashboard import desk as dk
+from osloquant.dashboard.dates import dato, klokke, stempel
 from osloquant.dashboard.render import E, link, page
 
 ROLE_LABEL = {"scout": "Speider", "filter": "Filter", "analyst": "Analytiker", "bear": "Bjørn", "reply": "Analytikeren svarer", "risk": "Risk", "desk": "Desk"}
@@ -86,7 +87,7 @@ def run_header(run: dk.DeskRun, static: bool = False) -> str:
     share = run.killed / run.flagged if run.flagged else None
     tiles = [("Skannet", run.scanned), ("Flagget", run.flagged), ("Drept", run.killed), ("Debattert", run.debated), ("Parkert", run.parked), ("Klar", run.ready)]
     t = "".join(f'<div class="tile"><div class="v">{v}</div><div class="l">{E(k)}</div></div>' for k, v in tiles)
-    when = run.finished_at.replace("T", " ").replace("Z", " UTC")
+    when = stempel(run.finished_at)
     def row(s: dk.StockRun) -> str:
         log = "" if static else f'<a href="/desk/run/{E(run.run_id)}/{E(s.code)}">logg</a>'
         return (f'<tr><td>{link(s.code, s.code, static)}</td><td>{E(s.name)}</td><td>{E(s.group)}</td><td><span class="chip {OUTCOME_CLASS.get(s.outcome, "plain")}">{E(dk.OUTCOME_LABEL.get(s.outcome, ""))}</span></td>'
@@ -116,7 +117,7 @@ def stats_html(st: dict) -> str:
     verdict = ("ingen avgjorte vetoer ennå – tallet finnes ikke før kursen har nådd kursmål eller kill-nivå etter en kjøring" if not v["decided"] else
                f'vetoene traff i {v["share_right"] * 100:.0f} % av {v["decided"]} avgjorte tilfeller' + (f'; av aksjene desken slapp gjennom nådde {th["share_right"] * 100:.0f} % av {th["decided"]} kill-nivået først' if th["decided"] else "")
                + (" – vetoene har så langt ikke skilt seg fra det som slapp gjennom" if th["decided"] and v["share_right"] is not None and th["share_right"] is not None and v["share_right"] <= th["share_right"] else ""))
-    rows = "".join(f'<tr><td>{E(r["session"])}</td><td>{E(r["code"])}</td><td>{E("veto" if r["group"] == "veto" else "sluppet gjennom")}</td><td style="white-space:normal;text-align:left">{E(str(r.get("veto_kind") or ""))} {E(str(r.get("reason") or "")[:90])}</td>'
+    rows = "".join(f'<tr><td>{dato(r["session"])}</td><td>{E(r["code"])}</td><td>{E("veto" if r["group"] == "veto" else "sluppet gjennom")}</td><td style="white-space:normal;text-align:left">{E(str(r.get("veto_kind") or ""))} {E(str(r.get("reason") or "")[:90])}</td>'
                    f'<td>{E(r["result"])}</td><td>{r["sessions"]}</td><td>{_pc(r["change"], 1, True)}</td></tr>' for r in st["rows"][::-1][:200])
     return (f'<p><b>{E(verdict)}.</b></p>'
             '<table class="odds"><thead><tr><th></th><th>Kill-nivå først (veto rett)</th><th>Kursmål først (veto feil)</th><th>Ingen av dem</th><th>Vinduet ikke ferdig</th><th>Ikke målbart</th><th>Andel rett</th></tr></thead>'
@@ -129,7 +130,7 @@ def stats_html(st: dict) -> str:
 
 def desk_page(latest_run: dk.DeskRun | None, runs: list[dict], stats: dict, today: pd.Timestamp, static: bool = False, msg: dict | None = None) -> str:
     roles = "".join(f'<li><b>{E(ROLE_LABEL[r])}</b> – {E(ROLE_JOB[r])}</li>' for r in ("scout", "filter", "analyst", "bear", "reply", "risk"))
-    body = [_style(), f'<h1>Desk <span class="code">{today:%A %d %b %Y}</span></h1>', f'<div class="lead">{INTRO}</div>', f'<details><summary>De seks rollene</summary><ul>{roles}</ul></details>']
+    body = [_style(), f'<h1>Desk <span class="code">{dato(today, weekday=True)}</span></h1>', f'<div class="lead">{INTRO}</div>', f'<details><summary>De seks rollene</summary><ul>{roles}</ul></details>']
     if msg:
         body += [f'<div class="err">{E(m)}</div>' for m in msg.get("errors", [])] + [f'<div class="ok">{E(m)}</div>' for m in msg.get("ok", [])]
     body.append('<h2>Dagens kjøring</h2><div class="card">' + (run_header(latest_run, static) if latest_run else '<p class="empty">Ingen kjøring lagret ennå. Den daglige kjøringen går etter børsslutt (oq desk run --daily, i signalvakt-oppgaven); én aksje kjøres under.</p>') + '</div>')
@@ -140,7 +141,7 @@ def desk_page(latest_run: dk.DeskRun | None, runs: list[dict], stats: dict, toda
                     '<div class="src">Aksjen tvinges gjennom alle seks rollene selv om speideren ikke flagget noe. Kjøringen lagres under ~/osloquant-home/desk/ (privat) og rører ikke research book eller vurderingsloggen.</div></div>')
     body.append(f'<h2>Statistikk over tid: traff vetoene?</h2><div class="card">{stats_html(stats)}</div>')
     if runs:
-        lst = "".join(f'<li>{E(r["session"])} · {E(r["finished_at"][11:16])} UTC · {E(r["trigger"])}: skannet {r["scanned"]}, drept {r["killed"]}, debattert {r["debated"]}, parkert {r["parked"]}, klar {r["ready"]}'
+        lst = "".join(f'<li>{dato(r["session"])} · kl. {klokke(r["finished_at"])} · {E(r["trigger"])}: skannet {r["scanned"]}, drept {r["killed"]}, debattert {r["debated"]}, parkert {r["parked"]}, klar {r["ready"]}'
                       + ("" if static else f' – <a href="/desk/run/{E(r["run_id"])}">åpne</a>') + '</li>' for r in runs[:60])
         body.append(f'<h2>Tidligere kjøringer ({len(runs)})</h2><div class="card"><ul class="news">{lst}</ul></div>')
     return page("Desk", "/desk", "\n".join(body), static=static)
@@ -169,7 +170,7 @@ def stock_block(code: str, runs: list[dict], static: bool = False) -> str:
     """On the stock page: the runs that went through the stock, and the button that runs the desk on it."""
     def row(r: dict) -> str:
         log = "" if static else f'<a href="/desk/run/{E(r["run_id"])}/{E(code)}">logg</a>'
-        return (f'<tr><td>{E(r["session"])}</td><td class="src">{E(r["finished_at"][11:16])} UTC · {E(r["trigger"])}</td><td><span class="chip {OUTCOME_CLASS.get(r["outcome"], "plain")}">{E(dk.OUTCOME_LABEL.get(r["outcome"], ""))}</span></td>'
+        return (f'<tr><td>{dato(r["session"])}</td><td class="src">kl. {klokke(r["finished_at"])} · {E(r["trigger"])}</td><td><span class="chip {OUTCOME_CLASS.get(r["outcome"], "plain")}">{E(dk.OUTCOME_LABEL.get(r["outcome"], ""))}</span></td>'
                 f'<td style="white-space:normal;text-align:left">{E(short_reason(r.get("reason")) or "–")}</td><td>{log}</td></tr>')
 
     rows = "".join(row(r) for r in runs[:12])
@@ -188,7 +189,7 @@ def front_block(s: dict | None, static: bool = False) -> str:
     L = lambda c: link(c, c, static)  # noqa: E731
     qual = (f' · <span class="k">{len(s["quality_bad"])} kilder med problem</span>' if s.get("quality_bad") else " · datakvalitet i orden")
     return (f'<h2>Desk i dag</h2><div class="card"><p style="margin:4px 0"><b>Skannet {s["scanned"]}, flagget {s["flagged"]}, drept {s["killed"]}, debattert {s["debated"]}, '
-            f'parkert {s["parked"]}, klar {s["ready"]}.</b> <span class="src">kl {E(s["finished_at"][11:16])} UTC ({E(s["trigger"])}){qual}</span></p>'
+            f'parkert {s["parked"]}, klar {s["ready"]}.</b> <span class="src">kl. {klokke(s["finished_at"])} ({E(s["trigger"])}){qual}</span></p>'
             + (f'<div>Klar for vurdering: {", ".join(L(c) for c in s["ready_codes"])}.</div>' if s["ready_codes"] else "")
             + (f'<div class="src">Parkert: {", ".join(L(c) for c in s["parked_codes"])}.</div>' if s["parked_codes"] else "")
             + ('' if static else f'<div class="src"><a href="/desk/run/{E(s["run_id"])}">Hele kjøringen</a> · <a href="/desk">Desk-siden og statistikken</a>.</div>') + '</div>')

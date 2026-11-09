@@ -21,6 +21,7 @@ from osloquant import judgements as jg
 from osloquant import signals as sg
 from osloquant.dashboard import book as bk
 from osloquant.dashboard import market as mk
+from osloquant.dashboard.dates import dato
 
 STATE_FILE = "dashboard_state.json"
 MOVE = 0.10
@@ -68,13 +69,13 @@ def decisions(snap: mk.Snapshot, cases: list[bk.Case], alerts: list[sg.Alert], t
             d = pd.Timestamp(ev["date"])
             if today - pd.Timedelta(days=EVENT_LOOKBACK) <= d <= today and not _since_view(c, d):
                 items.append(Item(c.code, "kill-check", f"{c.name}: {ev['what'][:70]}",
-                                  f"{d:%d %b} – check the {len(c.kill)} kill criteria and log each (breached or intact, and what you did).", 0))
+                                  f"{dato(d, False)} – check the {len(c.kill)} kill criteria and log each (breached or intact, and what you did).", 0))
         if lp is None or not v:
             continue
         px, day = lp
         tp, bear, bull, p0 = v.get("target"), v.get("bear"), v.get("bull"), v.get("price")
         if tp and ((tp >= (p0 or 0) and px >= tp) or (tp < (p0 or 0) and px <= tp)):
-            items.append(Item(c.code, "re-rate", f"{c.name} reached the target {tp:g}", f"price {px:.2f} ({day:%d %b}); set a new view or close the case.", 1))
+            items.append(Item(c.code, "re-rate", f"{c.name} reached the target {tp:g}", f"price {px:.2f} ({dato(day, False)}); set a new view or close the case.", 1))
         if bear and px <= bear:
             items.append(Item(c.code, "re-rate", f"{c.name} is at or below the bear value {bear:g}", f"price {px:.2f}: the bear case has happened – was it the scenario, or is the case broken?", 0))
         if bull and px >= bull:
@@ -147,7 +148,7 @@ def pre_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = PRE_
                 continue
             last = max(views) if views else None
             left = (d - today).days
-            items.append(Item(c.code, "pre-report", f"{c.name}: log your view before the report on {d:%d %b} ({left} d)",
+            items.append(Item(c.code, "pre-report", f"{c.name}: log your view before the report on {dato(d, False)} ({left} d)",
                               (f"The last view is from {last}; " if last else "No view is logged; ")
                               + f"a view dated after the report would be scored with hindsight. {ev['what'][:70]}", 0 if left <= 3 else 1))
     return items
@@ -186,7 +187,7 @@ def post_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = POS
         d, what = lr
         if any(r["kind"] in ("judgement", "update") and pd.Timestamp(r["date"][:10]) >= d for r in c.history):
             continue                     # a view, or an update of its probabilities (D48), dated after the report
-        items.append(Item(c.code, "post-report", f"{c.name}: the view of {c.view.get('date')} predates the report of {d:%d %b}",
+        items.append(Item(c.code, "post-report", f"{c.name}: the view of {c.view.get('date')} predates the report of {dato(d, False)}",
                           f"{what[:80]} is out ({(today - d).days} d ago) and the view has not been re-logged since. Re-assess and log the view "
                           "(even if unchanged) – until then the research book carries a pre-report view.", 1))
     return items
@@ -258,7 +259,7 @@ def habit_items(cases: list[bk.Case], today: pd.Timestamp, rows: list[dict] | No
         due = [j for j in jg.judgements(rows, jg.DEFAULT_ANALYST) if (today - pd.Timestamp(j["date"])).days >= 90 and j["seq"] not in done]
         if due:
             items.append(Item("", "review", f"Feilgjennomgang {rv.quarter(today)}: {len(due)} vurderinger venter",
-                              f"Største avvik først, de samme spørsmålene hver gang (Dalio, Duke, Klein). Kvartalet slutter {q_end:%d %b}.", 1))
+                              f"Største avvik først, de samme spørsmålene hver gang (Dalio, Duke, Klein). Kvartalet slutter {dato(q_end, False)}.", 1))
     return items
 
 

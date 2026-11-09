@@ -23,6 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 METRICS = {"revenue": "omsetning", "ebitda": "EBITDA", "ebit": "EBIT"}
@@ -139,14 +140,14 @@ def block_html(code: str, report: dict | None, rows: list[dict]) -> str:
     allowed = metrics_for(code)
     done = {f["metric"] for f in forecasts(rows, code) if f["report"]["date"] == report["date"]}
     left = {k: v for k, v in allowed.items() if k not in done}
-    mine = "".join(f'<li>{E(f["label"])}: {f["low"]:g} – <b>{f["mid"]:g}</b> – {f["high"]:g} (logget {E(f["date"])})</li>'
+    mine = "".join(f'<li>{E(f["label"])}: {f["low"]:g} – <b>{f["mid"]:g}</b> – {f["high"]:g} (logget {dato(f["date"])})</li>'
                    for f in forecasts(rows, code) if f["report"]["date"] == report["date"])
     opts = "".join(f'<option value="{E(k)}">{E(v)}</option>' for k, v in left.items())
     hidden = "".join(f'<input type="hidden" name="report_{k}" value="{E(str(report.get(k) or ""))}">' for k in ("date", "what", "source"))
     form = (f'<form class="judge" method="post" action="/stock/{E(code)}/forecast">{hidden}<div class="row4"><div><label>Tall</label><select name="metric">{opts}</select></div>'
             '<div><label>Lav (10 %)</label><input name="low" inputmode="decimal"></div><div><label>Midt</label><input name="mid" inputmode="decimal"></div>'
             '<div><label>Høy (90 %)</label><input name="high" inputmode="decimal"></div></div><button class="go" type="submit">Logg prognosen</button></form>') if left else ""
-    return (f'<h2>Prognose for neste rapport</h2><div class="card"><p><b>{E(report["what"])}</b> {E(report["date"])} ({E(report["source"])}). '
+    return (f'<h2>Prognose for neste rapport</h2><div class="card"><p><b>{E(report["what"])}</b> {dato(report["date"])} ({E(report["source"])}). '
             'Skriv kvartalets tall som et 80 %-intervall før rapporten: rapportleseren gir fasiten, og kalibreringen viser hvor ofte tallet havner innenfor.</p>'
             + (f'<ul>{mine}</ul>' if mine else "") + form
             + '<div class="src">Tetlock: mange prognoser med rask fasit er det som gjør kalibreringen målbar – en 12-måneders vurdering gir ett svar i året. '

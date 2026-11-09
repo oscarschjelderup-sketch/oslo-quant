@@ -385,7 +385,7 @@ def test_a_report_in_ten_days_asks_for_a_view_logged_before_it(home):
     hist = [{"kind": "judgement", "date": "2026-09-20", "logged_at": "2026-09-20T10:00:00Z", "rating": "BUY", "target": 54}]
     c = bk.Case("XYZ", "Xyz", {"rating": "BUY", "target": 54}, "log #1", [{"date": "2026-11-12", "what": "Q3 2026 report"}], ["x"], None, hist)
     items = td.pre_report_items([c], today)
-    assert len(items) == 1 and items[0].kind == "pre-report" and "12 Nov" in items[0].title and items[0].urgency == 1
+    assert len(items) == 1 and items[0].kind == "pre-report" and "12. nov." in items[0].title and items[0].urgency == 1
     c.history.append({"kind": "judgement", "date": "2026-10-20", "logged_at": "2026-10-20T10:00:00Z", "rating": "BUY", "target": 54})
     assert td.pre_report_items([c], today) == []                                      # a view within 30 days of the report
     far = bk.Case("XYZ", "Xyz", None, "log", [{"date": "2026-12-20", "what": "Q4 report"}], [], None, [])
@@ -441,7 +441,7 @@ def test_front_page_says_what_to_do_first_and_how_old_the_data_is(app, monkeypat
     ctx["decisions"] = []
     ctx["upcoming"] = [{"code": "BBB", "name": "Beta", "date": pd.Timestamp("2026-11-12"), "what": "Q3 report", "kill": []}]
     html = rd.today_page(ctx)
-    assert "Ingenting krever en vurdering i dag" in html and "Neste dato: 12 Nov" in html
+    assert "Ingenting krever en vurdering i dag" in html and "Neste dato: 12. nov." in html
 
 
 def test_signals_on_other_stocks_are_folded_and_chips_are_neutral(app):
@@ -471,7 +471,7 @@ def test_a_passed_report_with_no_view_after_it_asks_for_a_re_assessment(home, mo
                 [{"date": "2026-11-12", "what": "Q3 2026 report – first after the listing"}], ["x"], None, hist)
     assert td.last_report(c, today) == (pd.Timestamp("2026-11-12"), "Q3 2026 report – first after the listing")
     items = td.post_report_items([c], today)
-    assert len(items) == 1 and items[0].kind == "post-report" and "12 Nov" in items[0].title and items[0].urgency == 1
+    assert len(items) == 1 and items[0].kind == "post-report" and "12. nov." in items[0].title and items[0].urgency == 1
     # a kill check after the report is not a view; a judgement is
     c.history.append({"kind": "kill_check", "date": "2026-11-13", "logged_at": "2026-11-13T10:00:00Z"})
     assert len(td.post_report_items([c], today)) == 1

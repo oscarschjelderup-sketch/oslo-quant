@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 DRAWDOWN = 0.15
 LATE_SESSIONS = 10
@@ -162,7 +163,7 @@ def patterns_html(ep: dict) -> str:
         return ('<h2>Feilmønster</h2><div class="card"><p class="empty">Ingen vurdering er scoret ennå. Rapporten fylles etter hvert som vurderinger får kurser etter seg; '
                 'den sier først noe med ti eller flere feil.</p></div>')
     cnt = "".join(f'<tr><td>{E(PATTERN_WORDS[p])}</td><td>{c["wrong"]} av {ep["n_wrong"]}</td><td>{c["all"]} av {ep["n"]}</td></tr>' for p, c in ep["counts"].items() if c["all"])
-    rows = "".join(f'<tr><td>#{r["seq"]}</td><td>{link(r["code"])}</td><td>{E(r["date"])}</td><td>{E(r["rating"])}</td><td>{E(r["status"])} ({r["days"]} d)</td>'
+    rows = "".join(f'<tr><td>#{r["seq"]}</td><td>{link(r["code"])}</td><td>{dato(r["date"])}</td><td>{E(r["rating"])}</td><td>{E(r["status"])} ({r["days"]} d)</td>'
                    f'<td class="{cls(r["excess"])}">{pct(r["excess"])}</td><td>{("feil" if r["status"] == "final" else "feil så langt") if r["wrong"] else ("rett" if r["status"] == "final" else "rett så langt")}</td>'
                    f'<td style="white-space:normal">{", ".join(PATTERN_WORDS[p] for p in r["patterns"]) or "–"}</td></tr>' for r in ep["rows"])
     return (f'<h2>Feilmønster: {ep["n_wrong"]} feil av {ep["n"]} scorede vurderinger</h2><div class="card">'

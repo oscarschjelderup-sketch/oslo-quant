@@ -904,3 +904,25 @@ patterns, copy nothing, keep everything the page already had. The inventory of e
 - Kitron (KIT) joined the universe under Industrials & materials and was recorded so the page could be tested on
   SATS, Kitron and Elkem. `view_rail` and `case_block` were split into cards the tabs place separately; the old
   composites remain for anything that calls them.
+
+## D58. Dates in one Norwegian form
+
+Oscar (9 Nov 2026), on the OUTLT page: «kan du fikse alle datoene». The page mixed three forms – «2026-11-09» in the
+bar, «12 Nov 2026» for the next report, «Sep 27 / Oct 4» on the chart axis – and the rest of the dashboard added
+English weekdays («Monday 09 Nov») and UTC stamps («2026-11-09T17:47:07Z»).
+
+- **One form** (`dashboard/dates.py`): «9. nov. 2026», «9. nov.» without the year where the year is obvious,
+  «mandag 9. nov. 2026» in page headings, «9. nov. 2026 18:47» for a time, «nov. 2026» for a month. Month
+  abbreviations as Språkrådet writes them (mars, april, mai, juni and juli in full). UTC stamps are shown as Oslo time.
+  Light-case periods read «LTM til 30. sep. 2026» and «år til 31. des. 2025».
+- **The charts** get a Norwegian Plotly locale registered once per page (month and day names; numbers keep the page's
+  point decimals and space thousands so a chart and its table read alike) and date ticks in Norwegian order:
+  «27. sep.» for days, «sep. 2026» for months, «2026» for years; hover shows «9. nov. 2026».
+- **A last pass in `page()`** turns any ISO date left in visible text into the same form. It never touches tags or
+  attributes (links, the period buttons' data), scripts, styles, form fields, code or file names – it changes what is
+  read, never what is sent or stored. Logs, rows, run ids and files keep ISO dates.
+- Left as they are: sentences stored in English (the light case's readings and warnings, rationales on log rows),
+  citations («26 Sep 2016»), the weekly mail and the public signals page, which are written in English.
+- With it: a stock listed less than a year ago opens its chart on «Maks» instead of a disabled «1Å», and a period
+  button that reaches back before the first close shows no return – before, OUTLT showed +9.2 % under 6M, 1Å and 5Å
+  for six weeks of history.

@@ -9,6 +9,7 @@ from functools import lru_cache
 import pandas as pd
 
 from osloquant import signals as sg
+from osloquant.dashboard.dates import dato
 
 PRICE_SOURCE = "Yahoo Finance via oslo-quant-lageret (daglig sluttkurs, forsinket)"
 
@@ -87,7 +88,7 @@ def returns(snap: Snapshot) -> pd.DataFrame:
 
 
 def price_label(day: pd.Timestamp) -> str:
-    return f"{PRICE_SOURCE}, {day:%d %b %Y}"
+    return f"{PRICE_SOURCE}, {dato(day)}"
 
 
 def last_price(snap: Snapshot, code: str) -> tuple[float, pd.Timestamp] | None:

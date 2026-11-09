@@ -20,6 +20,7 @@ import html
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 UPDATE_DUE_DAYS = 14
@@ -134,7 +135,7 @@ def block_html(item: dict | None, rows: list[dict]) -> str:
     late = (f' <span class="k">{item["days"]} dager siden – teller som «ikke oppdatert» til du svarer.</span>' if item["overdue"] else
             f' {item["days"]} dager siden.')
     hidden = "".join(f'<input type="hidden" name="trigger_{k}" value="{E(str(t.get(k) or ""))}">' for k in ("date", "what", "source"))
-    return (f'<div class="decide"><h2>Har sannsynligheten din endret seg?</h2><p><b>{E(t["what"])}</b> ({E(t["date"])}, {E(t["source"])}) kom etter '
+    return (f'<div class="decide"><h2>Har sannsynligheten din endret seg?</h2><p><b>{E(t["what"])}</b> ({dato(t["date"])}, {E(t["source"])}) kom etter '
             f'vurderingen din #{v["seq"]} av {E(str(v["date"]))[:10]}.{late} Nå: bear / base / bull {pvs}.</p>'
             f'<form class="judge" method="post" action="/stock/{E(item["code"])}/update">{hidden}'
             '<div class="row3"><div><label>Bear etter nyheten</label><input name="p_bear" inputmode="decimal"></div>'

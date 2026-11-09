@@ -19,6 +19,7 @@ import pandas as pd
 import yaml
 
 from osloquant.dashboard import feeds as fd
+from osloquant.dashboard.dates import dato, stempel
 
 CAL_FEED = "calendar"
 _DATE = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})\s*[-–]\s*(.+?)(?=\s+\d{2}\.\d{2}\.\d{4}\s*[-–]|\s+FINANCIAL YEAR|\s+This information|$)", re.I)
@@ -86,7 +87,7 @@ def events(cases, watch: list[dict] | None = None, today: pd.Timestamp | None = 
                 what = ev["what"]
                 dup = any(x["code"] == code and x["date"] == d and x["kind"] == "case" for x in out)
                 out.append({"date": d, "code": code, "name": names.get(code, code), "what": what, "kind": "report" if re.search(r"(?i)report|rapport", what) else "company",
-                            "source": f"financial calendar on NewsWeb ({str(entry.get('published', ''))[:10]})", "url": entry.get("url"), "in_book": code in book_codes,
+                            "source": f"finanskalender på NewsWeb ({dato(str(entry.get('published', ''))[:10])})", "url": entry.get("url"), "in_book": code in book_codes,
                             "duplicate_of_case_event": dup})
     nb = norges_bank_meetings()
     for d in (nb or {}).get("dates", []):
@@ -106,7 +107,7 @@ def page_html(evs: list[dict], today: pd.Timestamp, cal_doc: dict | None, nb: di
         src = E(e["source"]) + (f' · <a href="{E(e["url"])}" target="_blank" rel="noopener">melding</a>' if e.get("url") else "")
         flag = ' <span class="src">(also in the research book)</span>' if e.get("duplicate_of_case_event") else ""
         cls = {"rates": "info", "report": "warn-t", "case": "k"}.get(e["kind"], "")
-        rows.append(f'<tr><td><b>{e["date"]:%a %d %b %Y}</b></td><td>{(e["date"] - today).days} d</td><td class="{cls}">{E(e["kind"])}</td><td>{who}</td>'
+        rows.append(f'<tr><td><b>{dato(e["date"], short_weekday=True)}</b></td><td>{(e["date"] - today).days} d</td><td class="{cls}">{E(e["kind"])}</td><td>{who}</td>'
                     f'<td style="white-space:normal">{E(e["what"])}{flag}</td><td class="src" style="white-space:normal">{src}</td></tr>')
     body = ('<h1>Kalender</h1><div class="sub">Rapportdatoer fra selskapenes egne finanskalendere på NewsWeb, datoene i research book, og Norges Banks '
             'rentebeslutninger – de neste 120 dagene.</div>'
@@ -114,7 +115,7 @@ def page_html(evs: list[dict], today: pd.Timestamp, cal_doc: dict | None, nb: di
             f'<tbody>{"".join(rows) or "<tr><td colspan=6 class=empty>nothing in the next 120 days</td></tr>"}</tbody></table></div>')
     comp = (cal_doc or {}).get("companies") or {}
     missing = [c for c, v in comp.items() if not v.get("events")]
-    notes = [f'Finanskalendere hentet {E(str((cal_doc or {}).get("fetched_at", "–")).replace("T", " ").replace("Z", " UTC"))} for {len(comp)} selskaper'
+    notes = [f'Finanskalendere hentet {E(stempel((cal_doc or {}).get("fetched_at")))} for {len(comp)} selskaper'
              + (f'; ingen kalendermelding funnet for {E(", ".join(missing))}' if missing else "") + "." if cal_doc else
              "Finanskalendere ikke hentet ennå (oq dashboard --refresh)."]
     if nb:

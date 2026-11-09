@@ -14,6 +14,7 @@ import pandas as pd
 from osloquant import signals as sg
 from osloquant.dashboard import charts as ch
 from osloquant.dashboard import render as rd
+from osloquant.dashboard.dates import dato, periode
 from osloquant.dashboard.render import E, _fact_rows, _nok, cls, pct, when
 
 TABS = [("oversikt", "Oversikt"), ("regnskap", "Regnskap"), ("verdsettelse", "Verdsettelse"), ("teknisk", "Teknisk"),
@@ -85,10 +86,10 @@ def live_multiples(lc: dict | None, px: float) -> dict:
         out["ps"] = mcap / rev if rev and rev > 0 else None
         out["pb"] = mcap / eq if eq and eq > 0 else None
         out["eps"] = ni / shares if ni is not None else None
-        out["src_pe"] = f"børsverdi ved kurs {px:.2f} / resultat {pr['net_income']['period']} (Yahoo-regnskap via lageret)"
-        out["src_ps"] = f"børsverdi ved kurs {px:.2f} / omsetning {pr['revenue']['period']} (Yahoo-regnskap via lageret)"
-        out["src_pb"] = f"børsverdi ved kurs {px:.2f} / egenkapital minus minoriteter {b.get('date')} (Yahoo-balanse via lageret)"
-        out["src_eps"] = f"resultat {pr['net_income']['period']} / aksjer (Yahoo via lageret), i {cur}"
+        out["src_pe"] = f"børsverdi ved kurs {px:.2f} / resultat {periode(pr['net_income']['period'])} (Yahoo-regnskap via lageret)"
+        out["src_ps"] = f"børsverdi ved kurs {px:.2f} / omsetning {periode(pr['revenue']['period'])} (Yahoo-regnskap via lageret)"
+        out["src_pb"] = f"børsverdi ved kurs {px:.2f} / egenkapital minus minoriteter {periode(b.get('date'))} (Yahoo-balanse via lageret)"
+        out["src_eps"] = f"resultat {periode(pr['net_income']['period'])} / aksjer (Yahoo via lageret), i {cur}"
     return out
 
 
@@ -101,13 +102,16 @@ def _dividends_12m(divs: list[dict], asof: pd.Timestamp) -> tuple[float, str | N
 
 
 # ------------------------------------------------------------------------------------------------ the bar and the tabs
-def _period_buttons(periods: list[dict], with_returns: bool, active: str = "1a") -> str:
+def _period_buttons(periods: list[dict], with_returns: bool, active: str | None = None) -> str:
+    if active is None:          # the chart opens on 1Å, or on Maks when the store has less than a year
+        active = "1a" if any(p["key"] == "1a" and p.get("enough") for p in periods) else "maks"
     out = ['<div class="pers">', '<button type="button" class="per" disabled title="Lageret har bare daglige sluttkurser – ingen intradagkurve. Dagens åpning, høy og lav står i nøkkeltallene.">1D</button>']
     for p in periods:
-        ret = (f'<small class="{cls(p["ret"])}">{pct(p["ret"])}</small>' if with_returns and p.get("ret") is not None else "")
+        ret = (f'<small class="{cls(p["ret"])}">{pct(p["ret"])}</small>' if with_returns and p.get("enough") and p.get("ret") is not None else "")
         dis = "" if p.get("enough") else " disabled"
-        title = (f'{p["label"]}: {p["sessions"]} økter fra {p["x0"]} til {p["x1"]} – avkastning {pct(p["ret"])} på sluttkurser (Yahoo via lageret, forsinket)'
-                 if p.get("enough") else f'for kort historikk i lageret for {p["label"]}')
+        title = (f'{p["label"]}: {p["sessions"]} økter fra {dato(p["x0"])} til {dato(p["x1"])} – avkastning {pct(p["ret"])} på sluttkurser (Yahoo via lageret, forsinket)'
+                 + (" – aksjen er notert senere enn periodestart, så dette er fra første kurs i lageret" if p.get("from_listing") else "")
+                 if p.get("enough") else f'for kort historikk i lageret for {p["label"]} (første kurs {dato(p["x0"])})')
         out.append(f'<button type="button" class="per{" on" if p["key"] == active else ""}" data-p="{p["key"]}" data-r=\'{json.dumps({k: p[k] for k in ("x0", "x1", "y0", "y1", "v1")})}\''
                    f' title="{E(title)}"{dis}>{E(p["label"])}{ret}</button>')
     out.append("</div>")
@@ -120,20 +124,20 @@ def bar_html(code: str, ctx: dict) -> str:
     chg = st.get("chg_1d")
     prev = px / (1 + chg) if chg is not None and chg != -1 else None
     nok = f"{px - prev:+.2f}" if prev is not None else "–"
-    asof = st.get("session", "")
+    asof = dato(st.get("session")) if st.get("session") else ""
     src = ctx.get("price_label", "")
     v = (c.view if c else None) or {}
     view = ""
     if v.get("target"):
         tp = float(v["target"])
         up = tp / px - 1
-        tp_src = f"ditt kursmål (EST), syn fra {v.get('date')} ({c.view_source})"
+        tp_src = f"ditt kursmål (EST), syn fra {dato(v.get('date'))} ({c.view_source})"
         view = (f'<div class="view">Mitt syn <b>{E(v.get("rating", "?"))}</b> · kursmål {nv(f"NOK {tp:g}", tp_src)} · '
                 f'<span class="{cls(up)}">{pct(up, 0)}</span></div>')
     nxt = ctx.get("next_event")
     if nxt:
         nxt_src = f"{nxt['what']} – {nxt['source']}"
-        nxt_txt = f"{nxt['date']:%d %b %Y}"
+        nxt_txt = f"{dato(nxt['date'])}"
         nxt_html = f'<div class="view">Neste rapport <b>{nv(nxt_txt, nxt_src)}</b></div>'
     else:
         nxt_html = '<div class="view muted">Neste rapport: ikke i kalenderen</div>'
@@ -210,7 +214,7 @@ def key_grid(ctx: dict) -> str:
     px = st["price"]
     lc = ctx.get("lightcase")
     lm = live_multiples(lc, px)
-    bsrc = f'dagsbar {bar.get("date", st.get("session"))} – {ctx.get("price_label", "")} (justert for utbytte og splitt)'
+    bsrc = f'dagsbar {dato(bar.get("date", st.get("session")))} – {ctx.get("price_label", "")} (justert for utbytte og splitt)'
     tiles = [("Åpning", _f(bar.get("open")), bsrc), ("Høy", _f(bar.get("high")), bsrc), ("Lav", _f(bar.get("low")), bsrc),
              ("Volum", f"{bar['volume']:,.0f}".replace(",", " ") if bar.get("volume") else "–", bsrc),
              ("Omsetning (EST)", f"NOK {_m(bar['volume'] * px, 1)} m" if bar.get("volume") else "–", "≈ sluttkurs × volum (EST): lageret har ikke omsetning per dag")]
@@ -220,8 +224,8 @@ def key_grid(ctx: dict) -> str:
     else:
         tiles += [("Børsverdi", "–", "ingen lett case bygget (oq case build)"), ("P/E (LTM)", "–", "ingen lett case bygget"), ("EPS LTM", "–", "ingen lett case bygget")]
     last, nxt = ctx.get("last_report"), ctx.get("next_event")
-    tiles.append(("Siste rapport", E(str(last["date"])) if last else "–", f"{last['what']} – {last['source']}" if last else "ingen rapport funnet i kalenderen, leseren eller research book"))
-    tiles.append(("Neste rapport", f"{nxt['date']:%Y-%m-%d}" if nxt else "–", f"{nxt['what']} – {nxt['source']}" if nxt else "ikke i kalenderen (NewsWeb finanskalender / research book)"))
+    tiles.append(("Siste rapport", dato(last["date"]) if last else "–", f"{last['what']} – {last['source']}" if last else "ingen rapport funnet i kalenderen, leseren eller research book"))
+    tiles.append(("Neste rapport", dato(nxt["date"]) if nxt else "–", f"{nxt['what']} – {nxt['source']}" if nxt else "ikke i kalenderen (NewsWeb finanskalender / research book)"))
     html = "".join(f'<div class="kt"><div class="kl">{E(k)}</div><div class="kvv">{nv(v, s)}</div></div>' for k, v, s in tiles)
     return f'<div class="card"><h3>Nøkkeltall i dag</h3><div class="kgrid">{html}</div><div class="src">Hold musen over et tall for kilde og tidspunkt. Kurser er daglige sluttkurser, forsinket.</div></div>'
 
@@ -235,14 +239,14 @@ def key_table(ctx: dict) -> str:
     rows = []
     if closes is not None and len(closes) > 1:
         c12 = closes.iloc[-250:]
-        rows.append(("12 m lav / høy", nv(f"{float(c12.min()):.2f} / {float(c12.max()):.2f}", f"laveste og høyeste sluttkurs over {len(c12)} økter til {c12.index[-1]:%Y-%m-%d} (Yahoo via lageret, justert, forsinket)")))
+        rows.append(("12 m lav / høy", nv(f"{float(c12.min()):.2f} / {float(c12.max()):.2f}", f"laveste og høyeste sluttkurs over {len(c12)} økter til {dato(c12.index[-1])} (Yahoo via lageret, justert, forsinket)")))
     divs = ctx.get("dividends") or []
     asof = pd.Timestamp(st.get("session"))
     total, last_ex = _dividends_12m(divs, asof)
     dsrc = "Yahoo Finance utbytter (StockAction) via lageret, per aksje i NOK, eks-datoer"
     rows.append(("Utbytte siste 12 m", nv(f"NOK {total:.2f}" if total else "–", dsrc)))
     rows.append(("Direkteavkastning", nv(pct(total / px, 1, False) if total else "–", f"utbytte siste 12 m / kurs {px:.2f}; {dsrc}")))
-    rows.append(("Siste eks-dato", nv(E(last_ex) if last_ex else "–", dsrc)))
+    rows.append(("Siste eks-dato", nv(dato(last_ex) if last_ex else "–", dsrc)))
     if lm:
         rows.append(("P/S (LTM)", nv(_x(lm.get("ps"), 2), lm.get("src_ps", ""))))
         rows.append(("P/B", nv(_x(lm.get("pb"), 2), lm.get("src_pb", ""))))
@@ -276,7 +280,7 @@ def _stm_table(recs: list[dict], lines: list[tuple[str, str]], cur: str, period:
         for r in recs:
             v = r.get(key)
             txt = "–" if v is None else (_f(v, 2) if key in PER_SHARE else _m(v, 1 if key in IN_MILLIONS_SHARES else 0))
-            src = f"{label} {_plabel(r, period)}: Yahoo Finance via lageret, rapportdato {r['report_date']}"
+            src = f"{label} {_plabel(r, period)}: Yahoo Finance via lageret, rapportdato {dato(r['report_date'])}"
             cells.append(f'<td>{nv(txt, src)}</td>')
         body.append(f'<tr><td>{E(label)}</td>{"".join(cells)}</tr>')
     unit = f"{cur} m; EPS i {cur}; aksjer i millioner"
@@ -308,16 +312,16 @@ def capital_box(lc: dict | None) -> str:
     m, b, pr = lc["multiples"], lc["balance"], lc["profit"]
     cur = lc["currency"]["reporting"]
     built = str(lc.get("built_at", ""))[:10]
-    s = f"lett case bygget {built} ved kurs {lc['price']['value']:.2f} ({lc['price']['date']}); Yahoo-regnskap via lageret"
+    s = f"lett case bygget {dato(built)} ved kurs {lc['price']['value']:.2f} ({dato(lc['price']['date'])}); Yahoo-regnskap via lageret"
     rows = [("Markedsverdi (NOK mrd)", nv(_nok(lc.get("mcap_nok")), s)), ("Aksjer (m)", nv(_nok(lc.get("shares"), 1e6, 1), s)),
-            (f"Netto gjeld ({cur} m)", nv(_nok(b.get("net_debt"), 1e6, 0), f"balanse {b.get('date')}; {s}")),
+            (f"Netto gjeld ({cur} m)", nv(_nok(b.get("net_debt"), 1e6, 0), f"balanse {periode(b.get('date'))}; {s}")),
             (f"EV ({cur} m)", nv(_nok(m.get("ev"), 1e6, 0), s) if m.get("ev") else None),
-            ("EV/EBIT (LTM)", nv(_x(m.get("ev_ebit")), f"EBIT {pr['ebit']['period']}; {s}") if m.get("ev_ebit") else None),
+            ("EV/EBIT (LTM)", nv(_x(m.get("ev_ebit")), f"EBIT {periode(pr['ebit']['period'])}; {s}") if m.get("ev_ebit") else None),
             ("P/E (LTM)", nv(_x(m.get("pe")), s) if m.get("pe") else None), ("P/B", nv(_x(m.get("pb"), 2), s) if m.get("pb") else None),
             ("FCF-yield", nv(pct(m.get("fcf_yield"), 1, False), s) if m.get("fcf_yield") is not None else None),
             ("Rapporteringsvaluta", E(cur) + (f' · {E(cur)}NOK {lc["currency"]["fx"]:.3f}' if lc["currency"].get("fx") and cur != "NOK" else ""))]
     return (f'<div class="card"><h3>Kapitalstruktur</h3>{_fact_rows(rows)}'
-            f'<div class="src">Yahoo-regnskap via lageret, kvartaler til {E(str(lc.get("quarters_through")))}; LTM = {E(str(pr["ebit"]["period"]))}. Multiplene her er ved lett-casens kurs; Oversikt regner dem på dagens.</div></div>')
+            f'<div class="src">Yahoo-regnskap via lageret, kvartaler til {dato(lc.get("quarters_through"))}; LTM = {periode(pr["ebit"]["period"])}. Multiplene her er ved lett-casens kurs; Oversikt regner dem på dagens.</div></div>')
 
 
 def accounts_panel(code: str, ctx: dict, sub: str) -> str:
@@ -339,7 +343,7 @@ def accounts_panel(code: str, ctx: dict, sub: str) -> str:
                f'<div class="pv" data-per="quarter" hidden>{ch.revenue_result_chart(rq, cur, "quarter")}{ch.margins_chart(rq, "quarter")}</div>')
         wf = ch.waterfall_chart(ry[-1], cur) if ry else ""
         mh = ch.multiples_history_chart(_multiple_points(stm, to_rep))
-        charts = (f'<div class="card"><h3>Omsetning, resultat og marginer</h3>{tog}{rev}<div class="src">Yahoo Finance års- og kvartalsregnskap via lageret, eksportert {E(stm["exported_at"][:10])}; {E(cur)} m. Kvartaler er som rapportert (ikke LTM).</div></div>'
+        charts = (f'<div class="card"><h3>Omsetning, resultat og marginer</h3>{tog}{rev}<div class="src">Yahoo Finance års- og kvartalsregnskap via lageret, eksportert {dato(stm["exported_at"][:10])}; {E(cur)} m. Kvartaler er som rapportert (ikke LTM).</div></div>'
                   + (f'<div class="grid2f"><div class="card">{wf}<div class="src">Linjene Yahoo gir; en linje som mangler hoppes over.</div></div>'
                      f'<div class="card">{mh or "<p class=empty>For få årsslutt med kurs og aksjetall til en multippelhistorikk.</p>"}<div class="src">Egen historikk, ikke estimater: kurs ved årsslutt fra lageret, aksjer fra balansen (EST der balansen mangler og utvannede aksjer brukes).</div></div></div>'))
     else:
@@ -351,7 +355,7 @@ def accounts_panel(code: str, ctx: dict, sub: str) -> str:
         if stm:
             body = (f'<div class="card"><h3>Per år</h3>{_stm_table(stm["annual"].get(which, []), lines, cur, "year", 6)}</div>'
                     f'<div class="card"><h3>Per kvartal</h3>{_stm_table(stm["quarterly"].get(which, []), lines, cur, "quarter", 8)}</div>'
-                    f'<div class="src">Yahoo Finance via lageret ({E(stm["source"])}), eksportert {E(stm["exported_at"][:10])}. Som rapportert; Yahoo omgrupperer enkelte linjer.</div>')
+                    f'<div class="src">Yahoo Finance via lageret ({E(stm["source"])}), eksportert {dato(stm["exported_at"][:10])}. Som rapportert; Yahoo omgrupperer enkelte linjer.</div>')
         else:
             body = '<div class="card"><p class="empty">Ingen regnskap i lageret for selskapet.</p></div>'
         panels.append((key, body))
@@ -376,7 +380,7 @@ def dividends_card(ctx: dict) -> str:
         dsrc = f"utbytte per aksje, eks-dato {d['date']} (Yahoo Finance via lageret)"
         pcell = nv(_f(pb), "siste sluttkurs før eks-dato (justert, forsinket)") if pb else "–"
         dtxt = f"{d['dividend']:.2f}"
-        rows.append(f'<tr><td>{E(d["date"])}</td><td>{nv(dtxt, dsrc)}</td>'
+        rows.append(f'<tr><td>{dato(d["date"])}</td><td>{nv(dtxt, dsrc)}</td>'
                     f'<td>{pcell}</td><td>{pct(y, 1, False) if y else "–"}</td></tr>')
     by_year: dict[int, float] = {}
     for d in divs:
@@ -395,10 +399,10 @@ def valuation_panel(code: str, ctx: dict) -> str:
     note = ('Kjeglen går fra siste sluttkurs til synets bear, kursmål og bull ved horisonten (EST, ditt syn). Konsensus vises bare når den er logget for hånd på raden.'
             if v.get("target") else 'Ingen kjegle: ingen vurdering med kursmål er logget for selskapet. Skriv den under Min vurdering.')
     if v.get("consensus_target"):
-        csrc = f"logget for hånd {v.get('date')}; kilde: {v.get('consensus_source')}"
+        csrc = f"logget for hånd {dato(v.get('date'))}; kilde: {v.get('consensus_source')}"
         ctxt = f"NOK {float(v['consensus_target']):g}"
         cons = (f'<p>Analytikerkonsensus (manuell): <b>{nv(ctxt, csrc)}</b> '
-                f'<span class="src">kilde {E(str(v.get("consensus_source") or ""))}, logget {E(str(v.get("date")))} – merket manuell</span></p>')
+                f'<span class="src">kilde {E(str(v.get("consensus_source") or ""))}, logget {dato(v.get("date"))} – merket manuell</span></p>')
     else:
         cons = '<p class="empty">Analytikerkonsensus: ikke tilgjengelig gratis (Finwire, Pinpoint). Et konsensusmål kan logges manuelt med kilde og dato i vurderingsskjemaet og vises da her, merket manuell.</p>'
     parts = [f'<div class="card">{cone}<div class="src">{note}</div>{cons}</div>']
@@ -436,10 +440,10 @@ def technical_panel(code: str, ctx: dict) -> str:
                   f'<td style="white-space:normal;text-align:left">{E(r.detail)}</td><td style="white-space:normal;text-align:left">{sigcell}</td>{odds}</tr>')
     table = ('<table class="odds"><thead><tr><th>Indikator</th><th>Verdi</th><th>Detalj</th><th>Målt signal</th><th>Meravkastning 20 / 60 økter</th><th>Treff 20</th><th>Tilfeller</th><th>Grad</th></tr></thead>'
              f'<tbody>{"".join(tr) or "<tr><td colspan=8 class=empty>for kort historikk</td></tr>"}</tbody></table>')
-    src = (f'<div class="src">Regnet fra lagerets daglige kurser (Yahoo Finance via lageret, forsinket), sist {E(str(st.get("session")))}. Odds: signal_odds.yaml, målt {E(str(meas.get("from")))}–{E(str(meas.get("to")))} '
+    src = (f'<div class="src">Regnet fra lagerets daglige kurser (Yahoo Finance via lageret, forsinket), sist {dato(st.get("session"))}. Odds: signal_odds.yaml, målt {dato(meas.get("from"))}–{dato(meas.get("to"))} '
            f'på {meas.get("stocks", "?")} aksjer som meravkastning mot det likevektede universet etter {cost * 100:.1f} % rundtur; grad A–D er stabilitetssjekkene (D20, D23). '
            'Ingen kjøp-, selg- eller nøytralmerkelapper: en indikator uten målt signal får ingen odds.</div>')
-    sig = "".join(f'<div class="alert"><b>{E(KIND_NO.get(a.kind, a.kind))}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {rd.chip_class(a)} odds">'
+    sig = "".join(f'<div class="alert"><b>{E(KIND_NO.get(a.kind, a.kind))}</b><span><b>{E(a.signal)}</b> · {dato(a.session)}</span><span class="chip {rd.chip_class(a)} odds">'
                   f'{pct(a.exc20)} / {pct(a.exc60)} · treff {pct(a.hit20, 0, False)}{rd._n(a)}</span><span class="d">{E(a.detail)}{rd.bracket_line(a.signal)}</span></div>'
                   for a in ctx["alerts"]) or '<p class="empty">Ingen signal fra katalogen de siste 10 øktene.</p>'
     return (f'<div class="card"><h3>Indikatorer</h3>{table}{src}</div>'
@@ -451,10 +455,10 @@ def reports_panel(code: str, ctx: dict) -> str:
     last, nxt = ctx.get("last_report"), ctx.get("next_event")
     today = ctx.get("today")
     ev = []
-    ev.append(("Siste rapport", nv(E(str(last["date"])), f"{last['what']} – {last['source']}") + f' <span class="src">{E(last["what"])} ({E(last["source"])})</span>' if last else '<span class="empty">ingen funnet</span>'))
+    ev.append(("Siste rapport", nv(dato(last["date"]), f"{last['what']} – {last['source']}") + f' <span class="src">{E(last["what"])} ({E(last["source"])})</span>' if last else '<span class="empty">ingen funnet</span>'))
     if nxt:
         days = f' ({(nxt["date"] - today).days} d)' if today is not None else ""
-        ev.append(("Neste hendelse", nv(f"{nxt['date']:%d %b %Y}", f"{nxt['what']} – {nxt['source']}") + f'{days} <span class="src">{E(nxt["what"])} ({E(nxt["source"])})</span>'))
+        ev.append(("Neste hendelse", nv(f"{dato(nxt['date'])}", f"{nxt['what']} – {nxt['source']}") + f'{days} <span class="src">{E(nxt["what"])} ({E(nxt["source"])})</span>'))
     else:
         ev.append(("Neste hendelse", '<span class="empty">ikke i kalenderen</span>'))
     events = f'<div class="card"><h3>Siste og neste rapport</h3>{_fact_rows(ev)}<div class="src">Kilder: NewsWeb-finanskalenderen, rapportleseren og research book.</div></div>'
@@ -463,7 +467,7 @@ def reports_panel(code: str, ctx: dict) -> str:
         def pdf_link(r: dict) -> str:
             return f'<a href="{E(r["pdf"])}">PDF</a>' if r.get("pdf") else "–"
 
-        rows = "".join(f'<tr><td>{E(r["date"])}</td><td style="white-space:normal;text-align:left"><a href="{E(r["url"])}" target="_blank" rel="noopener">{E(r["title"])}</a></td>'
+        rows = "".join(f'<tr><td>{dato(r["date"])}</td><td style="white-space:normal;text-align:left"><a href="{E(r["url"])}" target="_blank" rel="noopener">{E(r["title"])}</a></td>'
                        f'<td>{pdf_link(r)}</td></tr>' for r in nw)
         nwh = f'<table class="odds"><thead><tr><th>Publisert</th><th>Melding</th><th></th></tr></thead><tbody>{rows}</tbody></table>'
     else:
