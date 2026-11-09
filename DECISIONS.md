@@ -868,3 +868,39 @@ table that overflowed, chart labels that overlapped, and headings and footers st
   stay English for now: they are quoted by the desk, the screen and the tests, and are changed together or not at all.
 - Tests that pinned the English words were moved to the Norwegian ones; the source-labelling test accepts
   "forsinket" as well as "delayed".
+
+## D57. The stock page as a sticky bar and seven tabs
+
+Oscar (9 Nov 2026): give the stock page the overview of the stock pages at Finansavisen and TradingView – learn the
+patterns, copy nothing, keep everything the page already had. The inventory of every old block and where it went is
+`docs/design/aksjeside-inventar.md` (36 rows, none without a place).
+
+- **The bar** (sticky): name and ticker, the last close with the change in NOK and percent against the previous
+  close, the date and a «forsinket» mark (the store has daily closes from Yahoo, nothing live), the period buttons,
+  and – when the company is in the research book – your rating, target and upside and the next report date, with a
+  status chip (research book / overvåkning / ikke fulgt). **1D is disabled**: there is no intraday curve in the store,
+  so the day's open, high and low stand in the key grid instead of pretending.
+- **Seven tabs, the active one in the URL** (`/aksje/<code>/<tab>`, Regnskap also `/<sub>`): Oversikt, Regnskap,
+  Verdsettelse, Teknisk, Rapporter, Eiere, Min vurdering. All panels are server-rendered into one page and the
+  inactive ones hidden, so every test that reads `/stock/<code>` still sees every block; a small script switches tabs
+  with `history.pushState`, and `/stock/<code>` keeps working (it opens Min vurdering after a form was sent).
+- **Period buttons without a reload**: the overview chart holds five years of closes; the server computes each
+  period's x-range, y-range and return once and the button calls `Plotly.relayout`. Under the chart the same buttons
+  show the period returns (close to close, adjusted).
+- **Only data the store has.** Turnover is close × volume and marked EST; market value, P/E, P/S, P/B and EPS are the
+  light case's share count and LTM figures at today's price, with the formula in the hover; dividends and ex-dates from
+  `StockAction`; the statements tables and charts from the income statement, balance sheet and cash flow in the store.
+  Segments, SOTP, shareholder lists and analyst consensus are not free, and say «ikke tilgjengelig»; a consensus target
+  logged by hand on a judgement row (with source and date) is shown and marked *manuell*.
+- **Teknisk labels nothing.** `dashboard/technicals.py` computes SMA 20/50/200, the MA 20/60 state, RSI 14, MACD
+  12/26/9, the 52-week and 60-day extremes, the drawdown, the channel and volume against its averages. A row that is one
+  of the measured signals shows that signal's excess return over 20 and 60 sessions after the 0.5 % round trip, the hit
+  rate, the number of historical cases and the stability grade from `signal_odds.yaml`; a row nothing measures says
+  «ingen målt odds». The signal catalogue's kinds are shown as «opp» / «risiko» / «info» – the direction the odds were
+  measured on – never as a word to act on. Insider trade chips lost their green and red: colour is for up and down only.
+- **Visual system** on every page: a calm grey background, white cards with a 1 px rule and 10 px corners, one accent
+  colour, tabular numbers right-aligned, and every new number with its source and time in a hover title. The front
+  page and the sectors page got the cards without any content moving.
+- Kitron (KIT) joined the universe under Industrials & materials and was recorded so the page could be tested on
+  SATS, Kitron and Elkem. `view_rail` and `case_block` were split into cards the tabs place separately; the old
+  composites remain for anything that calls them.

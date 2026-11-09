@@ -16,10 +16,10 @@ E = html.escape
 CSS = """
 :root { --bg:#ffffff; --panel:#f6f8f9; --text:#1a2126; --muted:#5c6770; --line:#d9e0e5; --accent:#0f7c7c; --accent-dark:#0b5c5c;
         --accent-pale:#dcefed; --buy:#0b7a4b; --buy-bg:#e3f3ea; --risk:#b3261e; --risk-bg:#fbe9e7; --info:#1f5f99; --info-bg:#e8f0fa;
-        --gold:#9a6700; --gold-bg:#fff4d6; }
+        --gold:#9a6700; --gold-bg:#fff4d6; --calm:#f3f5f6; }
 * { box-sizing:border-box; }
-html { background:var(--bg); }
-body { margin:0; background:var(--bg); color:var(--text); font:13.5px/1.45 "Segoe UI",Arial,Helvetica,sans-serif; font-variant-numeric:tabular-nums; }
+html { background:var(--calm); }
+body { margin:0; background:var(--calm); color:var(--text); font:13.5px/1.45 "Segoe UI",Arial,Helvetica,sans-serif; font-variant-numeric:tabular-nums; }
 .wrap { max-width:1320px; margin:0 auto; padding:0 22px 44px; }
 /* the nav: one row of whole words; at narrower widths the links wrap to a second row, nothing is squeezed or cut */
 nav.top { display:flex; align-items:center; margin:0 -22px 18px; padding:0 22px; background:var(--accent-dark); min-height:40px; }
@@ -36,12 +36,63 @@ nav.top input { padding:5px 9px; border:1px solid var(--accent-pale); border-rad
 a { color:var(--info); text-decoration:none; } a:hover { text-decoration:underline; }
 h1 { font-size:30px; font-weight:400; color:var(--accent); margin:6px 0 2px; letter-spacing:-0.2px; }
 h1 .code { font-size:15px; color:var(--muted); font-weight:400; margin-left:8px; }
-h2 { font-size:15px; font-weight:700; color:var(--accent); margin:26px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--accent); }
+h2 { font-size:14.5px; font-weight:700; color:var(--accent-dark); margin:22px 0 8px; padding-bottom:0; border-bottom:0; letter-spacing:0.1px; }
 h3 { font-size:13px; font-weight:700; color:var(--accent); margin:0 0 6px; padding-bottom:3px; border-bottom:1px solid var(--line); }
 .sub { color:var(--muted); margin:0 0 12px; font-size:13px; }
 .lead { font-size:16.5px; line-height:1.4; color:#2a3338; max-width:820px; margin:10px 0 6px; }
-.card { background:var(--bg); padding:4px 0 10px; margin-bottom:8px; }
-.card + .card { margin-top:4px; }
+.card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+.card + .card { margin-top:0; }
+.card > h2:first-child, .card > h3:first-child { margin-top:0; }
+.grid2 > .card, .grid > .card, .cols > .card { margin-bottom:0; } .grid2, .grid, .cols { margin-bottom:14px; }
+.grid2 > *, .grid > *, .cols > *, .cols3 > * { min-width:0; }
+/* two fixed columns for cards with charts: the first card must not be laid out full-width while the second is still parsing */
+.grid2f { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:14px; } .grid2f > * { min-width:0; margin-bottom:0; }
+@media (max-width:900px) { .grid2f { grid-template-columns:1fr; } } .js-plotly-plot, .plotly-graph-div { max-width:100%; }
+.vbox .box { background:#fff; border:1px solid var(--line); border-top:2px solid var(--accent); border-radius:10px; padding:10px 14px; margin-bottom:14px; }
+.vbox h4 { margin:0 0 6px; font-size:11.5px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.4px; }
+.vbox .view-big { font-size:30px; font-weight:400; color:var(--accent); line-height:1.05; }
+.vbox .view-tp { font-size:19px; color:var(--accent); margin:2px 0 8px; } .vbox .view-none { font-size:15px; color:var(--muted); margin:2px 0 8px; }
+.decide { background:#fff; border-radius:10px; }
+.cols3 .mid { border-radius:8px; }
+.rail .box { background:#fff; border:1px solid var(--line); border-top:2px solid var(--accent); border-radius:10px; padding:10px 14px; }
+/* the stock page (D57): sticky bar, tabs, key grid, hover sources */
+.stockbar { position:sticky; top:0; z-index:20; background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:0 0 10px; display:flex; flex-wrap:wrap; align-items:center; gap:6px 22px; box-shadow:0 2px 6px rgba(26,33,38,0.06); }
+.stockbar .who { display:flex; flex-direction:column; min-width:180px; }
+.stockbar .nm { font-size:18px; font-weight:700; color:var(--text); line-height:1.15; }
+.stockbar .grp { color:var(--muted); font-size:12px; margin-top:2px; }
+.stockbar .tick { display:inline-block; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:0 6px; font-weight:700; font-size:12px; margin-left:8px; color:var(--text); vertical-align:middle; }
+.stockbar .px { font-size:26px; font-weight:700; line-height:1.1; }
+.stockbar .chg { font-weight:700; font-size:14px; margin-left:4px; }
+.stockbar .delayed { display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; color:var(--gold); background:var(--gold-bg); border-radius:3px; padding:1px 6px; margin-left:8px; vertical-align:middle; }
+.stockbar .asof { color:var(--muted); font-size:12px; }
+.stockbar .view { font-size:13px; } .stockbar .view b { font-size:13.5px; }
+.stockbar .stat { display:inline-block; font-size:11px; font-weight:700; border-radius:3px; padding:1px 7px; background:var(--accent-pale); color:var(--accent-dark); }
+.stockbar .stat.none { background:var(--panel); color:var(--muted); }
+.pers { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
+button.per { font:inherit; font-size:12px; font-weight:600; padding:3px 9px; border:1px solid var(--line); background:#fff; color:var(--text); border-radius:4px; cursor:pointer; }
+button.per.on { background:var(--accent); color:#fff; border-color:var(--accent); } button.per.on small { color:#fff; }
+button.per:disabled { color:var(--muted); cursor:not-allowed; background:var(--panel); }
+button.per small { font-weight:600; margin-left:5px; font-size:11.5px; }
+nav.tabs { display:flex; gap:2px; border-bottom:1px solid var(--line); margin:0 0 14px; overflow-x:auto; }
+nav.tabs a { padding:9px 14px; color:var(--muted); font-weight:600; white-space:nowrap; border-bottom:3px solid transparent; margin-bottom:-1px; }
+nav.tabs a:hover { color:var(--text); text-decoration:none; }
+nav.tabs a.on { color:var(--accent-dark); border-bottom-color:var(--accent); }
+nav.tabs .badge { display:inline-block; min-width:16px; padding:0 5px; margin-left:6px; border-radius:8px; background:var(--gold); color:#fff; font-size:10.5px; text-align:center; }
+.subtabs { display:flex; gap:4px; flex-wrap:wrap; margin:0 0 12px; }
+.subtabs a { padding:4px 11px; border:1px solid var(--line); border-radius:14px; color:var(--text); font-size:12.5px; font-weight:600; background:#fff; }
+.subtabs a.on { background:var(--accent); color:#fff; border-color:var(--accent); } .subtabs a:hover { text-decoration:none; }
+.kgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:6px 14px; }
+.kgrid .kt { padding:6px 0 4px; border-top:1px solid var(--line); } .kgrid .kl { color:var(--muted); font-size:11.5px; } .kgrid .kvv { font-size:15px; font-weight:700; }
+.nv { cursor:help; border-bottom:1px dotted #b7c1c9; }
+.filt { display:flex; gap:4px; flex-wrap:wrap; margin:0 0 8px; } .filt button { font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); border-radius:14px; background:#fff; cursor:pointer; color:var(--text); }
+.filt button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+ul.newsl { list-style:none; padding:0; margin:0; } ul.newsl li { padding:6px 0; border-top:1px solid var(--line); display:grid; grid-template-columns:78px 1fr; gap:8px; } ul.newsl li:first-child { border-top:0; }
+ul.newsl .kind { display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); margin-left:6px; }
+.pertog { display:inline-flex; gap:2px; margin:0 0 6px; } .pertog button { font:inherit; font-size:12px; padding:3px 10px; border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--text); }
+.pertog button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+table.stm td:first-child { font-weight:500; } table.stm th { white-space:nowrap; }
+.btnlink { display:inline-block; padding:7px 14px; border-radius:4px; background:var(--accent); color:#fff; font-weight:700; } .btnlink:hover { background:var(--accent-dark); text-decoration:none; }
+@media (max-width:900px) { .stockbar .px { font-size:22px; } .stockbar { gap:6px 14px; } }
 .src { color:var(--muted); font-size:11px; line-height:1.4; margin-top:6px; }
 .foot { color:var(--muted); font-size:11.5px; margin-top:30px; padding-top:10px; border-top:1px solid var(--line); line-height:1.5; }
 .empty { color:var(--muted); font-style:italic; }
@@ -300,9 +351,14 @@ def _nok(v, unit=1e9, d=1) -> str:
 def view_rail(c, px: float, price_label: str, lc: dict | None, next_event: dict | None, today=None) -> str:
     """The right rail of a stock page, as on a sell-side front page: the view (rating and target) large, the summary
     facts, the capital structure from the light case, and the next event. Oscar's view only – Claude's stays folded
-    below the fold until Oscar has written his own (D31)."""
+    below the fold until Oscar has written his own (D31). Since D57 the tabs place the three boxes separately."""
+    return '<aside class="rail">' + view_box(c, px, price_label) + capital_box(lc) + event_box(next_event, today) + '</aside>'
+
+
+def view_box(c, px: float, price_label: str) -> str:
+    """Your view, large: rating, target, upside, bear/bull, probabilities, horizon, source, kill level, consensus."""
     v = (c.view if c else None) or {}
-    out = ['<aside class="rail">']
+    out = []
     if v.get("target"):
         tp = float(v["target"])
         up = tp / px - 1
@@ -317,6 +373,12 @@ def view_rail(c, px: float, price_label: str, lc: dict | None, next_event: dict 
     else:
         out.append('<div class="box"><div class="view-none">Ingen vurdering fra deg ennå</div>'
                    '<div class="src">Les den lette casen, skriv ditt syn i skjemaet nederst, og les Claudes etterpå.' + (' Claude har et syn (foldet lenger ned).' if c and c.claude_view else '') + '</div></div>')
+    return "".join(out)
+
+
+def capital_box(lc: dict | None) -> str:
+    """The capital structure from the light case."""
+    out = []
     if lc:
         m, b, pr = lc["multiples"], lc["balance"], lc["profit"]
         cur = lc["currency"]["reporting"]
@@ -327,12 +389,15 @@ def view_rail(c, px: float, price_label: str, lc: dict | None, next_event: dict 
             ("P/B", f'{m["pb"]:.2f}x' if m.get("pb") else None), ("FCF-yield", pct(m.get("fcf_yield"), 1, False) if m.get("fcf_yield") is not None else None),
             ("Rapporteringsvaluta", E(cur) + (f' · {E(cur)}NOK {lc["currency"]["fx"]:.3f}' if lc["currency"].get("fx") and cur != "NOK" else ""))])
             + f'<div class="src">Yahoo-regnskap via lageret, kvartaler til {E(str(lc.get("quarters_through")))}; LTM = {E(str(pr["ebit"]["period"]))}.</div></div>')
-    if next_event:
-        d = next_event["date"]
-        days = f' ({(d - today).days} d)' if today is not None else ''
-        out.append(f'<div class="box"><h4>Neste hendelse</h4><div><b>{d:%d %b %Y}</b>{days}<br>{E(next_event["what"])}</div><div class="src">{E(next_event["source"])}</div></div>')
-    out.append('</aside>')
     return "".join(out)
+
+
+def event_box(next_event: dict | None, today=None) -> str:
+    if not next_event:
+        return ""
+    d = next_event["date"]
+    days = f' ({(d - today).days} d)' if today is not None else ''
+    return f'<div class="box"><h4>Neste hendelse</h4><div><b>{d:%d %b %Y}</b>{days}<br>{E(next_event["what"])}</div><div class="src">{E(next_event["source"])}</div></div>'
 
 
 def case_columns(c, px: float, lc: dict | None) -> str:
@@ -403,59 +468,10 @@ def key_figures(lc: dict | None, px: float) -> str:
 
 
 def stock_page(code: str, ctx: dict) -> str:
-    st, c = ctx["status"], ctx["case"]
-    name = ctx["name"]
-    if not st.get("price"):
-        return page(code, "", f'<h1>{E(code)}</h1><p class="err">No prices for {E(code)} in the store. Add it to universe.yaml and run oq record.</p>')
-    px = st["price"]
-    lc = ctx.get("lightcase")
-    v = (c.view if c else None) or {}
-    lead = v.get("thesis") or ""
-    lead_html = f'<div class="lead">{E(lead[:420])}{"…" if len(lead) > 420 else ""}</div>' if lead else ''
-    head = (f'<div class="src" style="margin-top:4px">{E(ctx["group"])} · {E(code)} · {E(ctx["price_label"])}</div>'
-            f'<h1>{E(name)}</h1>'
-            f'<div class="price">{px:.2f}<small class="{cls(st.get("chg_1d"))}">{pct(st.get("chg_1d"))} dag</small>'
-            f'<small class="{cls(st.get("chg_20d"))}">{pct(st.get("chg_20d"))} 20 d</small><small class="{cls(ctx.get("ytd"))}">{pct(ctx.get("ytd"))} i år</small></div>'
-            + lead_html)
-    msgs = "".join(f'<div class="err">{E(m)}</div>' for m in ctx.get("errors", [])) + "".join(f'<div class="ok">{E(m)}</div>' for m in ctx.get("ok", []))
-    keys = [("60 d høy / lav", f'{st["hi60"]:.2f} / {st["lo60"]:.2f}' if st.get("hi60") and st.get("lo60") else "–"),
-            ("RSI 14", f'{st["rsi"]:.0f}' if st.get("rsi") is not None else "–"), ("MA20 / MA60", f'{st["ma20"]:.2f} / {st["ma60"]:.2f}' if st.get("ma60") else "–"),
-            ("Trend", sg.trend_words(st))]
-    keyhtml = '<ul class="kv">' + "".join(f"<li><b>{E(k)}</b>: {E(v_)}</li>" for k, v_ in keys) + '</ul><div class="src">Regnet fra lagerets daglige kurser (forsinket).</div>'
-    sig = "".join(f'<div class="alert"><b>{E(a.kind)}</b><span><b>{E(a.signal)}</b> · {a.session}</span><span class="chip {chip_class(a)} odds">'
-                  f'{pct(a.exc20)} / {pct(a.exc60)} · hit {pct(a.hit20, 0, False)}{_n(a)}</span><span class="d">{E(a.detail)}{bracket_line(a.signal)}</span></div>'
-                  for a in ctx["alerts"]) or '<p class="empty">no signal in the last 10 sessions</p>'
-    news = ctx.get("news")
-    nhtml = ("<ul class='news'>" + "".join(f'<li>{when(n["time"])} – <a href="{E(n.get("url") or n.get("link", ""))}" target="_blank" rel="noopener">{E(n["title"])}</a> <span class="src">{E(n.get("kind", ""))}</span></li>' for n in news["items"])
-             + f"</ul><div class='src'>{E(news['source'])}</div>") if news and news["items"] else (
-             f'<p class="empty">No announcement in the cached window (14 days) and no headline naming the company.</p><div class="src">{E(news["source"])}</div>'
-             if news else '<p class="empty">not fetched – oq dashboard --refresh</p>')
-    main = [head, msgs, ctx.get("update_html", ""), f'<div class="card">{ctx["chart"]}</div>', case_columns(c, px, lc), key_figures(lc, px)]
-    parts = ['<div class="report"><div>' + "\n".join(main) + '</div>' + view_rail(c, px, ctx["price_label"], lc, ctx.get("next_event"), ctx.get("today")) + '</div>',
-             f'<div class="grid2"><div><h2>Teknisk</h2>{keyhtml}</div><div><h2>Aktive signaler (10 økter)</h2>{sig}</div></div>',
-             f'<h2>Børsmeldinger og nyheter</h2><div class="card">{nhtml}</div>', insider_block(code, ctx.get("insiders")),
-             ctx.get("reports_html", ""), ctx.get("afterreport_html", "")]
-    if c and (c.view or c.history):
-        parts.append(case_block(c, px, ctx.get("rdcf")))
-        from osloquant.dashboard import story as sty
+    """The stock page: sticky bar and seven tabs (dashboard/stockpage.py, D57)."""
+    from osloquant.dashboard import stockpage as sp
 
-        parts.append(sty.stock_html(c.view))
-        parts.append(ctx.get("inversion_html", ""))
-        parts.append(report_block(code, ctx.get("report")))
-        parts.append(odds_block(ctx.get("odds"), c.view or {}))
-    parts.append(ctx.get("forecast_html", ""))
-    parts.append(ctx.get("pass_html", ""))
-    parts.append(ctx.get("baserate_html", ""))
-    parts.append(lightcase_block(lc))
-    parts.append(claude_view_block(c, px))
-    if "desk_runs" in ctx:
-        from osloquant.dashboard import deskpage
-
-        parts.append(deskpage.stock_block(code, ctx["desk_runs"]))
-        if ctx.get("desk_attached"):
-            parts.append(deskpage.attached_html(*ctx["desk_attached"]))
-    parts.append(judge_form(code, name, px, ctx["price_label"], ctx.get("form", {}), c, ctx.get("sizing")))
-    return page(f"{code}", "", "\n".join(parts))
+    return sp.stock_page(code, ctx)
 
 
 SIDE_NO = {"buy": "kjøp", "sell": "salg", "subscription": "tegning", "programme": "program", "company": "selskapet", "other": "annet", "unknown": "uklart"}
@@ -494,10 +510,10 @@ def insider_block(code: str, ins: dict | None) -> str:
     if ins is None:
         return ""
     items = ins.get("items") or []
-    rows = "".join(f'<tr><td>{pd.Timestamp(i["time"]).tz_convert("Europe/Oslo"):%d %b %Y}</td><td><span class="chip {"buy" if i["side"] == "buy" else "risk" if i["side"] == "sell" else ""}">'
+    rows = "".join(f'<tr><td>{pd.Timestamp(i["time"]).tz_convert("Europe/Oslo"):%d %b %Y}</td><td><span class="chip plain">'
                    f'{E(SIDE_NO.get(i["side"], i["side"]))}</span></td><td style="white-space:normal;text-align:left"><a href="{E(i["url"])}" target="_blank" rel="noopener">'
                    f'{E(i["title"][:110])}</a> <span class="src">«{E(i.get("why", ""))}»</span></td></tr>' for i in items)
-    itab = (f'<table><tbody>{rows}</tbody></table>' if rows else '<p class="empty">no primary-insider notifications in the cache</p>')
+    itab = (f'<table><tbody>{rows}</tbody></table>' if rows else '<p class="empty">Ingen meldepliktig innsidehandel i bufferen.</p>')
     s = ins.get("shorts")
     if s:
         hold = ", ".join(f"{E(h)} {v:.2f} %" for h, v in s["holders"][:5]) or "ingen over 0,5 %"
@@ -507,8 +523,8 @@ def insider_block(code: str, ins: dict | None) -> str:
               f'<div class="src">Finanstilsynet, shortregisteret: bare posisjoner på 0,5 % eller mer er offentlige, og bare de siste to årene; '
               f'{E(str(s.get("fetched_at") or ""))}.</div>')
     else:
-        sh = ('<p class="empty">Not in the short register: no public short position of 0.5 % or more in the last two years '
-              '(or not fetched yet – oq dashboard --refresh).</p>')
+        sh = ('<p class="empty">Ikke i shortregisteret: ingen offentlig shortposisjon på 0,5 % eller mer de siste to årene '
+              '(eller ikke hentet ennå – oq dashboard --refresh).</p>')
     return (f'<div class="grid2"><div class="card"><h3>Innsidehandler (meldepliktige, siste 12 mnd)</h3>{itab}{insider_study_line("buy")}'
             '<div class="src">Oslo Børs NewsWeb, kategori «Meldepliktig handel for primærinnsidere» (privat bruk). Typen er lest av meldingsteksten '
             '(ordet i «» avgjorde); program, opsjoner og selskapets egne aksjer er ikke kjøp.</div></div>'
@@ -773,7 +789,12 @@ def _rationale(r: dict) -> str:
 
 
 def case_block(c, px: float, rd: dict | None) -> str:
-    v = c.view or {}
+    """The research-book section as one block (the tabs place the three cards separately since D57)."""
+    return ('<h2>Research book</h2><div class="grid2">' + case_view_card(c, px) + case_rdcf_card(c, rd) + '</div>' + case_history_card(c))
+
+
+def case_history_card(c) -> str:
+    """The judgement history, append-only, newest last."""
     rows = []
     for r in c.history:
         if r["kind"] == "judgement":
@@ -794,11 +815,14 @@ def case_block(c, px: float, rd: dict | None) -> str:
         elif r["kind"] == "kill_check":
             rows.append(f'<tr><td>#{r["seq"]}</td><td>{E(r["date"])}</td><td colspan="5">kill check: {E(r["criterion"])} – '
                         f'<b>{"BREACHED" if r["breached"] else "intact"}</b>, action: {E(r["action"])}</td><td></td><td class="src">{E(r.get("logged_at", ""))}</td></tr>')
-    hist = ('<table><thead><tr><th>#</th><th>Date</th><th>View</th><th>Price</th><th>TP</th><th>Bear/base/bull</th><th>Probabilities</th><th>Rationale</th><th>Logged (UTC)</th></tr></thead><tbody>'
-            + ("".join(rows) or '<tr><td colspan="9" class="empty">no rows in the log yet – the view below is from researchbook.yaml</td></tr>') + '</tbody></table>')
-    from osloquant.signals_page import ladder_svg
+    hist = ('<table><thead><tr><th>#</th><th>Dato</th><th>Syn</th><th>Kurs</th><th>Kursmål</th><th>Bear/base/bull</th><th>Sannsynligheter</th><th>Begrunnelse</th><th>Logget (UTC)</th></tr></thead><tbody>'
+            + ("".join(rows) or '<tr><td colspan="9" class="empty">ingen rader i loggen ennå – synet er fra researchbook.yaml</td></tr>') + '</tbody></table>')
+    return f'<div class="card"><h3>Vurderingshistorikk (append-only)</h3>{hist}</div>'
 
-    ladder = ladder_svg(px, {"bear": v.get("bear"), "dcf": v.get("base"), "target": v.get("target"), "bull": v.get("bull")}) if v.get("target") else ""
+
+def case_rdcf_card(c, rd: dict | None) -> str:
+    """What the market prices in: the reverse DCF from the Toolkit model linked in the research book."""
+
     if rd and not rd.get("error"):
         rdh = (f'<table><thead><tr><th></th><th>Market-implied</th><th>Ours</th><th>Reference</th></tr></thead><tbody>'
                f'<tr><td>EBIT margin, final year</td><td><b>{pct(rd["rd_m_last"], 1, False)}</b></td><td>{pct(rd["rd_m_last_ours"], 1, False)}</td><td>{pct(rd["rd_m_last_ref"], 1, False)} last actual</td></tr>'
@@ -809,13 +833,20 @@ def case_block(c, px: float, rd: dict | None) -> str:
     elif rd:
         rdh = f'<p class="err">{E(rd["error"])}</p>'
     else:
-        rdh = '<p class="empty">no model linked (researchbook.yaml: model: {xlsx, map})</p>'
-    kill = "".join(f"<li>{E(k)}</li>" for k in c.kill) or "<li class=empty>none</li>"
-    return (f'<h2>Research book</h2><div class="grid2"><div class="card"><h3>Current view – {E(v.get("rating", "?"))} TP {v.get("target", "?")} '
+        rdh = '<p class="empty">Ingen modell koblet (researchbook.yaml: model: {xlsx, map}).</p>'
+    return f'<div class="card"><h3>Hva priser markedet inn (reverse DCF)</h3>{rdh}</div>'
+
+
+def case_view_card(c, px: float) -> str:
+    """The current view with its ladder and kill criteria."""
+    from osloquant.signals_page import ladder_svg
+
+    v = c.view or {}
+    ladder = ladder_svg(px, {"bear": v.get("bear"), "dcf": v.get("base"), "target": v.get("target"), "bull": v.get("bull")}) if v.get("target") else ""
+    kill = "".join(f"<li>{E(k)}</li>" for k in c.kill) or "<li class=empty>ingen</li>"
+    return (f'<div class="card"><h3>Synet nå – {E(v.get("rating", "?"))} kursmål {v.get("target", "?")} '
             f'<span class="src">({E(str(v.get("date")))}, {E(c.view_source)})</span></h3><div class="ladder">{ladder}</div>'
-            f'<div class="src">Bear / DCF-base / TP / bull are the view\'s own estimates (EST).</div><h3 style="margin-top:12px">Kill criteria</h3><ul>{kill}</ul></div>'
-            f'<div class="card"><h3>Hva priser markedet inn (reverse DCF)</h3>{rdh}</div></div>'
-            f'<div class="card"><h3>Vurderingshistorikk (append-only)</h3>{hist}</div>')
+            f'<div class="src">Bear / DCF-base / kursmål / bull er synets egne anslag (EST).</div><h3 style="margin-top:12px">Kill-kriterier</h3><ul>{kill}</ul></div>')
 
 
 def judge_form(code: str, name: str, px: float, label: str, f: dict, c, sz: dict | None = None) -> str:

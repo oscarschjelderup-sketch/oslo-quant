@@ -81,7 +81,7 @@ def stock_context(code: str) -> dict:
     ret = mk.returns(snap)
     alerts, _ = td.signals_since(snap, None, max_sessions=10)
     from osloquant.dashboard.casefile import reverse_dcf
-    from osloquant.dashboard.charts import price_chart
+    from osloquant.dashboard.charts import long_chart, price_chart
 
     lp = mk.last_price(snap, code)
     case_odds = None
@@ -103,18 +103,98 @@ def stock_context(code: str) -> dict:
     from osloquant.dashboard import afterreport as ar
     from osloquant.dashboard import desk
 
+    overview, periods = long_chart(snap, code)
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
+                long_chart=overview, periods=periods, **_tab_data(snap, code, c, today),
                 update_html=_update_html(code, c, today),
                 inversion_html=_inversion_html(code, c, lp[0] if lp else None),
                 baserate_html=_baserate_html(code),
                 forecast_html=_forecast_html(code, c, today),
                 pass_html=_pass_html(code),
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
-                ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c),
+                ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c, sessions=500),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
                 odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code),
                 desk_runs=desk.runs_for(code))
+
+
+def _tab_data(snap, code: str, c, today: pd.Timestamp) -> dict:
+    """What the stock page's tabs need beyond the old context (D57): the last bar, the closes, dividends, the
+    statements as records, the technical rows, the newest report, the downloaded NewsWeb reports, the company's
+    announcements in the cache, and whether the company is in the book or on the watchlist. Each part fails soft."""
+    from osloquant.dashboard import afterreport as ar
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import lightcase as lcm
+    from osloquant.dashboard import technicals as tc
+
+    out: dict = {"bar": None, "closes": None, "dividends": [], "statements": None, "technicals": [], "last_report": None,
+                 "newsweb_reports": [], "company_announcements": [], "status_kind": "none"}
+    P = snap.panel
+    if code in P["close"].columns:
+        c_ = P["close"][code].dropna()
+        out["closes"] = c_
+        if len(c_):
+            d = c_.index[-1]
+            out["bar"] = {"date": f"{d:%Y-%m-%d}", "open": _cell(P, "open", d, code), "high": _cell(P, "high", d, code), "low": _cell(P, "low", d, code),
+                          "close": float(c_.iloc[-1]), "volume": _cell(P, "volume", d, code)}
+        try:
+            out["technicals"] = tc.rows(c_, P["volume"][code] if code in P["volume"].columns else None, P["high"][code] if code in P["high"].columns else None)
+        except Exception:  # noqa: BLE001 – an indicator must never take the page down
+            out["technicals"] = []
+    try:
+        from osloquant.domain import StockAction
+
+        df = StockAction.query_data(code=code)
+        if df is not None and len(df):
+            out["dividends"] = [{"date": f"{pd.Timestamp(r['timestamp']):%Y-%m-%d}", "dividend": float(r["dividend"] or 0), "split": float(r["split"] or 0)}
+                                for _, r in df.sort_values("timestamp").iterrows()]
+    except Exception:  # noqa: BLE001
+        out["dividends"] = []
+    try:
+        out["statements"] = lcm.export_statements(code, snap, write=False)
+    except Exception:  # noqa: BLE001 – no statements in the store
+        out["statements"] = None
+    cal_doc = fd.read(cal.CAL_FEED)
+    try:
+        out["last_report"] = ar.newest_report(c, today, cal_doc, code=code)
+    except Exception:  # noqa: BLE001
+        out["last_report"] = None
+    out["newsweb_reports"] = _newsweb_reports(code)
+    out["company_announcements"] = [a for a in (fd.read("announcements") or {}).get("items", []) if a.get("code") == code]
+    if c:
+        out["status_kind"] = "book"
+    elif any(w.get("code") == code and not w.get("moved_to_book") for w in bk.watchlist()):
+        out["status_kind"] = "watch"
+    return out
+
+
+def _cell(P: dict, key: str, d, code: str) -> float | None:
+    try:
+        v = P[key].at[d, code]
+    except KeyError:
+        return None
+    return None if v is None or v != v else float(v)
+
+
+def _newsweb_reports(code: str) -> list[dict]:
+    """The company reports the reader downloaded from NewsWeb: date, title, message link, local PDF (newest first)."""
+    import json
+
+    d = jg.home() / "reports" / code
+    out = []
+    for p in d.glob("*.json") if d.exists() else []:
+        if p.name.endswith(".summary.json") or not p.stem.isdigit():
+            continue
+        try:
+            msg = json.loads(p.read_text(encoding="utf-8"))["data"]["message"]
+        except (ValueError, KeyError, TypeError, OSError):
+            continue
+        if not msg.get("title"):
+            continue
+        out.append({"date": str(msg.get("publishedTime") or "")[:10], "title": str(msg["title"]), "url": f"https://newsweb.oslobors.no/message/{p.stem}",
+                    "pdf": f"/report/{code}/{p.stem}.pdf" if (d / f"{p.stem}.pdf").exists() else None})
+    return sorted(out, key=lambda r: r["date"], reverse=True)
 
 
 def attach_desk(ctx: dict, code: str, run_id: str) -> None:
@@ -328,9 +408,27 @@ def create_app() -> Flask:
 
     @app.get("/stock/<code>")
     def stock(code):
+        return _stock_page(code, None, None)
+
+    @app.get("/aksje/<code>")
+    @app.get("/aksje/<code>/<tab>")
+    @app.get("/aksje/<code>/<tab>/<sub>")
+    def aksje(code, tab="oversikt", sub=None):
+        """The stock page with the active tab in the URL (D57)."""
+        from osloquant.dashboard import stockpage as sp
+
+        if tab not in sp.TAB_KEYS or (sub is not None and sub not in sp.SUB_KEYS):
+            abort(404)
+        return _stock_page(code, tab, sub)
+
+    def _stock_page(code, tab, sub):
         if not code.isalnum():
             abort(404)
         ctx = stock_context(code)
+        # a page opened after a form was sent, or from a desk run, opens on the judgement tab
+        acted = any(request.args.get(k) for k in ("logged", "passed", "forecast", "updated", "checklist", "desk"))
+        ctx["tab"] = tab or ("vurdering" if acted else "oversikt")
+        ctx["subtab"] = sub
         if request.args.get("logged"):
             ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
         if request.args.get("passed"):

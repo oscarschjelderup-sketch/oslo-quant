@@ -194,7 +194,7 @@ def box_html(res: dict | None, f: dict | None = None, with_reason: bool = True) 
     for it in res["items"]:
         for r in it["refs"]:
             real = f' <span class="src">(reelt {r["deflated"] * 100:+.1f} %: minus {INFLATION_EST:.0%} inflasjon, EST)</span>' if r.get("deflated") is not None else ""
-            rows.append(f'<tr><td>{E(it["label"])}</td><td><b>{_pc(it["metric"], it["forecast"])}</b>{real}</td><td>{E(r["name"])} <span class="src">(n {r["n"]}, {E(str(r["period"]))}{"; " + E(r["source"]) if r.get("source") else ""})</span></td>'
+            rows.append(f'<tr><td>{E(it["label"])}</td><td><b>{_pc(it["metric"], it["forecast"])}</b>{real}</td><td style="white-space:normal;text-align:left">{E(r["name"])} <span class="src">(n {r["n"]}, {E(str(r["period"]))}{"; " + E(r["source"]) if r.get("source") else ""})</span></td>'
                         f'<td>{_share(r["at_least"])}</td><td>{_share(r["at_most"])}</td></tr>')
     flagged = bool(res["flags"])
     reason = E(str((f or {}).get("base_rate_reason") or ""))

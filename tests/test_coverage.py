@@ -191,17 +191,19 @@ def test_stock_page_is_laid_out_as_a_report_front_page(app, monkeypatch):  # noq
     client, snap = app
     monkeypatch.setattr(lcm, "load", lambda code: _lightcase_fixture() if code == "AAA" else None)
     page = client.get("/stock/AAA").get_data(as_text=True)
-    assert 'class="report"' in page and 'class="rail"' in page
-    assert '<div class="view-big">BUY</div>' in page and "TP: NOK 120" in page                  # the research-book view, large
-    assert "Kapitalstruktur" in page and "EV/EBIT (LTM)" in page and "EURNOK 11.000" in page
-    assert "Neste hendelse" in page and "Q4 report" in page                                      # from the book's events
+    assert 'class="stockbar"' in page and 'class="tabs"' in page                                 # sticky bar and seven tabs (D57)
+    assert all(f'data-tab="{t}"' in page for t in ("oversikt", "regnskap", "verdsettelse", "teknisk", "rapporter", "eiere", "vurdering"))
+    assert '<div class="view-big">BUY</div>' in page and "TP: NOK 120" in page                  # the research-book view, large (Min vurdering)
+    assert "Mitt syn <b>BUY</b>" in page and "NOK 120" in page                                     # and in short form in the bar
+    assert "Kapitalstruktur" in page and "EV/EBIT (LTM)" in page and "EURNOK 11.000" in page      # Regnskap → Oversikt
+    assert "Neste hendelse" in page and "Q4 report" in page                                      # from the book's events (Rapporter)
     assert "Investeringscase" in page and "Nedside – kill-kriterier" in page and "margin below 10%" in page
     assert 'class="keyfig"' in page and "<th>2024</th><th>2025</th>" in page and "Omsetningsvekst" in page and "+6.7 %" in page
     assert "Ingen estimater vises" in page and "EST" in page
     assert "prefers-color-scheme" not in page                                                      # one light theme (D32)
-    # a company without a case keeps the layout, with the rail saying so
+    # a company without a case keeps the layout, with the view box saying so
     bare = client.get("/stock/CCC").get_data(as_text=True)
-    assert 'class="rail"' in bare and "Ingen vurdering fra deg ennå" in bare and 'class="keyfig"' not in bare
+    assert 'class="stockbar"' in bare and "Ingen vurdering fra deg ennå" in bare and 'class="keyfig"' not in bare and "Ikke fulgt" in bare
 
 
 def test_price_chart_draws_the_cone_to_the_views_values(app):  # noqa: F811
