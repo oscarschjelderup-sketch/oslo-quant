@@ -212,9 +212,9 @@ def _snap_day(day, index: pd.DatetimeIndex) -> str | None:
 
 
 def events(code: str, index: pd.DatetimeIndex, case=None, dividends=None, insiders=None, newsweb_reports=None,
-           cal_doc=None, log_rows=None) -> list[dict]:
+           cal_doc=None, log_rows=None, news=None) -> list[dict]:
     """Every dated thing the dashboard knows about the stock, on the session it belongs to, oldest first. Kinds:
-    rapport, utbytte, innside (with side), vurdering. Pure apart from the inputs."""
+    rapport, utbytte, innside (with side), vurdering, melding (a weighty announcement, D67). Pure apart from the inputs."""
     from osloquant import judgements as jg
 
     if not len(index):
@@ -246,6 +246,14 @@ def events(code: str, index: pd.DatetimeIndex, case=None, dividends=None, inside
         side = i.get("side") if i.get("side") in ("buy", "sell") else None
         add(i["time"], "innside", f"Innsidehandel ({SIDE_NO.get(i.get('side'), i.get('side') or 'uklart')}): {i.get('title', '')}",
             "NewsWeb, meldepliktig handel", **({"side": side} if side else {}))
+    for n in news or []:                         # what happened when the price moved: the announcements that weigh most
+        from osloquant.dashboard import news as nw
+
+        day = nw.session_of(n["time"], index)
+        if day is not None:
+            r = n.get("react")
+            move = f" Kursen {_pct(r['ret'])} den økten." if r else ""
+            add(day, "melding", f"{str(n.get('kind_no', 'børsmelding')).capitalize()}: {n.get('title', '')}.{move}", "Oslo Børs NewsWeb (overskrift)")
     days_logged: set[str] = set()
     for row in log_rows or []:
         if row.get("kind", "judgement") != "judgement" or row.get("code") != code or jg.analyst_of(row) != "oscar":
@@ -301,7 +309,7 @@ def payload(snap: mk.Snapshot, code: str, case=None, extra: dict | None = None) 
         "last": last_px, "prev": float(c.iloc[-2]) if len(c) > 1 else last_px,
         "periods": periods, "default": default,
         "cmp": cmp["cmp"], "cmp_off": cmp["off"],
-        "events": events(code, idx, case, extra.get("dividends"), extra.get("insiders"), extra.get("newsweb_reports"), extra.get("cal_doc"), extra.get("log_rows")),
+        "events": events(code, idx, case, extra.get("dividends"), extra.get("insiders"), extra.get("newsweb_reports"), extra.get("cal_doc"), extra.get("log_rows"), extra.get("news")),
         "lines": lines(case, last_px),
         "months": SHORT_MONTHS, "days": SHORT_DAYS,
     }
@@ -310,7 +318,9 @@ def payload(snap: mk.Snapshot, code: str, case=None, extra: dict | None = None) 
 EV_LABEL = {"rapport": ("R", "Rapporter", "Rapportdager lageret kjenner: NewsWeb-finanskalenderen og rapportene leseren har lastet ned. Eldre rapportdatoer finnes ikke i lageret."),
             "utbytte": ("U", "Utbytte", "Eks-utbyttedager og splitter fra Yahoo Finance via lageret (StockAction)."),
             "innside": ("I", "Innsidehandel", "Meldepliktige handler fra NewsWeb-bufferen: pil opp er kjøp, pil ned er salg."),
-            "vurdering": ("V", "Mine vurderinger", "Dine rader i vurderingsloggen og synet i research book (Claudes rader er ikke med).")}
+            "vurdering": ("V", "Mine vurderinger", "Dine rader i vurderingsloggen og synet i research book (Claudes rader er ikke med)."),
+            "melding": ("M", "Meldinger", "Børsmeldinger som veier tungt: innsideinformasjon, rapporter, selskapshendelser og flagginger, og meldinger på dager med uvanlig "
+                                          "stort kursutslag. Fra NewsWeb-bufferen, som går rundt 120 dager tilbake.")}
 
 
 def card_html(data: dict, div_id: str = "chart-price") -> str:
@@ -326,7 +336,7 @@ def card_html(data: dict, div_id: str = "chart-price") -> str:
             "Kilde: Yahoo Finance via lageret, forsinket – ikke sanntid. Periodeknappene, zoom (hjul eller dra) og verktøylinjen virker på grafen; "
             "hold musen over grafen for kurs, endring, volum og hendelser den dagen.")
     counts = {k: sum(1 for e in data["events"] if e["k"] == k) for k in EV_LABEL}
-    on = {"rapport": True, "utbytte": True, "innside": False, "vurdering": True}
+    on = {"rapport": True, "utbytte": True, "innside": False, "vurdering": True, "melding": True}
 
     def evb(k: str) -> str:
         letter, label, why = EV_LABEL[k]

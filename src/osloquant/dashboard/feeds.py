@@ -68,6 +68,11 @@ NEWS_KEYS = {
 }
 
 
+# Names that contain a universe company's name but are another company: a headline with one of these is not about ours.
+NEWS_NOT = {"KOG": ["Kongsberg Maritime", "Kongsberg kommune", "Kongsberg Automotive"], "NAS": ["Norwegian Cruise", "Norwegian Property"],
+            "AKER": ["Aker BP", "Aker Solutions", "Aker Carbon", "Aker Horizons", "Aker Brygge"], "DNB": ["DNB Markets", "DNB Carnegie"]}
+
+
 def news_keys(code: str, name: str) -> list[str]:
     return NEWS_KEYS.get(code, [name or code])
 
@@ -77,6 +82,8 @@ def mentions(title: str, code: str, names: dict[str, str]) -> bool:
     import re
 
     keys = news_keys(code, names.get(code, code))
+    for other_name in NEWS_NOT.get(code, ()):
+        title = title.replace(other_name, " ")
     for other, oname in names.items():
         if other == code:
             continue

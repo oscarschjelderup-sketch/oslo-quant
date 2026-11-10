@@ -217,6 +217,10 @@ td.mx.pos1 { background:#eef4fb; } td.mx.pos2 { background:#d6e6f7; } td.mx.pos3
 td.mx.neg1 { background:#fdf3e6; } td.mx.neg2 { background:#fae0bd; } td.mx.neg3 { background:#f5c98f; }
 .sbar { display:inline-block; width:54px; height:6px; background:var(--panel); border-radius:3px; vertical-align:middle; margin-right:5px; overflow:hidden; }
 .sbar i { display:block; height:100%; background:var(--accent); }
+.sector .driver .mstrip { margin:6px 0 10px; grid-template-columns:repeat(auto-fill,minmax(138px,170px)); }
+.sgrid.two { display:grid; grid-template-columns:minmax(0,3fr) minmax(260px,2fr); gap:18px; align-items:start; }
+.sgrid > div { min-width:0; } .snews h4 { margin:2px 0 4px; font-size:12px; font-weight:700; color:var(--accent-dark); }
+@media (max-width:1000px) { .sgrid.two { grid-template-columns:1fr; } }
 /* ranked news */
 .nlist { list-style:none; margin:0; padding:0; } .nlist li { display:grid; grid-template-columns:86px 1fr; gap:2px 10px; padding:7px 0; border-top:1px solid var(--line); }
 .nlist li:first-child { border-top:0; } .nlist .nwhen { font-size:11.5px; color:var(--muted); white-space:nowrap; }
@@ -440,6 +444,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
             f'<div class="sub">Siste sluttkurs: {dato(asof, weekday=True)} (Yahoo, forsinket). Signaler dekker {E(", ".join(ctx["sessions"]) or "–")}.</div>',
             strip,
             banner,
+            ctx.get("news_html", ""),
             f'<div class="card decide"><h2>Dette krever en vurdering fra deg ({len(dec)})</h2>{dec_html}</div>']
     # cases vs target
     rows = "".join(
@@ -474,10 +479,14 @@ def today_page(ctx: dict, static: bool = False) -> str:
     ann_html = ("".join(f'<li><b>{E(a["code"])}</b> {when(a["time"])} – <a href="{E(a["url"])}" target="_blank" rel="noopener">{E(a["title"])}</a></li>' for a in ann["items"])
                 or '<li class="empty">ingen børsmeldinger i vinduet</li>') + f'</ul><div class="src">{E(ann["source"])}</div>' if ann else \
         '<li class="empty">børsmeldinger ikke hentet (oq dashboard --refresh)</li></ul>'
-    body.append('<div class="grid2"><div><h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
+    upcoming = ('<h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
                 + (up or '<li class="empty">ingen hendelser de neste 30 dagene</li>') + '</ul><div class="src">Research book, selskapenes finanskalendere på NewsWeb og Norges Bank; '
-                + ('<a href="/calendar">hele kalenderen</a>' if not static else 'full calendar on the dashboard') + '.</div></div></div>'
-                '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
+                + ('<a href="/calendar">hele kalenderen</a>' if not static else 'hele kalenderen står på dashbordet') + '.</div></div>')
+    if ctx.get("news_html"):          # D67: the announcements are in «Nyheter som betyr noe» at the top, sorted by weight
+        body.append(upcoming)
+    else:
+        body.append(f'<div class="grid2"><div>{upcoming}</div>'
+                    '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
     if "insiders" in ctx:
         body.append(insider_front(ctx["insiders"], ctx.get("shorts_moved", []), static))
     # signals since last visit
@@ -500,7 +509,8 @@ def today_page(ctx: dict, static: bool = False) -> str:
 
 
 # ------------------------------------------------------------------------------------------------ Sektorer
-def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> str:
+def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof, macro: dict | None = None, news: dict | None = None) -> str:
+    """``macro``: group -> strip html of the group's drivers (D65). ``news``: group -> html of the group's heaviest news (D67)."""
     body = [f'<h1>Sektorer</h1><div class="sub">Alle {len(ret)} aksjene etter sektor. Avkastning til sluttkursen {dato(asof)} (Yahoo Finance, forsinket). '
             'Farge: grønt opp, rødt ned, full farge ved ±10 %.</div>']
     for g in groups:
@@ -513,11 +523,18 @@ def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> s
             + "".join(f'<td{heat(r[k])}>{pct(r[k])}{"*" if k == "ytd" and r["ytd_from_listing"] else ""}</td>' for k in ("d1", "w1", "m1", "ytd"))
             + (f'<td class="src">{dato(r["date"], False)}</td>' if r["stale"] else '<td></td>') + '</tr>' for code, r in sub.iterrows())
         d = drivers.get(g, [])
-        dhtml = " · ".join(f'{E(x["label"])}: <b>{E(x["value"])}</b> <span class="src">({E(x["source"])})</span>' for x in d) or "–"
+        if macro and macro.get(g):
+            missing = "".join(f' <span class="src">{E(x["label"])}: ikke gratis ({E(x["source"])}).</span>' for x in d if x.get("value") == "not free")
+            dblock = (f'<div class="driver"><span class="src">Driverne for sektoren, og hva de har gjort – <a href="/makro#folsomhet">hvem som faktisk følger dem</a>:</span>'
+                      f'{macro[g]}{missing}</div>')
+        else:
+            dhtml = " · ".join(f'{E(x["label"])}: <b>{E(x["value"])}</b> <span class="src">({E(x["source"])})</span>' for x in d) or "–"
+            dblock = f'<div class="driver">Drivere: {dhtml}</div>'
+        nblock = (f'<div class="snews"><h4>Nyheter i sektoren</h4>{news[g]}</div>' if news and news.get(g) else "")
+        table = ('<table class="heat"><thead><tr><th>Kode</th><th>Navn</th><th>Kurs</th><th>Dag</th><th>Uke</th><th>Måned</th><th>I år</th><th></th></tr></thead>'
+                 f'<tbody>{rows}</tbody></table>')
         body.append(f'<div class="card sector"><h3><span>{E(g)} <span class="code">{len(sub)} aksjer · snitt {pct(avg["d1"])} dag / {pct(avg["m1"])} mnd / {pct(avg["ytd"])} i år</span></span></h3>'
-                    f'<div class="driver">Drivere: {dhtml}</div>'
-                    '<table class="heat"><thead><tr><th>Kode</th><th>Navn</th><th>Kurs</th><th>Dag</th><th>Uke</th><th>Måned</th><th>I år</th><th></th></tr></thead>'
-                    f'<tbody>{rows}</tbody></table></div>')
+                    f'{dblock}<div class="sgrid{" two" if nblock else ""}"><div>{table}</div>{nblock}</div></div>')
     body.append('<div class="src">* I år fra første sluttkurs i lageret (notert i år). En dato etter en rad = aksjen mangler sluttkurs for siste økt.</div>')
     return page("Sektorer", "/sectors", "\n".join(body))
 

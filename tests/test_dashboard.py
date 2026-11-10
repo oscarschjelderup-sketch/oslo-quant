@@ -150,7 +150,7 @@ def test_every_page_renders_and_labels_its_sources(app):
         assert "forsinket" in text or "delayed" in text, url               # every page says its prices are delayed
     assert "Dette krever en vurdering fra deg" in client.get("/").get_data(as_text=True)
     sectors = client.get("/sectors").get_data(as_text=True)
-    assert "not free" in sectors and "Baltic" in sectors                      # freight is said to be unavailable
+    assert "ikke gratis" in sectors and "Baltic" in sectors                   # freight is said to be unavailable
     assert client.get("/go?code=aaa.ol").headers["Location"].endswith("/stock/AAA")
     assert client.get("/stock/..%2Fetc").status_code == 404
 
