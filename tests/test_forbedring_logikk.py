@@ -91,3 +91,25 @@ def test_e8_the_odds_card_takes_no_side_without_a_simulation():
     assert "too little history (33 sessions)" in rd.odds_block(_odds(od.Outcome(nan, nan, nan, 0, "too little history (33 sessions)", {"since": "2026-09"})), {})
     html = rd.odds_block(_odds(od.Outcome(0.2, 0.6, 0.2, 10000, extra={"since": "2015"})), {})
     assert "klart mot kill-nivået" in html and "Ingen simulering" not in html          # a real simulation still gets its verdict
+
+
+# ------------------------------------------------------------------------------------------------ E17 the form flow
+def test_e17_a_refused_form_opens_on_the_form_with_what_was_typed(app):  # noqa: F811
+    client, _ = app
+    typed = "A rationale long enough to be kept when the form is refused for another reason."
+    r = client.post("/stock/BBB/judge", data={**GOOD, "rationale": typed, "p_bull": "0.5"})         # the probabilities do not sum to 1
+    html = r.get_data(as_text=True)
+    assert r.status_code == 400
+    assert 'data-tab="vurdering" id="tab-vurdering">' in html and 'data-tab="oversikt" id="tab-oversikt" hidden>' in html     # the form's tab is the open one
+    panel = html.split('id="tab-vurdering"')[1]
+    assert typed in panel and 'value="130' in panel                       # the typed text and target are still in the form
+
+
+def test_e17_the_confirmation_is_read_from_the_log_not_from_the_address(app):  # noqa: F811
+    client, _ = app
+    assert client.post("/stock/BBB/judge", data=GOOD).status_code == 303
+    ok = client.get("/stock/BBB?logged=1").get_data(as_text=True)
+    assert "Vurderingen er lagret som rad #1 i vurderingsloggen" in ok and "kan ikke endres" in ok
+    for url in ("/stock/BBB?logged=7", "/stock/AAA?logged=1", "/stock/BBB?forecast=1", "/stock/BBB?updated=1"):     # no such row, another company, another kind
+        html = client.get(url).get_data(as_text=True)
+        assert "er lagret som rad" not in html and "ingenting er bekreftet lagret" in html, url

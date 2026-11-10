@@ -170,3 +170,15 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
   hoveren sier det.
 - **Test:** en aksje med utbytte 5 på siste økt (100 → 96 notert): dagsendringen er −4,0 %, ikke +1,0 %; 12 m høy er
   den noterte toppen; med en notert serie som ligger etter brukes de justerte og merkes.
+
+## Fase 5: funksjoner og flyt
+
+### E17 Et avvist skjema åpner der skjemaet er, og bekreftelsen leses fra loggen (#86, #114, F4, F5)
+- **Problem:** Når serveren avviser et skjema, åpnes Oversikt med feilen øverst, mens skjemaet ligger på en annen
+  fane. Bekreftelsen «Logged as row #…» kommer fra adressen, ikke fra loggen.
+- **Endring:** Alle fire skjemaer (vurdering, unnlatelse, prognose, oppdatering) åpner fanen «Min vurdering» ved
+  feil. Vurderingsskjemaet beholder det som ble skrevet. Bekreftelsen slår opp raden i loggen: finnes den, står det
+  «lagret som rad #N» med klokkeslett og at raden ikke kan endres. Finnes den ikke, står det at ingenting er
+  bekreftet lagret.
+- **Test:** et avvist skjema svarer med vurderingsfanen åpen og teksten i feltet; en adresse med et radnummer som
+  ikke finnes, eller som tilhører et annet selskap eller en annen radtype, gir ingen bekreftelse.

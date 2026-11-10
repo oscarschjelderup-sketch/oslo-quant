@@ -31,7 +31,7 @@ def test_every_tab_is_in_the_page_and_the_url_picks_the_active_one(app):  # noqa
     r = client.post("/stock/BBB/judge", data=GOOD)
     assert r.status_code == 303
     after = client.get(r.headers["Location"].split("http://localhost", 1)[-1]).get_data(as_text=True)
-    assert 'data-tab="vurdering" id="tab-vurdering">' in after and "Logged as row" in after
+    assert 'data-tab="vurdering" id="tab-vurdering">' in after and "er lagret som rad #" in after
 
 
 def test_the_bar_says_delayed_and_the_new_numbers_carry_their_source(app):  # noqa: F811

@@ -485,6 +485,26 @@ def create_app() -> Flask:
             abort(404)
         return _stock_page(code, tab, sub)
 
+    def _confirm(ctx, code):
+        """The confirmation after a form was sent, read from the log itself: the address only says which row to look
+        for. A row that is not there is said to be missing, never confirmed (funn #114)."""
+        from osloquant.dashboard.dates import stempel
+
+        rows = None
+        for key, kind, what in (("logged", "judgement", "Vurderingen"), ("passed", "pass", "Unnlatelsen"), ("forecast", "forecast", "Prognosen"),
+                                ("updated", "update", "Oppdateringen")):
+            seq = request.args.get(key)
+            if not seq:
+                continue
+            rows = jg.read_log() if rows is None and jg.log_path().exists() else (rows or [])
+            row = next((r for r in rows if str(r.get("seq")) == str(seq) and r.get("kind") == kind and r.get("code") == code), None)
+            if row:
+                ctx.setdefault("ok", []).append(f"{what} er lagret som rad #{row['seq']} i vurderingsloggen ({stempel(row.get('logged_at'))}). "
+                                                "Raden kan ikke endres; en ny vurdering legges til som en ny rad.")
+            else:
+                ctx.setdefault("errors", []).append(f"Fant ikke rad #{seq} for {code} i vurderingsloggen, så ingenting er bekreftet lagret. "
+                                                    "Se Kalibrering før du sender skjemaet på nytt.")
+
     def _stock_page(code, tab, sub):
         if not code.isalnum():
             abort(404)
@@ -493,14 +513,7 @@ def create_app() -> Flask:
         acted = any(request.args.get(k) for k in ("logged", "passed", "forecast", "updated", "checklist", "desk"))
         ctx["tab"] = tab or ("vurdering" if acted else "oversikt")
         ctx["subtab"] = sub
-        if request.args.get("logged"):
-            ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
-        if request.args.get("passed"):
-            ctx["ok"] = [f"Pass logged as row #{request.args['passed']} in the judgement log."]
-        if request.args.get("forecast"):
-            ctx["ok"] = [f"Forecast logged as row #{request.args['forecast']} in the judgement log."]
-        if request.args.get("updated"):
-            ctx["ok"] = [f"Update logged as row #{request.args['updated']} in the judgement log."]
+        _confirm(ctx, code.upper())
         if request.args.get("checklist"):
             ctx["form"] = {"checklist": ",".join(k for k in request.args["checklist"].split(",") if k.replace("_", "").isalnum())}
         if request.args.get("desk"):
@@ -548,7 +561,7 @@ def create_app() -> Flask:
             except (ValueError, RuntimeError) as e:
                 errors.append(str(e))
         ctx = stock_context(code)
-        ctx["errors"], ctx["form"] = errors, form
+        ctx["errors"], ctx["form"], ctx["tab"] = errors, form, "vurdering"
         if form.get("desk_run"):
             attach_desk(ctx, code, form["desk_run"])
             ctx["form"] = form                                    # the typed values win over the prefill
@@ -569,7 +582,7 @@ def create_app() -> Flask:
             return redirect(f"/stock/{code}?passed={row['seq']}", code=303)
         except (ValueError, RuntimeError) as e:
             ctx = stock_context(code)
-            ctx["errors"] = [str(e)]
+            ctx["errors"], ctx["tab"] = [str(e)], "vurdering"
             return Response(rd.stock_page(code, ctx), status=400)
 
     @app.post("/stock/<code>/forecast")
@@ -586,7 +599,7 @@ def create_app() -> Flask:
             return redirect(f"/stock/{code}?forecast={row['seq']}", code=303)
         except (ValueError, RuntimeError) as e:
             ctx = stock_context(code)
-            ctx["errors"] = [str(e)]
+            ctx["errors"], ctx["tab"] = [str(e)], "vurdering"
             return Response(rd.stock_page(code, ctx), status=400)
 
     @app.post("/stock/<code>/update")
@@ -606,7 +619,7 @@ def create_app() -> Flask:
             return redirect(f"/stock/{code}?updated={row['seq']}", code=303)
         except (ValueError, RuntimeError) as e:
             ctx = stock_context(code)
-            ctx["errors"] = [str(e)]
+            ctx["errors"], ctx["tab"] = [str(e)], "vurdering"
             return Response(rd.stock_page(code, ctx), status=400)
 
     def _review_page(msg: dict | None = None, status: int = 200):

@@ -87,7 +87,7 @@ def test_form_appends_one_row_at_the_server_price_and_date(app):
     assert "BBB" in [e["code"] for e in sg.load_book()]                      # a new company joins the book
     assert jg.verify().ok
     page = client.get("/stock/BBB?logged=1").get_data(as_text=True)
-    assert "Logged as row #1" in page and GOOD["rationale"] in page
+    assert "Vurderingen er lagret som rad #1 i vurderingsloggen" in page and GOOD["rationale"] in page
 
 
 def test_old_rows_cannot_be_overwritten(app):
