@@ -17,17 +17,26 @@ Grenen er `forbedring-2026-11-10` (worktree `Private prosjekter/oslo-quant-forbe
 - **E7–E8 logikk** (f9817fb): loggen avviser NaN og uendelig, skjemaene leser desimalkomma, oppdateringsskjemaet
   kaster ikke det som er skrevet, utfallsodds uten simulering tar ikke stilling.
 - **E9 utbytter i fremmed valuta** (cc7a2b2): renseregel 0. Kontrollert mot ekte Yahoo-historikk uten å skrive.
-- **E10 selskapshendelser og KOG**: børsmeldingene leses for emisjon, splitt, fisjon, navn/ticker, avnotering og
-  nye noteringer; KOG 15. apr. 2026 i `drop_returns`.
+- **E10 selskapshendelser og KOG** (845236d): børsmeldingene leses for emisjon, splitt, fisjon, navn/ticker,
+  avnotering og nye noteringer; KOG 15. apr. 2026 i `drop_returns`.
+- **E12 norsk tallformat** (15dce57): `dashboard/tall.py`, siste pass i `page()`.
+- **E13–E15 visuelt, språk og røyktest** (eb788ac): én aksentfarge, tabelljustering, «I dag» på norsk,
+  `tests/test_royk_browser.py`.
+- **E16 noterte kurser** (4513a57): dagsendring og 12 m lav/høy.
+- **E17 skjemaflyt** (7e95e61): riktig fane ved feil, bekreftelse fra loggen.
+- **E18 kildekontroll og I44** (a63d48d).
+- **Rapport:** `docs/forbedring/rapport.md` (kopi i `Pareto Equity Research/forbedring-2026-11-10/rapport.md`).
+  Etter-bilder i `forbedring-2026-11-10/etter`. Hele testsettet: 618 grønne.
 
 ## Pågår
-- E11: dagsendring og 12 m lav/høy på noterte kurser (#30, #31).
+- (ingenting)
 
-## Neste
-- Fase 3 rest: kontroll mellom kilder (D12), nye kilder vurdert (fase 3 punkt 5).
-- Fase 4: felles visuelt system (norsk tallformat, språk, tabeller, graftema).
-- Fase 5: flyter (#86, #87, #89, #90, #114).
-- Røyktest i CI, etter-bilder og rapport.
+## Neste (hvis en ny økt fortsetter)
+- De 48 åpne funnene om tall og logikk i `funn.md` (vedlegget, status «åpen»): start med #8, #14, #45, #59, #60.
+- Ytelse: første visning etter oppstart (#84, #94, #95, N1), laste-indikator.
+- Ett Plotly-tema, hover med kilde og tid på fellessidene, norske feilmeldinger i skjemaene.
+- Typesjekk, CSRF (#119), unntak som svelges (#120).
+- Oppdater statuskolonnen i vedlegget i `funn.md` for funnene som er rettet (E1–E18 nevner numrene).
 
 ## Viktig før sammenslåing
 - E9 endrer den justerte historikken for aksjer med utbytte i USD og DKK første gang `oq record` kjøres.

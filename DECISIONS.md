@@ -1013,3 +1013,72 @@ it is made, progress in `PROGRESS.md`.
   the polite reading of them. The short register has no partial query, so it is still fetched whole.
 - **Consensus (MFN).** A 404 means the company published none. Any other failure is now written to the run log
   and shows as «feilet», because «no consensus» and «could not ask» are different facts.
+
+## D61. Numbers in one Norwegian form, as a last pass
+
+- **What:** `dashboard/tall.py`. `norske_tall` runs last in `page()`, after the date pass (D58): decimal comma, a
+  no-break space before the per cent sign, a real minus sign, and «−0,00» becomes «0,00».
+- **Why a pass and not sixteen rewritten helpers:** the audit counted sixteen formatting helpers in three forms
+  (funn #128). Rewriting them would touch a few hundred call sites and still miss the next one written. One pass
+  makes every page read alike, including pages written later.
+- **What it never touches:** tags and attributes (links, form values, data for scripts), `script`, `style`, `code`,
+  `pre`, `textarea` and `select`. Version numbers (5.2.1), addresses (127.0.0.1), dotted dates (09.11.2026), file
+  names, and a number hyphenated to a word (Apache-2.0) are left as written. Hover text in `title="…"` is the one
+  attribute that is read by a person, so it is formatted.
+- **Idempotent, so no regrouping of thousands.** After the pass «9.410» reads «9,410». A second pass that grouped
+  thousands would read that as nine thousand. Counts are grouped where they are written (`tall.heltall`).
+- **A user's own text is formatted too.** A kill criterion typed as «margin below 10%» is shown as «10 %». The log
+  keeps what was typed; only the page changes.
+- **Plotly** gets the decimal comma through the Norwegian locale registered on every page. The price chart already
+  wrote Norwegian numbers (D59).
+
+## D62. The visual system: one accent, green and red for up and down, text left and numbers right
+
+- **Colours.** The accent is the teal already in the nav. Green and red now mean one thing: a price went up or
+  down, or a level above or below the price (target, kill). The decision list, its tags, error boxes, confirmation
+  boxes and status words no longer use them. An error box is amber with a thick border; a status is quiet when ok
+  and amber and bold when not (`st-ok`, `st-warn`, `st-bad`).
+- **Tables.** One script on every page left-aligns a column when most of its cells are text. A class on each cell
+  was the alternative; there are a few hundred cells, and the next table would forget it. A cell with its own
+  alignment keeps it.
+- **Language.** The front page's decisions, the book's warnings and data health are in Norwegian, and each kind of
+  decision has a Norwegian name. Machine statuses and log fields keep their English keys; only what is shown is
+  translated. Error messages from the judgement form's validation are still English (see the report's open list).
+- **Not done here:** one Plotly theme for every chart (the price chart is the standard; the others have the decimal
+  comma but their own grid and colours), and a hover with source and time on every key figure outside the stock
+  page.
+
+## D63. New free sources assessed
+
+Only one source was built, and its terms are the ones verified earlier in `docs/dashboard/data-sources.md`. For the
+others the terms column is what is generally known of them: they were not re-read in this session, and each must be
+read before anything is built on it.
+
+| Source | Gives | Terms | Decision |
+|---|---|---|---|
+| Norges Bank open data, I44 | the import-weighted krone index, daily | NLOD 2.0, verified earlier, same API | **built** (E18): one more series in the FX fetch |
+| Norges Bank, more yields (2y, 5y) | the government curve | NLOD 2.0 | not built: no page uses a curve yet |
+| Brønnøysund, Regnskapsregisteret open API | annual accounts as filed | NLOD | not built now; the best candidate for checking Yahoo's statements against a second source |
+| Companies' IR pages, largest shareholders | top-20 lists | each site has its own terms; the lists come from Euronext Securities or Modular Finance under licence | rejected: no uniform terms, sixty-five different pages to scrape |
+| Companies' IR pages, report calendar | report dates | as above | rejected: the issuers' own «Financial calendar» announcements on NewsWeb already give this |
+| Euronext live.euronext.com | delayed quotes, company data | the site's terms forbid automated collection | rejected |
+| ECB reference rates | EUR crosses, daily | free reuse with attribution | not built: Norges Bank against Yahoo already gives two sources for USD and EUR |
+| SSB, more tables (CPI, exports) | macro series | CC BY 4.0 | not built: no page asks for them |
+
+Paid or paywalled sources were not considered.
+
+## D64. Corrections to the store's data that take effect on the next recording
+
+Two fixes change stored prices, and both need Oscar's eyes before a merge because the paper accounts read the same
+store.
+
+- **Dividends in another currency (cleaning rule 0, E9).** The adjusted history of every stock that has paid in USD
+  or DKK is restated the first time `oq record` runs: FRO, HAFNI, OET, BWLPG, BWO, SNI, WAWI, BORR, ODL, MPCC, EQNR,
+  AKRBP and BAKKA. One-year total returns rise by 10–40 percentage points for the tanker and gas names. Checked on
+  Yahoo's real histories without writing anything: FRO +82.0 % → +107.5 %, where quoted closes plus the dividends
+  give +107.3 %. DNB, MOWI and SATS do not move. The currency is named by the ratio between the reported amount and
+  the amount Yahoo adjusted with, so nothing is changed unless a rate fits within 6 %.
+- **KOG, 15 Apr 2026 (E10).** The demerger day's move is removed from the adjusted series, as for AKSO in 2024. The
+  whole close-to-close move is taken as the distribution, so returns across the date are an estimate.
+- **Quoted prices for the day's change and the 12-month range (E16)** read the quoted table and fall back to the
+  adjusted one, labelled, while the quoted table lags.
