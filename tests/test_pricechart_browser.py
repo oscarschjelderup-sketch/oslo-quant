@@ -8,6 +8,7 @@ has no Chromium browser, and the visual comparisons skip on a platform without b
 from __future__ import annotations
 
 import json
+import os
 
 import numpy as np
 import pandas as pd
@@ -254,8 +255,15 @@ def test_visual_price_chart(chrome, live, setup):
         elif extra == "sector":
             _click(p, "[data-cmp=sector]")
         p.eval("new Promise(function(r){setTimeout(r, 250)})")
+        name = f"pricechart-{key}-{extra}"
         grid, png = _chart_grid(p)
-        _compare(f"pricechart-{key}-{extra}", grid, png)
+        # About one run in six the first screenshot of a page catches the canvas before its last paint. A chart that has
+        # really changed differs every time; a paint that was late does not. So a mismatch gets one more look, after
+        # two animation frames, before it counts.
+        if os.environ.get("OQ_UPDATE_VISUAL") != "1" and browser.has_baseline(name) and browser.compare_grid(name, grid, None) is not None:
+            p.eval("new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(r, 400)})})})")
+            grid, png = _chart_grid(p)
+        _compare(name, grid, png)
     finally:
         p.close()
 
