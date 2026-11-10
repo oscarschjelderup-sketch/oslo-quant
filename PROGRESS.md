@@ -32,11 +32,10 @@ Grenen er `forbedring-2026-11-10` (worktree `Private prosjekter/oslo-quant-forbe
 - (ingenting)
 
 ## Neste (hvis en ny økt fortsetter)
-- De 48 åpne funnene om tall og logikk i `funn.md` (vedlegget, status «åpen»): start med #8, #14, #45, #59, #60.
+- De 49 åpne funnene om tall og logikk i `funn.md` (vedlegget, status «åpen»): start med #8, #14, #45, #59, #60.
 - Ytelse: første visning etter oppstart (#84, #94, #95, N1), laste-indikator.
 - Ett Plotly-tema, hover med kilde og tid på fellessidene, norske feilmeldinger i skjemaene.
 - Typesjekk, CSRF (#119), unntak som svelges (#120).
-- Oppdater statuskolonnen i vedlegget i `funn.md` for funnene som er rettet (E1–E18 nevner numrene).
 
 ## Viktig før sammenslåing
 - E9 endrer den justerte historikken for aksjer med utbytte i USD og DKK første gang `oq record` kjøres.

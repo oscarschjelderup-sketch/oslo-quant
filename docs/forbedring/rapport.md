@@ -9,7 +9,7 @@ Forhåndsvisning på testhjemmet (kopierte kurser, fiktiv research book): http:/
 | Gruppe | Funn | Rettet nå | Det viktigste |
 |---|---|---|---|
 | Krasj og feil | 4 | 3 | `/calibration` ga 500 på én loggrad; en tekstcelle i modellfilen tok ned alle sju faner; tomt lager ga 500 |
-| Feil tall og logikk | 60 | 12 | USD-utbytter justert 9,6 ganger for lite; KOG-utskillelsen som kursfall; dagsendring og 12 m lav/høy på justerte kurser; «nan» godtatt i loggen |
+| Feil tall og logikk | 60 | 11 | USD-utbytter justert 9,6 ganger for lite; KOG-utskillelsen som kursfall; dagsendring og 12 m lav/høy på justerte kurser; «nan» godtatt i loggen |
 | Datainnhenting | 14 | 14 | noterte kurser og regnskap ble aldri hentet av kveldsoppgaven; et mislykket forsøk etterlot ingen spor |
 | Visuelt og tekst | 9 (+29 om brukbarhet fra 9. nov.) | 6 (+8) | engelske tall og setninger, rødt brukt til alt, tekst høyrejustert |
 | Funksjoner og flyt | 6 | 4 | avvist skjema åpnet feil fane; bekreftelsen kom fra adressen, ikke loggen |
@@ -52,7 +52,7 @@ siste sluttkurs (justert mot notert).
 
 ## Ikke gjort
 
-- **48 funn om tall og logikk står åpne**, blant dem #8 (kurscachen), #14 (P/E ved gammel kurs), #45 (oppdatering
+- **49 funn om tall og logikk står åpne**, blant dem #8 (kurscachen), #14 (P/E ved gammel kurs), #45 (oppdatering
   etter horisonten), #59 (6M teller økter) og #60 («other» som felles kill-driver).
 - **Ytelse:** første visning etter oppstart er fortsatt treg (`/funds` 21 s). Ingen laste-indikator.
 - **Visuelt:** ett felles Plotly-tema, og hover med kilde og tid på fellessidene. Skjemaenes feilmeldinger er

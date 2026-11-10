@@ -39,9 +39,9 @@ ingen «undefined» eller «NaN» i synlig tekst.
 
 | Nr | Alvor | Funn | Status |
 |---|---|---|---|
-| #3 | A | `/calibration` gir 500 når en prognoserad i loggen har `report` som tekst. Én rad tar ned hele siden. Reprodusert i dag. | åpen |
-| #1 | A | En celle med tekst i modellfilen (reverse DCF) gir 500 på alle sju faner. | åpen |
-| #2 | A | «I dag» og «Sektorer» gir 500 når lageret er tomt. | åpen |
+| #3 | A | `/calibration` gir 500 når en prognoserad i loggen har `report` som tekst. Én rad tar ned hele siden. Reprodusert i dag. | rettet (E1) |
+| #1 | A | En celle med tekst i modellfilen (reverse DCF) gir 500 på alle sju faner. | rettet (E1) |
+| #2 | A | «I dag» og «Sektorer» gir 500 når lageret er tomt. | rettet (E2) |
 | #4 | A | NaN i periodeknappens `data-r` knekker JSON i nettleseren. | løst av D59 (data-r har bare datoer) |
 | N1 | B | Første visning etter oppstart er treg: `/funds` 21,7 s, første aksjeside 5,1 s, `/health` 2,9 s, «I dag» 2,5 s. Ingen laste-indikator. | åpen (se også #84, #94, #95) |
 
@@ -163,17 +163,19 @@ Tre flyter gått som bruker på testhjemmet.
 
 ## Vedlegg: funnene fra 9. nov. med status på denne grenen
 
+Status er oppdatert 10. nov. etter E1–E18: «rettet (E…)» viser til `endringer.md`. #6, #15 og #36 er rettet ved roten (kveldsoppgaven henter nå tabellene) og gjelder fra første kjøring etter sammenslåing.
+
 Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat av et annet funn.
 
 | Nr | Gruppe | Funn | Status |
 |---|---|---|---|
-| #1 | Krasj | Reverse DCF: en celle med solvertekst eller en modell som ikke kan leses gir HTTP 500 på hele aksjesiden (alle sju faner) | åpen |
-| #2 | Krasj | «I dag» og «Sektorer» krasjer med 500 når lageret er tomt (NaT-dato og manglende kolonne) | åpen |
-| #3 | Krasj | /calibration gir 500 (TypeError) når en forecast-rad har report som tekst – hele kalibreringssiden faller | åpen |
+| #1 | Krasj | Reverse DCF: en celle med solvertekst eller en modell som ikke kan leses gir HTTP 500 på hele aksjesiden (alle sju faner) | rettet (E1) |
+| #2 | Krasj | «I dag» og «Sektorer» krasjer med 500 når lageret er tomt (NaT-dato og manglende kolonne) | rettet (E2) |
+| #3 | Krasj | /calibration gir 500 (TypeError) når en forecast-rad har report som tekst – hele kalibreringssiden faller | rettet (E1) |
 | #4 | Krasj | Periodeknappen får NaN i data-r når volumet mangler i hele perioden, og da feiler JSON.parse i nettleseren | løst av D59 |
-| #5 | Feil tall | Utbytter i USD justeres omtrent 9,6 ganger for lite: justerte kurser og periodeavkastning er feil for FRO, HAFNI, OET, BWLPG, BWO, SNI, WAWI, … | åpen |
-| #6 | Feil tall | Kalibrering: «Nå»-kursen (price_now) blåses opp med alt utbytte siden vurderingen når den noterte serien henger etter | åpen |
-| #7 | Feil tall | KOG: utskillelsen av Kongsberg Maritime 15. apr. 2026 ligger i lageret som et kursfall på −18 %, og alle KOG-avkastninger over datoen blir feil | åpen |
+| #5 | Feil tall | Utbytter i USD justeres omtrent 9,6 ganger for lite: justerte kurser og periodeavkastning er feil for FRO, HAFNI, OET, BWLPG, BWO, SNI, WAWI, … | rettet (E9) |
+| #6 | Feil tall | Kalibrering: «Nå»-kursen (price_now) blåses opp med alt utbytte siden vurderingen når den noterte serien henger etter | rettet (E4) |
+| #7 | Feil tall | KOG: utskillelsen av Kongsberg Maritime 15. apr. 2026 ligger i lageret som et kursfall på −18 %, og alle KOG-avkastninger over datoen blir feil | rettet (E10) |
 | #8 | Feil tall | Kurscachen fornyes bare når datoen på nyeste bar endres – en ny sluttkurs for samme dato vises ikke før neste handelsdag eller omstart | åpen |
 | #9 | Feil tall | 5Å er alltid av, og «Maks» er bare 26 måneder: kursbildet laster 800 dager, ikke fem år (D57) | dup #12 |
 | #10 | Feil tall | 5Å er slått av på alle aksjer og «Maks» viser bare ~2,2 års avkastning – grafen har 800 dager, ikke fem år | dup #12 |
@@ -181,7 +183,7 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #12 | Feil tall | Kursøyeblikksbildet holder bare 800 dager: 5Å er slått av for alle aksjer med feil begrunnelse, og «Maks» betyr bare fra 2. sep. 2024 | løst av D59 |
 | #13 | Feil tall | Utbyttetabellen regner «Kurs før» og yield på justert kurs, så eldre yield blir for høy | åpen |
 | #14 | Feil tall | «P/E ved kurs X» i Nøkkeltall per år viser multippelen ved lett-casens byggekurs, ikke ved kursen som står i etiketten | åpen |
-| #15 | Feil tall | Regnskapet i lageret mangler 3. kvartal for 11 selskaper som har rapportert: P/E i Oversikt er regnet på tall til 30. juni uten varsel | åpen |
+| #15 | Feil tall | Regnskapet i lageret mangler 3. kvartal for 11 selskaper som har rapportert: P/E i Oversikt er regnet på tall til 30. juni uten varsel | rettet (E4) |
 | #16 | Feil tall | Kalibrering: totalavkastningen mister utbyttet når den noterte serien mangler på vurderingsdatoen | åpen |
 | #17 | Feil tall | Dagsendringen i kursbaren regnes mot utbyttejustert forrige sluttkurs, så den er feil på hver eks-dag | dup #30 |
 | #18 | Feil tall | «12 m lav / høy» og «52 ukers høy» er utbyttejusterte kurser som aldri ble handlet, og avviker fra både Yahoo og noterte sluttkurser | dup #31 |
@@ -196,13 +198,13 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #27 | Feil tall | Short «siste 30 dager» måles fra siste registerhendelse, ikke fra i dag | åpen |
 | #28 | Feil tall | Odds-kortet har hardkodet «64 aksjer», mens lageret nå har 65 | åpen |
 | #29 | Feil tall | RSI-raden viser «nan» når serien er flat | åpen |
-| #30 | Feil tall | På eks-dagen viser toppbaren, /sectors og forsiden totalavkastning som «endring mot forrige sluttkurs», ikke kursendringen | åpen |
-| #31 | Feil tall | «12 m lav / høy» viser justerte sluttkurser som aksjen aldri har handlet til | åpen |
+| #30 | Feil tall | På eks-dagen viser toppbaren, /sectors og forsiden totalavkastning som «endring mot forrige sluttkurs», ikke kursendringen | rettet (E16) |
+| #31 | Feil tall | «12 m lav / høy» viser justerte sluttkurser som aksjen aldri har handlet til | rettet (E16) |
 | #32 | Feil tall | Multippelhistorikken (P/E og P/S per årsslutt) bruker justert årssluttkurs og dagens valutakurs | åpen |
 | #33 | Feil tall | Datoen for netto gjeld brukes også som dato for egenkapitalen: feil dato i P/B-kilden og feil kvalitetskarakter | åpen |
 | #34 | Feil tall | P/E, EPS, P/S og EV/EBIT er merket «LTM» selv når tallet er siste hele år | åpen |
 | #35 | Feil tall | Multiplene i Oversikt for selskaper som rapporterer i USD, EUR eller DKK bruker valutakursen fra dagen lett-casen ble bygget, og hoveren nevner … | åpen |
-| #36 | Feil tall | /health melder at rå-tabellen er à jour («siste 9. nov. 2026»), men 63 av 64 aksjer slutter 19. okt. 2026 | åpen |
+| #36 | Feil tall | /health melder at rå-tabellen er à jour («siste 9. nov. 2026»), men 63 av 64 aksjer slutter 19. okt. 2026 | rettet (E4, E5) |
 | #37 | Feil tall | GSF: rå-tabellen har en splitt 2:1 som ikke er rettet bakover, og StockAction har ingen splitt-rad for den | åpen |
 | #38 | Feil tall | RSI 14 avviker fra Wilder på korte historikker: OUTLT viser 63, Wilder gir 58 | åpen |
 | #39 | Feil tall | Samme 12-måneders topp vises med to tall: Oversikt 46.23 (sluttkurs) og Teknisk «52 ukers høy» 46.90 (intradag-høy), ingen av dem merket | dup #31 |
@@ -210,11 +212,11 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #41 | Feil tall | Desk-sidens datakvalitet viser UTC-tid som norsk tid (én time feil) | åpen |
 | #42 | Feil tall | Bunnteksten «Generert» bruker maskinens lokale tid, resten av siden Oslo-tid | dup #23 |
 | #43 | Feil tall | ELK: «Etter rapporten» viser «Vekst prisen krever −38.6 %» mens lett case på samme side sier at ingen vekstrate gjelder | åpen |
-| #44 | Feil logikk | Utfallsodds gir dommen «klart mot kill-nivået» når det ikke finnes noen simulering (nylig notert aksje, OUTLT) | åpen |
+| #44 | Feil logikk | Utfallsodds gir dommen «klart mot kill-nivået» når det ikke finnes noen simulering (nylig notert aksje, OUTLT) | rettet (E8) |
 | #45 | Feil logikk | Oppdateringsløkka (D48) aksepterer en oppdatering etter at horisonten er ute og scorer den i etterpåklokskap | åpen |
-| #46 | Feil logikk | Oppdateringsskjemaet (D48) kaster de nye sannsynlighetene stille hvis «endret» ikke er krysset av, og skriver de gamle til den uforanderlige loggen | åpen |
+| #46 | Feil logikk | Oppdateringsskjemaet (D48) kaster de nye sannsynlighetene stille hvis «endret» ikke er krysset av, og skriver de gamle til den uforanderlige loggen | rettet (E7) |
 | #47 | Feil logikk | Oppdateringsspørsmålet stilles for vurderinger som har passert horisonten, og Brier for en oppdatering skrevet etter horisonten settes som «bedre» … | dup #45 |
-| #48 | Feil logikk | «nan», «inf» og «1e999» godtas som tall og skrives permanent i vurderingsloggen | åpen |
+| #48 | Feil logikk | «nan», «inf» og «1e999» godtas som tall og skrives permanent i vurderingsloggen | rettet (E7) |
 | #49 | Feil logikk | Oppdateringsløkken (D48) gjelder også modne vurderinger – etterpåklok oppdatering scores som bedre Brier | dup #45 |
 | #50 | Feil logikk | Teknisk-fanen merker «(utløst nå)» ut fra tilstand, ikke ut fra det målte signalet (kanalraden ser ikke på MA20, drawdown og MA-kryss gjelder i … | åpen |
 | #51 | Feil logikk | «60 dagers lav» og volumkravet for 60-dagers brudd regnes på en annen måte enn det målte signalet de henter odds fra | åpen |
@@ -224,7 +226,7 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #55 | Feil logikk | Feilmønstrene «for tidlig inn» og «for sent ut» måler justert kursbane mot notert kurs og kill-nivå | åpen |
 | #56 | Feil logikk | En halvferdig dagsbar fra en kjøring i åpningstiden vises som «siste sluttkurs», mens oddsene på samme side dropper den | åpen |
 | #57 | Feil logikk | Teknisk-raden «60 dagers lav» bruker sluttkurser, mens oddsene den viser er målt på intradag-low | åpen |
-| #58 | Feil logikk | Varselet om gamle kurser på «I dag» slår ut dagen etter hver børsfridag, men ikke en ukedagskveld da dagens sluttkurs mangler | åpen |
+| #58 | Feil logikk | Varselet om gamle kurser på «I dag» slår ut dagen etter hver børsfridag, men ikke en ukedagskveld da dagens sluttkurs mangler | rettet (E5) |
 | #59 | Feil logikk | 6M og 5Å teller økter i stedet for kalendermåneder: 6M for SATS viser +6.0 %, der seks måneder gir +10.3 % | åpen |
 | #60 | Feil logikk | «other» (ingen driver gjenkjent) telles som delt kill-driver: forsiden og analysesjefen varsler at urelaterte syn «dør av samme driver» | åpen |
 | #61 | Feil logikk | Etter en oppdatering viser syn-boksen, oddsene og Før du kjøper fortsatt de gamle sannsynlighetene | åpen |
@@ -252,17 +254,17 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #83 | Feil logikk | Prognose-POST stoler på skjulte felter: rapportdato og -navn kan settes fritt | dup #73 |
 | #84 | Brukbarhet | Aksjesiden er over 2 s på serveren og 3–7 s i nettleseren; signals_since for hele universet og Excel-lesing på hver forespørsel dominerer | åpen |
 | #85 | Brukbarhet | Oppdateringsskjemaet (D48) godtar ikke desimalkomma og viser en rå Python-feil | dup #88 |
-| #86 | Brukbarhet | Skjema med feil åpner siden på Oversikt: feilmeldingen står øverst, men skjemaet med det du skrev er skjult på en annen fane | åpen |
+| #86 | Brukbarhet | Skjema med feil åpner siden på Oversikt: feilmeldingen står øverst, men skjemaet med det du skrev er skjult på en annen fane | rettet (E17) |
 | #87 | Brukbarhet | Oppdaterings-, prognose- og unnlatelsesskjemaet glemmer det du skrev når serveren avviser det | åpen |
-| #88 | Brukbarhet | Desimalkomma og mellomrom i tall: vurderingen godtar «0,25» og «13 500», oppdateringen gir en rå Python-feil og prognosen avviser | åpen |
-| #89 | Brukbarhet | Forsidens lenker lander på Oversikt; handlingen ligger på Min vurdering eller Rapporter, og etter en prognose sendes du til feil fane | åpen |
-| #90 | Brukbarhet | Forsiden ber om handlinger dashbordet ikke har: «log a kill check», «close the case», «renew or retire it» | åpen |
+| #88 | Brukbarhet | Desimalkomma og mellomrom i tall: vurderingen godtar «0,25» og «13 500», oppdateringen gir en rå Python-feil og prognosen avviser | rettet (E7) |
+| #89 | Brukbarhet | Forsidens lenker lander på Oversikt; handlingen ligger på Min vurdering eller Rapporter, og etter en prognose sendes du til feil fane | rettet (E14) |
+| #90 | Brukbarhet | Forsiden ber om handlinger dashbordet ikke har: «log a kill check», «close the case», «renew or retire it» | rettet (E14) |
 | #91 | Brukbarhet | Beslutningslisten teller samme selskap flere ganger: «15 ting, omtrent 180 minutter» er 4 selskaper + analysesjefen | åpen |
 | #92 | Brukbarhet | Rekkefølgen «i denne rekkefølgen» er alfabetisk innen hastegrad, ikke etter frist | åpen |
 | #93 | Brukbarhet | Desk-blokken på forsiden lister 42 parkerte, men navngir ikke den ene som ble drept – din egen BUY i SATS | åpen |
 | #94 | Brukbarhet | «Før du kjøper» bruker 1.5–3.7 s: snapshot()/get_coverage kalles 8 ganger fordi _groups() kalles én gang per case | åpen |
 | #95 | Brukbarhet | Første side etter oppstart er treg: I dag 4.4–5.1 s, Desk 2.4–4.7 s, Porteføljer 2.3–2.7 s, Datahelse 2.5 s | åpen |
-| #97 | Brukbarhet | Feilmeldinger er engelske, rå Python-tekster eller mangler – og 404 er Flasks standardside | åpen |
+| #97 | Brukbarhet | Feilmeldinger er engelske, rå Python-tekster eller mangler – og 404 er Flasks standardside | rettet (E3) |
 | #99 | Brukbarhet | Kurser og avkastning på /sectors og forsiden har ingen hover med kilde og tidspunkt, og hovrene på aksjesiden har ISO-datoer | åpen |
 | #101 | Brukbarhet | /calibration laster hele prisgrunnlaget tre ganger per visning | åpen |
 | #102 | Brukbarhet | Forsiden: «110 signaler på andre aksjer – vis» åpner bare 60 | åpen |
@@ -270,15 +272,15 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #105 | Brukbarhet | Blandet språk og en feilmelding som peker på en avkrysning som ikke finnes («tick «I know»») | åpen |
 | #106 | Brukbarhet | Overvåkning godtar en ticker som ikke finnes («ZZZZ added.»), og den kan ikke fjernes; søkefeltet sender ugyldig kode stille til forsiden | åpen |
 | #107 | Brukbarhet | Tekst kuttes midt i ord uten «…», også i det som lagres på vurderingsraden | åpen |
-| #108 | Brukbarhet | Tallformat sprikker: prognoser «13000 – 13500», historikk «45.5» mot «45.50», og :g gir 1.23457e+06 over seks sifre | åpen |
+| #108 | Brukbarhet | Tallformat sprikker: prognoser «13000 – 13500», historikk «45.5» mot «45.50», og :g gir 1.23457e+06 over seks sifre | rettet (E12) |
 | #109 | Brukbarhet | Kalibreringssiden viser Brier på tre skalaer med ulike referansepunkter; vanskelig å vite om et tall er godt | åpen |
 | #110 | Brukbarhet | Oppsett: vurderingshistorikken klemmes i et halvbredt kort (datoer over tre linjer) og «Jeg vet det»-avkrysningen står løsrevet midt på egen linje | åpen |
 | #111 | Brukbarhet | plotly.min.js (4.8 MB) lastes synkront i <head> på alle sider, også sider uten grafer | åpen |
 | #113 | Brukbarhet | Datopasset gjør om datoer inne i Windows-stier | åpen |
-| #114 | Brukbarhet | Bekreftelsen «Logged as row #…» vises fra URL-en uten å sjekke loggen | åpen |
+| #114 | Brukbarhet | Bekreftelsen «Logged as row #…» vises fra URL-en uten å sjekke loggen | rettet (E17) |
 | #115 | Brukbarhet | «Siste rapport» og «Neste rapport» er tomme for ikke-fulgte aksjer uten at siden sier hvorfor eller hva man gjør | åpen |
 | #116 | Brukbarhet | «Før du kjøper»: kommaer fjernes fra gruppenavn og lister, og «fra før» teller aksjen selv | åpen |
-| #117 | Brukbarhet | Negativ null i tallformat («-0.00 R», «-0», «-0%», «-0.0%») | åpen |
+| #117 | Brukbarhet | Negativ null i tallformat («-0.00 R», «-0», «-0%», «-0.0%») | rettet (E12) |
 | #118 | Brukbarhet | Desk-tabellen på aksjesiden viser bare klokkeslett, så en kjøring 8. nov. ser ut som 6. nov. | åpen |
 | #119 | Kode | Skjemaene godtar POST fra hvilken som helst nettside (ingen CSRF-/Origin-sjekk), og Host-headeren sjekkes ikke | åpen |
 | #120 | Kode | 11 except-blokker svelger feil uten logg; en kodefeil vises som falsk tom tilstand («for kort historikk») | åpen |
@@ -289,7 +291,7 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #125 | Kode | «Neste rapport» plukkes på fem steder med ulike regler; aksjesidens topplinje kaller enhver research-book-hendelse «Neste rapport» | åpen |
 | #126 | Kode | Målte signalodds caches til serveren startes på nytt i render._odds(), mens andre deler leser filen på nytt – to versjoner på samme server | åpen |
 | #127 | Kode | Desk-regelen «verdien må ha et tall» får koden til å skrive 0 for ukjente verdier («dag 0 %», «ROIC 0 %») | åpen |
-| #128 | Kode | Prosent- og tusenformat kommer fra 16 hjelpefunksjoner med tre former, blandet på samme side | åpen |
+| #128 | Kode | Prosent- og tusenformat kommer fra 16 hjelpefunksjoner med tre former, blandet på samme side | rettet (E12) |
 | #129 | Kode | Duplisert kode: identiske hjelpere og konstanter kopiert mellom moduler | åpen |
 | #130 | Kode | Død kode: ubrukte funksjoner, felt, parametere og en «if False»-gren med ødelagt HTML | åpen |
 | #131 | Kode | flask og scipy importeres direkte, men står ikke i pyproject.toml | åpen |
