@@ -57,7 +57,17 @@ def upcoming(code: str, cases, today: pd.Timestamp) -> dict | None:
 
 
 def forecasts(rows: list[dict], code: str | None = None, analyst: str = jg.DEFAULT_ANALYST) -> list[dict]:
-    return [r for r in rows if r.get("kind") == "forecast" and (code is None or r["code"] == code) and jg.analyst_of(r) == analyst]
+    return [r | {"report": report_of(r)} for r in rows
+            if r.get("kind") == "forecast" and (code is None or r["code"] == code) and jg.analyst_of(r) == analyst]
+
+
+def report_of(row: dict) -> dict:
+    """The report a forecast is about as ``{date, what, source}``, whatever shape the row has. The dashboard writes a
+    dict; a hand-written or older row may hold plain text, and then the date is unknown ("")."""
+    rep = row.get("report")
+    if isinstance(rep, dict):
+        return {"date": str(rep.get("date") or "")[:10], "what": str(rep.get("what") or ""), "source": str(rep.get("source") or "")}
+    return {"date": "", "what": "" if rep is None else str(rep), "source": "tekst i loggraden, uten dato"}
 
 
 def form_problems(form: dict, allowed: dict, report: dict | None, today: pd.Timestamp) -> list[str]:
@@ -155,8 +165,8 @@ def block_html(code: str, report: dict | None, rows: list[dict]) -> str:
 
 
 def calibration_html(sc: dict) -> str:
-    rows = "".join(f'<tr><td>{E(x["code"])}</td><td>{E(x["label"])}</td><td>{E(x["report"]["date"])}</td><td>{x["low"]:g} – {x["mid"]:g} – {x["high"]:g}</td>'
-                   + (f'<td>{x["answer"]["actual"]:g}</td><td>{"innenfor" if x["answer"]["inside"] else "utenfor"}</td><td>{x["answer"]["miss"] * 100:+.1f} %</td>'
+    rows = "".join(f'<tr><td>{E(x["code"])}</td><td>{E(x["label"])}</td><td>{dato(x["report"]["date"]) if x["report"]["date"] else E(x["report"]["what"]) + " (uten dato)"}</td><td>{x["low"]:g} – {x["mid"]:g} – {x["high"]:g}</td>'
+                   + (f'<td>{x["answer"]["actual"]:g}</td><td>{"innenfor" if x["answer"]["inside"] else "utenfor"}</td><td>{"–" if x["answer"]["miss"] is None else format(x["answer"]["miss"] * 100, "+.1f") + " %"}</td>'
                       if x["answer"] else '<td colspan="3" class="empty">ikke avgjort ennå</td>') + '</tr>' for x in sc["rows"])
     cov = "–" if sc["coverage"] is None else f'{sc["coverage"] * 100:.0f} %'
     return ('<h2>Kvartalsprognoser (80 %-intervall)</h2><div class="card">'

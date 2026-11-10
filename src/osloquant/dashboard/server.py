@@ -386,6 +386,19 @@ def _update_html(code: str, c, today) -> str:
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    @app.errorhandler(404)
+    def not_found(e):
+        return rd.error_page(404, request.path), 404
+
+    @app.errorhandler(Exception)
+    def crashed(e):
+        from werkzeug.exceptions import HTTPException
+
+        if isinstance(e, HTTPException):
+            return e
+        app.logger.exception("500 on %s", request.path)
+        return rd.error_page(500, request.path, f"{type(e).__name__}: {str(e)[:160]}"), 500
+
     @app.get("/ping")
     def ping():
         return Response("ok", mimetype="text/plain")                # the app launcher's "is it up" (D45)
@@ -429,11 +442,15 @@ def create_app() -> Flask:
 
     @app.get("/")
     def home():
+        if mk.snapshot().panel["close"].empty:
+            return rd.empty_store_page("I dag", "/")
         return rd.today_page(today_context(mark_seen=not app.config.get("SNAPSHOT")))     # a copy (D44) must not mark signals seen
 
     @app.get("/sectors")
     def sectors():
         snap = mk.snapshot()
+        if snap.panel["close"].empty:
+            return rd.empty_store_page("Sektorer", "/sectors")
         return rd.sectors_page(mk.returns(snap), fd.sector_drivers(), mk.GROUP_ORDER + ["Other"], snap.asof)
 
     @app.get("/go")
@@ -701,23 +718,26 @@ def create_app() -> Flask:
         fp = jg.fingerprint([dict(c.view, code=c.code) for c in bk.cases() if c.view])
         from osloquant.dashboard import learn
 
+        # every block on its own (rd.block): one row of an unexpected shape costs one block, never the page
         learn_html = ""
         if len(table):
-            prices = jg.load_prices(start=min(pd.Timestamp(j["date"]) for j in jg.judgements(rows)) - pd.Timedelta(days=10))
-            learn_html = learn.by_case_html(learn.by_case(table, rel)) + learn.patterns_html(learn.error_patterns(rows, table, prices))
-            from osloquant.dashboard import discipline as dsc
-
-            learn_html = dsc.grid_html(dsc.decision_grid(rows, table)) + learn_html          # D46: process against outcome
             from osloquant.dashboard import calendar as cal
+            from osloquant.dashboard import discipline as dsc
             from osloquant.dashboard import updates as up
 
-            learn_html += up.calibration_html(up.scoring(rows, table, pd.Timestamp.now().normalize(), bk.cases(), fd.read(cal.CAL_FEED)))   # D48
-        from osloquant.dashboard import forecasts as fcs
+            def prices():
+                return jg.load_prices(start=min(pd.Timestamp(j["date"]) for j in jg.judgements(rows)) - pd.Timedelta(days=10))
 
-        learn_html += fcs.calibration_html(fcs.scoring(rows))                                         # D52
+            learn_html = (rd.block("Prosess mot utfall", lambda: dsc.grid_html(dsc.decision_grid(rows, table)))            # D46
+                          + rd.block("Per case", lambda: learn.by_case_html(learn.by_case(table, rel)))
+                          + rd.block("Feilmønstre", lambda: learn.patterns_html(learn.error_patterns(rows, table, prices())))
+                          + rd.block("Oppdateringer", lambda: up.calibration_html(up.scoring(rows, table, pd.Timestamp.now().normalize(), bk.cases(),
+                                                                                              fd.read(cal.CAL_FEED)))))    # D48
+        from osloquant.dashboard import forecasts as fcs
         from osloquant.dashboard import passes as pss
 
-        learn_html += pss.calibration_html(pss.scoring(rows))                                         # D54
+        learn_html += rd.block("Kvartalsprognoser (80 %-intervall)", lambda: fcs.calibration_html(fcs.scoring(rows)))      # D52
+        learn_html += rd.block("Unnlatelser", lambda: pss.calibration_html(pss.scoring(rows)))                             # D54
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")

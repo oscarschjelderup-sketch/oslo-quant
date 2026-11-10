@@ -215,6 +215,38 @@ def pct(v, d=1, sign=True):
     return f"{v * 100:{'+' if sign else ''}.{d}f}%"
 
 
+def block(name: str, fn, *args, **kwargs) -> str:
+    """One part of a page drawn on its own: when it raises, the part says so, the error is logged with its traceback,
+    and the rest of the page is drawn as usual. A row of an unexpected shape in the log must never take a page down."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001 – the point is that any failure stays inside its block
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("block %s failed", name)
+        return (f'<h2>{E(name)}</h2><div class="card"><p class="err">Denne delen kunne ikke vises ({E(type(e).__name__)}: {E(str(e)[:200])}). '
+                'Resten av siden er som vanlig. Feilen står i serverloggen – se <a href="/health">Datahelse</a> for hva som er utdatert eller mangler.</p></div>')
+
+
+def empty_store_page(title: str, active: str) -> str:
+    """The page a price-driven view shows when the store has no prices at all (a new install, or a failed first download)."""
+    return page(title, active, f'<h1>{E(title)}</h1><div class="card"><p class="empty"><b>Lageret har ingen kurser.</b> '
+                'Fyll det med <code>oq record</code> (daglige kurser fra Yahoo, noen minutter første gang), og last siden på nytt. '
+                'Kveldsoppgaven gjør det samme hver børsdag – se <a href="/health">Datahelse</a>.</p></div>')
+
+
+def error_page(status: int, path: str, detail: str = "") -> str:
+    """404 and 500 in Norwegian, with the menu and a next step."""
+    if status == 404:
+        head, text = "Siden finnes ikke", (f'Adressen <code>{E(path)}</code> finnes ikke i dashbordet. Sjekk tickeren i søkefeltet øverst, '
+                                           'eller gå til <a href="/">I dag</a>.')
+    else:
+        head, text = "Noe gikk galt", (f'Siden <code>{E(path)}</code> kunne ikke tegnes' + (f' ({E(detail)})' if detail else '') + '. '
+                                       'Ingenting er lagret eller endret. Last siden på nytt; hvis det gjentar seg, se <a href="/health">Datahelse</a> '
+                                       'for hva som er utdatert eller mangler. Feilen står i serverloggen.')
+    return page(head, "", f'<h1>{head}</h1><div class="card"><p class="err">{text}</p></div>')
+
+
 def cls(v):
     return "" if v is None or (isinstance(v, float) and v != v) else ("up" if v > 0 else "down" if v < 0 else "")
 
@@ -857,12 +889,18 @@ def case_rdcf_card(c, rd: dict | None) -> str:
     """What the market prices in: the reverse DCF from the Toolkit model linked in the research book."""
 
     if rd and not rd.get("error"):
+        notes = rd.get("notes") or {}
+
+        def val(key: str) -> str:       # the sheet's own text ("n.a.", "outside range") when the cell holds no number
+            return pct(rd.get(key), 1, False) if rd.get(key) is not None else (f'<span title="Modellens egen tekst: kursen ligger utenfor tabellen arket løser i">{E(notes[key])}</span>' if key in notes else "–")
+
+        num = lambda key, d: "–" if rd.get(key) is None else f"{rd[key]:.{d}f}"  # noqa: E731
         rdh = (f'<table><thead><tr><th></th><th>Market-implied</th><th>Ours</th><th>Reference</th></tr></thead><tbody>'
-               f'<tr><td>EBIT margin, final year</td><td><b>{pct(rd["rd_m_last"], 1, False)}</b></td><td>{pct(rd["rd_m_last_ours"], 1, False)}</td><td>{pct(rd["rd_m_last_ref"], 1, False)} last actual</td></tr>'
-               f'<tr><td>Revenue CAGR</td><td><b>{pct(rd["rd_cagr"], 1, False)}</b></td><td>{pct(rd["rd_cagr_ours"], 1, False)}</td><td>{pct(rd["rd_cagr_ref"], 1, False)} history</td></tr>'
-               f'<tr><td>WACC</td><td><b>{pct(rd["rd_wacc"], 1, False)}</b></td><td>{pct(rd["rd_wacc_ours"], 1, False)}</td><td></td></tr></tbody></table>'
-               f'<div class="src">Reverse DCF at the model price {rd["price"]:.2f} ({dato(rd["price_date"])}); DCF {rd["dcf"]:.1f}, TP {rd["tp"]} {E(str(rd["rating"]))}; '
-               f'each pp of margin ≈ NOK {rd["rd_k"]:.1f}/share. Source: {E(rd["file"])} (Equity Research Toolkit, private). Model values are estimates (EST).</div>')
+               f'<tr><td>EBIT margin, final year</td><td><b>{val("rd_m_last")}</b></td><td>{val("rd_m_last_ours")}</td><td>{val("rd_m_last_ref")} last actual</td></tr>'
+               f'<tr><td>Revenue CAGR</td><td><b>{val("rd_cagr")}</b></td><td>{val("rd_cagr_ours")}</td><td>{val("rd_cagr_ref")} history</td></tr>'
+               f'<tr><td>WACC</td><td><b>{val("rd_wacc")}</b></td><td>{val("rd_wacc_ours")}</td><td></td></tr></tbody></table>'
+               f'<div class="src">Reverse DCF at the model price {num("price", 2)} ({dato(rd.get("price_date")) if rd.get("price_date") else "–"}); DCF {num("dcf", 1)}, TP {"–" if rd.get("tp") is None else format(rd["tp"], "g")} {E(str(rd.get("rating") or ""))}; '
+               f'each pp of margin ≈ NOK {num("rd_k", 1)}/share. Source: {E(rd["file"])} (Equity Research Toolkit, private). Model values are estimates (EST).</div>')
     elif rd:
         rdh = f'<p class="err">{E(rd["error"])}</p>'
     else:

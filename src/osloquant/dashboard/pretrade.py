@@ -79,7 +79,7 @@ def implied(c: bk.Case | None, lc: dict | None, rdcf: dict | None, px: float | N
         if rdcf.get("rd_wacc") is not None:
             rows.append({"what": "Avkastningskrav (WACC)", "market": f"{rdcf['rd_wacc'] * 100:.1f} %", "mine": f"{rdcf['rd_wacc_ours'] * 100:.1f} %" if rdcf.get("rd_wacc_ours") is not None else "–", "today": "–", "source": src})
         if rdcf.get("dcf") is not None and px:
-            rows.append({"what": "DCF-verdi mot kurs", "market": f"{px:.2f}", "mine": f"{rdcf['dcf']:.1f} ({(rdcf['dcf'] / px - 1) * 100:+.0f} %)", "today": f"TP {rdcf.get('tp')}", "source": src})
+            rows.append({"what": "DCF-verdi mot kurs", "market": f"{px:.2f}", "mine": f"{rdcf['dcf']:.1f} ({(rdcf['dcf'] / px - 1) * 100:+.0f} %)", "today": "TP " + ("–" if rdcf.get("tp") is None else format(rdcf["tp"], "g")), "source": src})
     if lc:
         rv = lc.get("reverse") or {}
         src = f"lett case ({str(lc.get('built_at', ''))[:10]}; WACC EST {rv.get('wacc_est', 0) * 100:.0f} %)"

@@ -119,8 +119,12 @@ def _validate(kind: str, fields: dict) -> None:
         probs = [float(fields[k]) for k in ("p_bear", "p_base", "p_bull")]
         if abs(sum(probs) - 1) > 0.011:
             raise ValueError("p_bear, p_base and p_bull must sum to 1")
-    if kind == "forecast" and not float(fields["low"]) <= float(fields["mid"]) <= float(fields["high"]):
-        raise ValueError("a forecast needs low <= mid <= high")
+    if kind == "forecast":
+        rep = fields["report"]
+        if not isinstance(rep, dict) or not str(rep.get("date") or "").strip():
+            raise ValueError("a forecast needs report as {date, what, source} with the report's date")
+        if not float(fields["low"]) <= float(fields["mid"]) <= float(fields["high"]):
+            raise ValueError("a forecast needs low <= mid <= high")
     if kind == "judgement":
         if fields["rating"] not in RATINGS:
             raise ValueError(f"rating must be one of {RATINGS}")
