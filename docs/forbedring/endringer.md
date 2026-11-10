@@ -159,3 +159,14 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
   Chrome, og `websockets` følger med yfinance. Det tomme kortet sier nå hva som mangler og hvilken kommando som
   bygger det.
 - **Test:** testen selv, 38 sider.
+
+### E16 Dagsendring og 12 m lav/høy på noterte kurser (#30, #31, #17, #18)
+- **Problem:** Dagsendringen i kursbaren, på Sektorer og på forsiden regnes mot utbyttejustert forrige sluttkurs. På
+  en eks-dag viser den totalavkastningen, ikke kursendringen. «12 m lav / høy» viser justerte kurser som aksjen
+  aldri har handlet til.
+- **Endring:** `market.quoted_closes` leser de noterte sluttkursene (rå-tabellen, som kveldsoppgaven nå henter).
+  Når den noterte serien har samme siste to økter som den justerte, brukes den til dagsendringen og til 12 m
+  lav/høy, og hoveren sier «noterte sluttkurser». Ligger den noterte serien etter, brukes de justerte som før, og
+  hoveren sier det.
+- **Test:** en aksje med utbytte 5 på siste økt (100 → 96 notert): dagsendringen er −4,0 %, ikke +1,0 %; 12 m høy er
+  den noterte toppen; med en notert serie som ligger etter brukes de justerte og merkes.

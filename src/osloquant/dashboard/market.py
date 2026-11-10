@@ -65,9 +65,48 @@ def snapshot() -> Snapshot:
     return _snapshot_cached(str(last))
 
 
+_quoted_cache: dict[str, pd.DataFrame] = {}
+
+
+def quoted_closes() -> pd.DataFrame:
+    """The quoted (unadjusted) closes of the last 420 days, codes as columns: what the share actually traded at. The
+    adjusted series is a total-return index – right for returns over time, wrong for «the change today» on an ex-day
+    and for «the highest price this year» (funn #30, #31). Empty when the quoted table has never been recorded."""
+    from osloquant.contract.api import get_coverage, get_data
+    from osloquant.domain import Stock1dKdata
+
+    try:
+        cov = get_coverage(Stock1dKdata)
+        key = f"{cov['last']}|{cov['rows']}"
+        if key not in _quoted_cache:
+            df = get_data(Stock1dKdata, columns=["code", "timestamp", "close"], start_timestamp=pd.Timestamp.now().normalize() - pd.Timedelta(days=420))
+            _quoted_cache.clear()
+            _quoted_cache[key] = pd.DataFrame() if df is None or df.empty else df.dropna(subset=["close"]).pivot(index="timestamp", columns="code", values="close")
+        return _quoted_cache[key]
+    except Exception:  # noqa: BLE001 – no quoted table: the adjusted prices are used and labelled
+        return pd.DataFrame()
+
+
+def quoted_view(snap: Snapshot, code: str, quoted: pd.DataFrame | None = None) -> dict:
+    """The day's change and the 12-month range on quoted closes, when the quoted series is as fresh as the adjusted one.
+    ``fresh`` is False when it lags (or does not exist): the caller then keeps the adjusted numbers and says so."""
+    out = {"fresh": False, "chg_1d": None, "lo12": None, "hi12": None, "n12": 0, "to": None}
+    quoted = quoted_closes() if quoted is None else quoted
+    C = snap.panel["close"]
+    if code not in C.columns or quoted is None or quoted.empty or code not in quoted.columns:
+        return out
+    a, q = C[code].dropna(), quoted[code].dropna()
+    if len(a) < 2 or len(q) < 2 or q.index[-1] != a.index[-1] or q.index[-2] != a.index[-2]:
+        return out
+    q12 = q.iloc[-250:]
+    return {"fresh": True, "chg_1d": float(q.iloc[-1] / q.iloc[-2] - 1), "prev": float(q.iloc[-2]), "lo12": float(q12.min()), "hi12": float(q12.max()),
+            "n12": len(q12), "to": q.index[-1]}
+
+
 def returns(snap: Snapshot) -> pd.DataFrame:
     """Per code: last close, its date, and returns over 1, 5 and 21 sessions and the year to date."""
     C = snap.panel["close"]
+    quoted = quoted_closes()
     rows = []
     for code in C.columns:
         c = C[code].dropna()
@@ -75,9 +114,10 @@ def returns(snap: Snapshot) -> pd.DataFrame:
             continue
         last, day = float(c.iloc[-1]), c.index[-1]
         ytd_base = c[c.index < pd.Timestamp(day.year, 1, 1)]
+        qv = quoted_view(snap, code, quoted)             # the day's change is a price change, not a total return (funn #30)
         rows.append({
             "code": code, "name": snap.names.get(code, code), "group": snap.group(code), "close": last, "date": day,
-            "d1": last / c.iloc[-2] - 1 if len(c) > 1 else None,
+            "d1": qv["chg_1d"] if qv["fresh"] else (last / c.iloc[-2] - 1 if len(c) > 1 else None),
             "w1": last / c.iloc[-6] - 1 if len(c) > 5 else None,
             "m1": last / c.iloc[-22] - 1 if len(c) > 21 else None,
             "ytd": last / ytd_base.iloc[-1] - 1 if len(ytd_base) else (last / c.iloc[0] - 1),

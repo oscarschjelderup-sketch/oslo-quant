@@ -112,6 +112,10 @@ def stock_context(code: str) -> dict:
     from osloquant.dashboard import desk
 
     tab = _tab_data(snap, code, c, today)
+    quoted = mk.quoted_view(snap, code)
+    tab["quoted"] = quoted
+    if quoted["fresh"]:                  # the bar's «endring mot forrige sluttkurs» is the quoted change (funn #30)
+        st["chg_1d"] = quoted["chg_1d"]
     insider_items = _insider_items(code)
     insiders = _insiders(code, insider_items)
     overview, periods = _price_chart(snap, code, c, tab, insider_items)

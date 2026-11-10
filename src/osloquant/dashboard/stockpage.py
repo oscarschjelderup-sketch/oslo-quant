@@ -237,9 +237,13 @@ def key_table(ctx: dict) -> str:
     lm = live_multiples(lc, px)
     closes: pd.Series | None = ctx.get("closes")
     rows = []
-    if closes is not None and len(closes) > 1:
+    q = ctx.get("quoted") or {}
+    if q.get("fresh"):                   # what the share actually traded at (funn #31)
+        rows.append(("12 m lav / høy", nv(f"{q['lo12']:.2f} / {q['hi12']:.2f}", f"laveste og høyeste noterte sluttkurs over {q['n12']} økter til {dato(q['to'])} (Yahoo via lageret, ikke justert for utbytte, forsinket)")))
+    elif closes is not None and len(closes) > 1:
         c12 = closes.iloc[-250:]
-        rows.append(("12 m lav / høy", nv(f"{float(c12.min()):.2f} / {float(c12.max()):.2f}", f"laveste og høyeste sluttkurs over {len(c12)} økter til {dato(c12.index[-1])} (Yahoo via lageret, justert, forsinket)")))
+        rows.append(("12 m lav / høy (justert)", nv(f"{float(c12.min()):.2f} / {float(c12.max()):.2f}", f"laveste og høyeste sluttkurs over {len(c12)} økter til {dato(c12.index[-1])}, justert for utbytte: "
+                                                                                                  "de noterte kursene mangler for de siste øktene (se Datahelse), så tallene kan avvike fra kurser aksjen har handlet til (Yahoo via lageret, forsinket)")))
     divs = ctx.get("dividends") or []
     asof = pd.Timestamp(st.get("session"))
     total, last_ex = _dividends_12m(divs, asof)
