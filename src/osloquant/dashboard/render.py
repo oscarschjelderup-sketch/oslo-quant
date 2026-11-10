@@ -39,10 +39,25 @@ nav.top .links a { display:flex; align-items:center; padding:0 11px; min-height:
 nav.top .links a:hover { background:rgba(255,255,255,0.08); }
 nav.top .links a.on { background:#fff; color:var(--accent-dark); }
 nav.top .sep { width:1px; background:rgba(255,255,255,0.22); margin:11px 5px; flex:0 0 auto; }
+nav.top .links { flex-wrap:nowrap; }
+nav.top details.more { position:relative; align-self:stretch; }
+nav.top details.more > summary { display:flex; align-items:center; gap:5px; padding:0 12px; height:100%; min-height:40px; box-sizing:border-box; color:#e8f3f2; font-weight:600; font-size:13px; white-space:nowrap;
+  cursor:pointer; list-style:none; user-select:none; }
+nav.top details.more > summary::-webkit-details-marker { display:none; }
+nav.top details.more > summary::after { content:""; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid currentColor; opacity:0.8; }
+nav.top details.more > summary:hover, nav.top details.more[open] > summary { background:rgba(255,255,255,0.08); }
+nav.top details.more.on > summary { background:#fff; color:var(--accent-dark); }
+nav.top details.more .menu { position:absolute; top:100%; right:0; z-index:40; min-width:190px; background:#fff; border:1px solid var(--line); border-radius:0 0 8px 8px;
+  box-shadow:0 8px 22px rgba(20,40,50,0.16); padding:6px 0; display:flex; flex-direction:column; }
+nav.top details.more .menu a { color:var(--text); min-height:0; padding:8px 16px; font-weight:500; border-bottom:0; }
+nav.top details.more .menu a:hover { background:var(--accent-pale); text-decoration:none; }
+nav.top details.more .menu a.on { background:var(--panel); color:var(--accent-dark); font-weight:700; }
+nav.top details.more .menu a.narrow { display:none; }
+@media (max-width:1040px) { nav.top .links a.wide { display:none; } nav.top details.more .menu a.narrow { display:flex; } }
 nav.top form { margin-left:12px; display:flex; gap:6px; flex:0 0 auto; }
 nav.top input { padding:5px 9px; border:1px solid var(--accent-pale); border-radius:3px; background:#fff; color:var(--text); width:150px; font:inherit; }
 @media (max-width:1320px) { nav.top .links a { padding:0 8px; font-size:12.5px; } nav.top .brand .long { display:none; } nav.top input { width:120px; } nav.top .sep { margin:11px 3px; } }
-@media (max-width:760px) { nav.top { flex-wrap:wrap; padding-bottom:6px; } nav.top form { margin:6px 0 0 auto; } }
+@media (max-width:640px) { nav.top .brand { display:none; } nav.top input { width:92px; } nav.top .links a, nav.top details.more > summary { padding:0 8px; } }
 a { color:var(--info); text-decoration:none; } a:hover { text-decoration:underline; }
 h1 { font-size:30px; font-weight:400; color:var(--accent); margin:6px 0 2px; letter-spacing:-0.2px; }
 h1 .code { font-size:15px; color:var(--muted); font-weight:400; margin-left:8px; }
@@ -175,6 +190,41 @@ table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
 .tag.u0 { background:var(--accent-dark); color:#fff; } .tag.u1 { background:var(--accent-pale); color:var(--accent-dark); } .tag.u2 { background:var(--panel); color:var(--muted); }
 /* a status is not a price move: ok is quiet, a problem is amber and bold. Green and red are for up and down only. */
 .st-ok { color:var(--muted); } .st-warn { color:var(--gold); font-weight:600; } .st-bad { color:var(--gold); font-weight:700; }
+/* the macro strip: one cell shape for every driver – name, level, change, trend line, date */
+.mstrip { display:grid; grid-template-columns:repeat(auto-fit,minmax(138px,1fr)); gap:8px; margin:10px 0 14px; }
+.mcell { display:grid; grid-template-columns:1fr auto; grid-template-areas:"name name" "level chg" "spark spark" "date date"; align-items:baseline; column-gap:6px; row-gap:1px;
+  background:#fff; border:1px solid var(--line); border-radius:8px; padding:7px 10px 6px; color:var(--text); text-decoration:none; min-width:0; }
+a.mcell:hover { border-color:var(--accent); text-decoration:none; }
+.mcell .mname { grid-area:name; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mcell .mlevel { grid-area:level; font-size:17px; font-weight:600; line-height:1.2; white-space:nowrap; }
+.mcell .mchg { grid-area:chg; font-size:12px; font-weight:600; white-space:nowrap; text-align:right; }
+.mcell .spark { grid-area:spark; width:100%; height:26px; display:block; margin:2px 0 1px; }
+.mcell .mdate { grid-area:date; font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mcell.empty .mlevel, .mcell.empty .mchg { color:var(--muted); font-weight:400; }
+.spark { vertical-align:middle; }
+.mgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px; margin-bottom:6px; }
+.mgrid > .card { margin-bottom:0; min-width:0; }
+.mcard h3 .unit { font-weight:400; color:var(--muted); font-size:11.5px; }
+.mfig { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:2px 0 4px; }
+.mfig b { font-size:24px; font-weight:500; }
+.mc { position:relative; height:150px; margin:2px 0 6px; }
+.mc-tip { display:none; position:absolute; left:6px; top:2px; z-index:3; font-size:11px; background:rgba(255,255,255,0.92); border:1px solid var(--line); border-radius:4px; padding:1px 6px; pointer-events:none; }
+.mexp { font-size:12px; margin:2px 0 6px; } .mexp ul { list-style:none; margin:3px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px 12px; } .mexp li { white-space:nowrap; }
+.mper { display:flex; align-items:center; gap:6px; margin:4px 0 2px; }
+/* the sector matrix: blue = the stocks beat the market when the driver rose, orange = they lagged. Not green and red: co-movement is not up or down. */
+table.mxt td.mx { text-align:center; white-space:nowrap; }
+td.mx.pos1 { background:#eef4fb; } td.mx.pos2 { background:#d6e6f7; } td.mx.pos3 { background:#b4d1f0; }
+td.mx.neg1 { background:#fdf3e6; } td.mx.neg2 { background:#fae0bd; } td.mx.neg3 { background:#f5c98f; }
+.sbar { display:inline-block; width:54px; height:6px; background:var(--panel); border-radius:3px; vertical-align:middle; margin-right:5px; overflow:hidden; }
+.sbar i { display:block; height:100%; background:var(--accent); }
+/* ranked news */
+.nlist { list-style:none; margin:0; padding:0; } .nlist li { display:grid; grid-template-columns:86px 1fr; gap:2px 10px; padding:7px 0; border-top:1px solid var(--line); }
+.nlist li:first-child { border-top:0; } .nlist .nwhen { font-size:11.5px; color:var(--muted); white-space:nowrap; }
+.nlist .nmeta { font-size:11.5px; color:var(--muted); } .nlist .nmeta .why { margin-left:6px; }
+.nkind { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; padding:0 6px; border-radius:2px; background:var(--panel); color:var(--muted); margin-right:6px; }
+.nkind.k3 { background:var(--accent-dark); color:#fff; } .nkind.k2 { background:var(--accent-pale); color:var(--accent-dark); }
+.nday { font-size:12px; font-weight:700; color:var(--accent-dark); margin:12px 0 2px; padding-top:8px; border-top:1px solid var(--line); }
+.nday:first-child { border-top:0; padding-top:0; margin-top:0; } .nday .move { font-weight:600; margin-left:8px; }
 /* chips, alerts, lists */
 .chips { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 0; }
 .chip { display:inline-block; padding:2px 9px; border-radius:2px; font-size:11.5px; font-weight:700; }
@@ -208,13 +258,25 @@ button.go:hover { background:var(--accent-dark); }
 """
 
 #: the nav in four groups, a thin rule between them: the day, the universe, yourself, the machinery
-NAV_GROUPS = [
-    [("/", "I dag"), ("/desk", "Desk"), ("/calendar", "Kalender")],
-    [("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/sectors", "Sektorer"), ("/funds", "Porteføljer")],
-    [("/calibration", "Kalibrering"), ("/review", "Feil"), ("/chief", "Analysesjef")],
-    [("/watchlist", "Overvåkning"), ("/health", "Datahelse")],
-]
+#: The top line holds what is looked at every day; everything else is one click away under «Mer» (D66). Nothing is
+#: removed and every old address still works. ``NAV_NARROW`` leaves the bar in a narrow window and shows up in «Mer».
+NAV_TOP = [("/", "I dag"), ("/makro", "Makro"), ("/sectors", "Sektorer"), ("/coverage", "Dekning"), ("/desk", "Desk"), ("/calendar", "Kalender"),
+           ("/screen", "Prisen krever")]
+NAV_MORE = [("/funds", "Porteføljer"), ("/calibration", "Kalibrering"), ("/review", "Feil"), ("/chief", "Analysesjef"), ("/watchlist", "Overvåkning"),
+            ("/health", "Datahelse")]
+NAV_NARROW = ("/coverage", "/calendar", "/screen")
+NAV_GROUPS = [NAV_TOP, NAV_MORE]
 NAV = [item for group in NAV_GROUPS for item in group]
+
+
+def nav_html(active: str) -> str:
+    """The top line: the daily pages, then «Mer» with the rest. The open page is marked also when it lives under «Mer»."""
+    top = "".join(f'<a href="{href}" class="{"on" if href == active else ""}{" wide" if href in NAV_NARROW else ""}">{E(label)}</a>' for href, label in NAV_TOP)
+    in_more = next((label for href, label in NAV_MORE if href == active), None)
+    narrow = "".join(f'<a href="{href}" class="narrow{" on" if href == active else ""}">{E(label)}</a>' for href, label in NAV_TOP if href in NAV_NARROW)
+    more = "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in NAV_MORE)
+    label = f'Mer · {E(in_more)}' if in_more else "Mer"
+    return (f'{top}<details class="more{" on" if in_more else ""}"><summary>{label}</summary><div class="menu">{narrow}{more}</div></details>')
 
 
 def pct(v, d=1, sign=True):
@@ -269,8 +331,7 @@ def heat(v):
 
 
 def page(title: str, active: str, body: str, generated: datetime | None = None, static: bool = False) -> str:
-    nav = '<span class="sep"></span>'.join(
-        "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in group) for group in NAV_GROUPS)
+    nav = nav_html(active)
     search = '' if static else '<form action="/go" method="get"><input name="code" placeholder="Ticker (MOWI)"></form>'
     plotly = '' if static else '<script src="/static/plotly.min.js"></script>' + PLOTLY_LOCALE
     icon = '' if static else '<link rel="icon" href="/favicon.ico">'
@@ -330,6 +391,15 @@ def today_page(ctx: dict, static: bool = False) -> str:
     while expected.weekday() >= 5:
         expected -= pd.Timedelta(days=1)
     stale = asof.normalize() < expected if asof is not None and asof == asof else True
+    strip = ""
+    try:
+        from osloquant.dashboard import macro as mc
+
+        strip = mc.strip_html(static=static)
+    except Exception:  # noqa: BLE001 – the front page opens without the strip
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("macro strip failed")
     if ctx.get("sources") is not None:          # D60: every source that is not ok, with the numbers it affects
         from osloquant.dashboard import sources as src
 
@@ -368,6 +438,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
                     + (f'<div class="src">Neste dato: {dato(nxt["date"], False)} – {L(nxt["code"], nxt["name"])}, {E(nxt["what"])}.</div>' if nxt else ''))
     body = [f'<h1>I dag <span class="code">{dato(today, weekday=True)}</span></h1>',
             f'<div class="sub">Siste sluttkurs: {dato(asof, weekday=True)} (Yahoo, forsinket). Signaler dekker {E(", ".join(ctx["sessions"]) or "–")}.</div>',
+            strip,
             banner,
             f'<div class="card decide"><h2>Dette krever en vurdering fra deg ({len(dec)})</h2>{dec_html}</div>']
     # cases vs target

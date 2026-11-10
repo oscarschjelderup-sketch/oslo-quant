@@ -17,7 +17,7 @@ from pathlib import Path
 
 from osloquant import judgements as jg
 
-FEEDS = ("announcements", "rates", "fx", "salmon", "brent", "news", "shorts", "insiders", "calendar")
+FEEDS = ("announcements", "rates", "fx", "salmon", "brent", "news", "shorts", "insiders", "calendar", "macro")
 UA = "oslo-quant private dashboard (personal, non-commercial)"
 
 
@@ -154,7 +154,7 @@ def refresh(codes: list[str] | None = None) -> dict[str, str]:
     for name, fn in (("announcements", lambda: fetch_announcements(codes or [])), ("rates", fetch_rates), ("fx", fetch_fx),
                      ("salmon", fetch_salmon), ("brent", fetch_brent), ("news", fetch_news), ("shorts", ins.fetch_shorts),
                      ("insiders", lambda: ins.fetch(codes or [], start_year=year, log=lambda s: None)),
-                     ("calendar", lambda: cal.fetch_financial_calendars(followed_codes()))):
+                     ("calendar", lambda: cal.fetch_financial_calendars(followed_codes())), ("macro", fetch_macro)):
         try:
             write(name, src.timed(src.FEED_KEY.get(name, name), fn))
             out[name] = "ok"
@@ -303,7 +303,7 @@ def fetch_fx() -> dict:
     return out
 
 
-SSB_SALMON = ("https://data.ssb.no/api/pxwebapi/v2/tables/03024/data?lang=en&outputFormat=csv"
+SSB_SALMON = SSB_SALMON_URL = ("https://data.ssb.no/api/pxwebapi/v2/tables/03024/data?lang=en&outputFormat=csv"
               "&valueCodes%5BVareGrupper2%5D=01&valueCodes%5BContentsCode%5D=Kilopris&valueCodes%5BTid%5D=top(3)")
 
 
@@ -326,6 +326,103 @@ def fetch_brent() -> dict:
         raise ValueError("Yahoo returned no BZ=F closes")
     return {"value": round(float(h.iloc[-1]), 2), "date": f"{h.index[-1]:%Y-%m-%d}", "delayed": True,
             "source": "Yahoo Finance BZ=F (Brent futures), daily close"}
+
+
+# ------------------------------------------------------------------------------------------------ the macro feed (D65)
+MACRO_NB = {"styringsrente": "IR/B.KPRA.SD.R", "stat3m": "GOVT_GENERIC_RATES/B.3M.TBIL", "stat10y": "GOVT_GENERIC_RATES/B.10Y.GBON",
+            "usdnok": "EXR/B.USD.NOK.SP", "eurnok": "EXR/B.EUR.NOK.SP", "i44": "EXR/B.I44.NOK.SP"}
+MACRO_YAHOO = {"brent": "BZ=F", "gass_ttf": "TTF=F", "aluminium": "ALI=F", "kobber": "HG=F", "us10y": "^TNX", "vix": "^VIX"}
+MACRO_OBS = 800                      # a little over three years of business days: what the sensitivity needs
+POWER_AREA, POWER_DAYS_PER_RUN, POWER_KEEP = "NO2", 14, 800
+
+
+def _nb_history(flow_key: str, n: int = MACRO_OBS) -> dict:
+    rows = list(csv.DictReader(io.StringIO(_get(f"{NORGES_BANK}/{flow_key}?format=csv&lastNObservations={n}&locale=en").decode("utf-8-sig")), delimiter=";"))
+    pts = [(r["TIME_PERIOD"], float(r["OBS_VALUE"])) for r in rows if r.get("OBS_VALUE") not in (None, "")]
+    if not pts:
+        raise ValueError(f"no observations for {flow_key}")
+    return {"t": [p[0] for p in pts], "v": [p[1] for p in pts]}
+
+
+def _yahoo_histories(symbols: dict[str, str]) -> dict[str, dict]:
+    import yfinance as yf
+
+    df = yf.download(list(symbols.values()), period="3y", interval="1d", progress=False, auto_adjust=False)["Close"]
+    out = {}
+    for key, sym in symbols.items():
+        s = df[sym].dropna() if sym in df else None
+        if s is not None and len(s):
+            out[key] = {"t": [f"{d:%Y-%m-%d}" for d in s.index], "v": [round(float(v), 4) for v in s.tolist()]}
+    return out
+
+
+def _salmon_history(weeks: int = 160) -> dict:
+    """SSB table 03024, the weekly export price, dated on the Friday of its week."""
+    from datetime import date as _date
+
+    url = SSB_SALMON_URL.replace("top(3)", f"top({weeks})")
+    rows = list(csv.reader(io.StringIO(_get(url).decode("utf-8-sig"))))
+    head, vals = rows[0], rows[1]
+    t, v = [], []
+    for h, x in zip(head[1:], vals[1:], strict=True):
+        label = h.split()[-1]                      # "2026U42"
+        try:
+            t.append(_date.fromisocalendar(int(label[:4]), int(label.split("U")[1]), 5).isoformat())
+            v.append(float(x))
+        except ValueError:
+            continue
+    if not t:
+        raise ValueError("no salmon prices from SSB")
+    return {"t": t, "v": v}
+
+
+def _power_history(old: dict | None, today=None) -> dict:
+    """The day-ahead price in one Norwegian price area as a daily mean in øre/kWh, built a few days at a time: one
+    small request per day, at most fourteen a run, so the history grows without leaning on a free service."""
+    today = today or datetime.now(UTC).date()
+    have = dict(zip((old or {}).get("t", []), (old or {}).get("v", []), strict=False))
+    want = [today - timedelta(days=i) for i in range(POWER_DAYS_PER_RUN) if f"{today - timedelta(days=i):%Y-%m-%d}" not in have]
+    for d in want:
+        try:
+            hours = json.loads(_get(f"https://www.hvakosterstrommen.no/api/v1/prices/{d:%Y}/{d:%m-%d}_{POWER_AREA}.json", pauses=()))
+        except Exception:  # noqa: BLE001, S112 – a day that is not published yet, or a hole: the next run asks again
+            continue
+        prices = [h["NOK_per_kWh"] for h in hours if h.get("NOK_per_kWh") is not None]
+        if prices:
+            have[f"{d:%Y-%m-%d}"] = round(100 * sum(prices) / len(prices), 2)
+    if not have:
+        raise ValueError("no power prices")
+    days = sorted(have)[-POWER_KEEP:]
+    return {"t": days, "v": [have[d] for d in days]}
+
+
+def fetch_macro() -> dict:
+    """The history of every macro driver (dashboard/macro.py). A source that fails keeps its series from the cache and is
+    named in ``errors``; the feed fails only when nothing at all could be fetched."""
+    old = (read("macro") or {}).get("series") or {}
+    series, errors = {}, []
+    for key, flow in MACRO_NB.items():
+        try:
+            series[key] = _nb_history(flow)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"{key}: {type(e).__name__}")
+    try:
+        got = _yahoo_histories(MACRO_YAHOO)
+        series.update(got)
+        errors += [f"{k}: ingen data fra Yahoo" for k in MACRO_YAHOO if k not in got]
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"Yahoo: {type(e).__name__}")
+    for key, fn in (("laks", _salmon_history), ("kraft_no2", lambda: _power_history(old.get("kraft_no2")))):
+        try:
+            series[key] = fn()
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"{key}: {type(e).__name__}")
+    if not series:
+        raise RuntimeError("; ".join(errors) or "no macro series")
+    for key, s in old.items():                       # what could not be fetched now is kept as it was, and said to be old
+        series.setdefault(key, s)
+    return {"series": series, "errors": errors,
+            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 (CC BY 4.0), hvakosterstrommen.no (ENTSO-E)"}
 
 
 RSS = (("E24", "https://e24.no/rss2/"), ("DN", "https://services.dn.no/api/feed/rss/"),

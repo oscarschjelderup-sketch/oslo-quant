@@ -274,7 +274,12 @@ def overview_panel(code: str, ctx: dict) -> str:
         note = ('Periodeknappene flytter aksene i grafen over; avkastningen under hver knapp er '
                 'sluttkurs mot sluttkurs, justert for utbytte og splitt. 1D er slått av: lageret har bare dagskurser.')
     chart_card = f'<div class="card">{chart}{per}<div class="src">{note}</div></div>'
-    return chart_card + key_grid(ctx) + f'<div class="grid2">{news_card(ctx)}{key_table(ctx)}</div>'
+    macro_card = ""
+    if ctx.get("macro") is not None:
+        from osloquant.dashboard import macropage as mp
+
+        macro_card = mp.stock_card(code, ctx.get("name") or code, ctx["macro"])
+    return chart_card + key_grid(ctx) + f'<div class="grid2">{news_card(ctx)}{key_table(ctx)}</div>' + macro_card
 
 
 # ------------------------------------------------------------------------------------------------ 2 Regnskap

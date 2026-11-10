@@ -114,6 +114,12 @@ def stock_context(code: str) -> dict:
     tab = _tab_data(snap, code, c, today)
     quoted = mk.quoted_view(snap, code)
     tab["quoted"] = quoted
+    try:        # D65: the drivers this stock has followed
+        from osloquant.dashboard import macro as mc
+
+        tab["macro"] = mc.for_stock(code)
+    except Exception:  # noqa: BLE001 – the page opens without the macro card
+        tab["macro"] = None
     if quoted["fresh"]:                  # the bar's «endring mot forrige sluttkurs» is the quoted change (funn #30)
         st["chg_1d"] = quoted["chg_1d"]
     insider_items = _insider_items(code)
@@ -724,6 +730,15 @@ def create_app() -> Flask:
 
         today = pd.Timestamp.now().normalize()
         return cal.page_html(cal.events(bk.cases(), bk.watchlist(), today), today, fd.read(cal.CAL_FEED), cal.norges_bank_meetings())
+
+    @app.get("/makro")
+    def makro():
+        from osloquant.dashboard import calendar as cal
+        from osloquant.dashboard import macro as mc
+        from osloquant.dashboard import macropage as mp
+
+        today = pd.Timestamp.now().normalize()
+        return mp.page_html(mc.load(), mc.sensitivities(), mk.snapshot(), cal.events(bk.cases(), bk.watchlist(), today, days=120), today)
 
     @app.get("/health")
     def health():

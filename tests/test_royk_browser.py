@@ -21,7 +21,7 @@ from .test_pricechart_browser import (  # noqa: F401  the browser, and the dashb
 
 pytestmark = pytest.mark.skipif(not browser.find(), reason="no Chromium browser (Edge, Chrome or Chromium) on this machine")
 
-PAGES = ("/", "/sectors", "/calendar", "/health", "/calibration", "/funds", "/coverage", "/screen", "/watchlist", "/chief", "/review", "/desk")
+PAGES = ("/", "/makro", "/sectors", "/calendar", "/health", "/calibration", "/funds", "/coverage", "/screen", "/watchlist", "/chief", "/review", "/desk")
 SUBS = ("resultat", "balanse", "kontantstrom", "segmenter", "utbytte")
 BROKEN = re.compile(r"(?<![\w.])(undefined|NaN|nan|None|\[object Object\]|Traceback|Internal Server Error)(?!\w)")
 # what the page looks like to a person: its main text, the tables and cards that are empty, and whether it scrolls sideways
