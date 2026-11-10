@@ -77,8 +77,10 @@ def short_chart(series: list[tuple[str, float]], code: str) -> str:
 
 
 # ------------------------------------------------------------------------------------------------ the stock page (D57)
-#: the period buttons on the stock page: label and sessions back (None = year to date, 0 = everything in the chart)
-PERIODS = [("5D", 5), ("1M", 21), ("6M", 126), ("YTD", None), ("1Å", 250), ("5Å", 1250), ("Maks", 0)]
+#: the period buttons on the stock page: label and how far back. An int is sessions (5D), ``("m", n)`` is n calendar
+#: months, None is the year to date and 0 everything in the chart. Months are calendar months, as every other source
+#: counts them: a fixed 126 sessions is not half a year in a spring with three holidays (funn #59).
+PERIODS = [("5D", 5), ("1M", ("m", 1)), ("6M", ("m", 6)), ("YTD", None), ("1Å", ("m", 12)), ("5Å", ("m", 60)), ("Maks", 0)]
 CHART_SESSIONS = 1260          # five years of daily closes in the overview chart
 
 
@@ -91,20 +93,25 @@ def period_ranges(c: pd.Series, v: pd.Series | None = None) -> list[dict]:
     last = c.index[-1]
     out = []
     for label, n in PERIODS:
+        enough = True
         if n is None:
             before = c[c.index < pd.Timestamp(last.year, 1, 1)]
             base_i = len(before) - 1 if len(before) else 0
         elif n == 0:
             base_i = 0
+        elif isinstance(n, tuple):                      # the last close on or before the same date n months back
+            back = last - pd.DateOffset(months=n[1])
+            before = c[c.index <= back]
+            base_i, enough = (len(before) - 1, True) if len(before) else (0, False)
         else:
-            base_i = max(len(c) - 1 - n, 0)
+            base_i, enough = max(len(c) - 1 - n, 0), len(c) - 1 >= n          # n sessions need n + 1 closes (funn #70)
         seg = c.iloc[base_i:]
         lo, hi = float(seg.min()), float(seg.max())
         pad = (hi - lo) * 0.04 or hi * 0.02
         vmax = float(v.reindex(seg.index).max()) if v is not None and len(v) else None
         out.append({"key": label.replace("Å", "a").lower(), "label": label, "x0": f"{seg.index[0]:%Y-%m-%d}", "x1": f"{last:%Y-%m-%d}",
                     "y0": lo - pad, "y1": hi + pad, "v1": vmax * 1.05 if vmax else None, "ret": float(seg.iloc[-1] / seg.iloc[0] - 1) if seg.iloc[0] else None,
-                    "sessions": len(seg) - 1, "enough": base_i > 0 or n in (0, None), "from_listing": base_i == 0 and n is None})
+                    "sessions": len(seg) - 1, "enough": enough, "from_listing": base_i == 0 and n is None})
     return out
 
 

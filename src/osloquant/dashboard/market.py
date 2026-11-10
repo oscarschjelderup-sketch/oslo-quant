@@ -65,6 +65,13 @@ def snapshot() -> Snapshot:
     return _snapshot_cached(str(last))
 
 
+def _since(c: pd.Series, back: pd.Timestamp) -> float | None:
+    """The return from the last close on or before ``back`` to the newest close; None when the series starts later.
+    A week is seven days and a month a calendar month, like the period buttons (funn #59)."""
+    before = c[c.index <= back]
+    return float(c.iloc[-1] / before.iloc[-1] - 1) if len(before) and before.iloc[-1] else None
+
+
 _quoted_cache: dict[str, pd.DataFrame] = {}
 
 
@@ -118,8 +125,8 @@ def returns(snap: Snapshot) -> pd.DataFrame:
         rows.append({
             "code": code, "name": snap.names.get(code, code), "group": snap.group(code), "close": last, "date": day,
             "d1": qv["chg_1d"] if qv["fresh"] else (last / c.iloc[-2] - 1 if len(c) > 1 else None),
-            "w1": last / c.iloc[-6] - 1 if len(c) > 5 else None,
-            "m1": last / c.iloc[-22] - 1 if len(c) > 21 else None,
+            "w1": _since(c, day - pd.Timedelta(days=7)),
+            "m1": _since(c, day - pd.DateOffset(months=1)),
             "ytd": last / ytd_base.iloc[-1] - 1 if len(ytd_base) else (last / c.iloc[0] - 1),
             "ytd_from_listing": not len(ytd_base),
             "stale": day < snap.asof,

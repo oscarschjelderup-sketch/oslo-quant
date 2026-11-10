@@ -67,7 +67,8 @@ def exposure(cases, groups: dict[str, str], config: dict | None = None) -> dict:
         e["loss"] += loss
         per_case.append({"code": c.code, "name": c.name, "group": g, "loss_at_kill": loss or None, "drivers": drivers,
                          "position_value": (c.view or {}).get("position_value")})
-    shared = {d: sorted(e["cases"]) for d, e in by_driver.items() if len(e["cases"]) >= 2}
+    # «other» is the bag for criteria where no driver was recognised: two views in it share nothing (funn #60)
+    shared = {d: sorted(e["cases"]) for d, e in by_driver.items() if len(e["cases"]) >= 2 and d != "other"}
     total_loss = sum(x["loss_at_kill"] or 0 for x in per_case)
     return {"views": len(views), "paper_capital": paper, "total_loss_at_kill": total_loss,
             "total_loss_share": (total_loss / paper) if paper else None,

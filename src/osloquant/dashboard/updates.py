@@ -27,6 +27,17 @@ UPDATE_DUE_DAYS = 14
 REASON_MIN = 10
 
 
+def _better(updated: float | None, view: float | None) -> str:
+    """«bedre» when the update's Brier is lower. A Brier of 0.0 is a perfect score, not a missing one (funn #72)."""
+    if updated is None or view is None:
+        return "–"
+    return "bedre" if updated < view else ("lik" if updated == view else "ikke bedre")
+
+
+def horizon_end(view: dict) -> pd.Timestamp:
+    return pd.Timestamp(str(view["date"])[:10]) + pd.DateOffset(months=int(view.get("horizon_months") or 12))
+
+
 def updates(rows: list[dict], ref_seq: int | None = None) -> list[dict]:
     return [r for r in rows if r.get("kind") == "update" and (ref_seq is None or r.get("ref_seq") == ref_seq)]
 
@@ -45,6 +56,8 @@ def pending(rows: list[dict], cases, today: pd.Timestamp, cal_doc: dict | None =
     by_code = {c.code: c for c in cases}
     out = []
     for code, v in jg.latest_by_code(rows, analyst).items():
+        if today > horizon_end(v):          # the view has run its course: the question now is a new view, not an update (funn #45)
+            continue
         rep = ar.newest_report(by_code.get(code), today, cal_doc, code=code)
         if not rep:
             continue
@@ -87,6 +100,9 @@ def write(code: str, form: dict, price: float, price_date: str, today: str, rows
     view = jg.latest_by_code(rows).get(code)
     if not view:
         raise ValueError(f"no open view on {code} to update")
+    if pd.Timestamp(today) > horizon_end(view):
+        raise ValueError(f"vurderingen #{view['seq']} er avsluttet (horisonten gikk ut {horizon_end(view):%Y-%m-%d}) – en oppdatering nå ville vært "
+                         "etterpåklokskap. Logg en ny vurdering i stedet.")
     problems = form_problems(form, view)
     if problems:
         raise ValueError("; ".join(problems))
@@ -115,10 +131,11 @@ def scoring(rows: list[dict], table: pd.DataFrame, today: pd.Timestamp, cases=()
     out = {"pairs": [], "answered": len(updates(rows)), "unchanged": sum(not u.get("changed") for u in updates(rows))}
     if len(table) and "scenario_hit" in table:
         for _, t in table[table["status"] == "final"].iterrows():
-            us = updates(rows, int(t["seq"]))
+            j = next(r for r in rows if r.get("seq") == int(t["seq"]))
+            end = f"{horizon_end(j):%Y-%m-%d}"
+            us = [u for u in updates(rows, int(t["seq"])) if str(u.get("date", ""))[:10] <= end]      # written with hindsight: not scored
             if not us or pd.isna(t.get("scenario_hit")):
                 continue
-            j = next(r for r in rows if r.get("seq") == int(t["seq"]))
             b0 = brier([j.get("p_bear"), j.get("p_base"), j.get("p_bull")], t["scenario_hit"])
             last = us[-1]
             b1 = brier([last.get("p_bear"), last.get("p_base"), last.get("p_bull")], t["scenario_hit"])
@@ -157,7 +174,7 @@ def block_html(item: dict | None, rows: list[dict]) -> str:
 def calibration_html(sc: dict) -> str:
     pairs = sc.get("pairs") or []
     rows = "".join(f'<tr><td>{E(p["code"])} #{p["seq"]}</td><td>{p["updates"]}</td><td>{_b(p["brier_view"])}</td><td>{_b(p["brier_updated"])}</td>'
-                   f'<td>{"bedre" if (p["brier_updated"] or 9) < (p["brier_view"] or 9) else "ikke bedre"}</td></tr>' for p in pairs)
+                   f'<td>{_better(p["brier_updated"], p["brier_view"])}</td></tr>' for p in pairs)
     over = ", ".join(f'{E(p["code"])} ({E(p["trigger"]["what"])}, {p["days"]} d)' for p in sc.get("overdue") or []) or "ingen"
     return ('<h2>Oppdateringer etter ny informasjon</h2><div class="card">'
             f'<p>{sc["answered"]} oppdateringer logget, {sc["unchanged"]} av dem «uendret». Ikke oppdatert (nyhet eldre enn {UPDATE_DUE_DAYS} dager uten svar): {over}.</p>'

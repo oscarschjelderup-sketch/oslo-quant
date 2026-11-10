@@ -82,7 +82,8 @@ def rows(close: pd.Series, volume: pd.Series | None, high: pd.Series | None = No
     # RSI and MACD: values only – not measured as signals
     if len(c) > 15:
         r = float(sg.rsi(c.to_frame()).iloc[-1, 0])
-        out.append(Row("RSI 14", f"{r:.0f}", "0–100; Wilder-glatting"))
+        # a flat series has no gains and no losses: 0/0, no RSI (funn #29)
+        out.append(Row("RSI 14", "–" if r != r else f"{r:.0f}", "0–100; Wilder-glatting" + ("; kursen har ikke beveget seg i perioden" if r != r else "")))
     if len(c) >= 35:
         line, sig, hist = macd(c)
         out.append(Row("MACD 12/26/9", f"{float(line.iloc[-1]):.2f}", f"signallinje {float(sig.iloc[-1]):.2f}, histogram {float(hist.iloc[-1]):+.2f}"))

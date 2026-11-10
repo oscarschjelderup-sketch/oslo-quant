@@ -196,3 +196,24 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
     vises som sektordriver for industri og sjømat. Feiler den, hentes valutakursene likevel.
 - **Test:** `tests/test_kildekontroll.py`: avvik under og over grensen, kontroller som ikke kan gjøres, kortet på
   Datahelse, og at en feil på I44 ikke koster valutakursene.
+
+## Fase 2 (tredje runde): flere feil i tall og logikk
+
+### E19 Perioder etter kalenderen, og fem små logikkfeil (#59, #70, #78, #60, #65, #72, #82, #45, #47, #49, #29)
+- **Problem:**
+  - 1M, 6M, 1Å og 5Å teller 21, 126, 250 og 1250 økter. Seks måneder for SATS ga +6,0 % der kalenderen gir +10,3 %.
+    Grensen for å slå av en periode var feil med én økt.
+  - «other» (ingen driver gjenkjent) telles som felles kill-driver, så urelaterte syn «dør av samme driver».
+  - En perfekt oppdatering (Brier 0) merkes «ikke bedre».
+  - En oppdatering kan skrives etter at horisonten er ute, og scores da med fasiten kjent.
+  - RSI viser «nan» for en flat serie.
+- **Endring:**
+  - Periodene regnes fra siste sluttkurs på eller før samme dato N måneder tilbake. «Uke» og «Måned» på Sektorer og
+    Overvåkning følger samme regel (sju dager, én kalendermåned). En periode er av når lageret ikke har en kurs
+    på eller før startdatoen.
+  - «other» er ikke en felles driver.
+  - Brier sammenlignes som tall; «lik» når de er like.
+  - Oppdateringsskjemaet avviser en vurdering der horisonten er ute, forsiden spør ikke lenger etter slike
+    oppdateringer, og kalibreringen scorer bare oppdateringer datert innenfor horisonten.
+  - En flat serie viser «–» for RSI med forklaring.
+- **Test:** `tests/test_forbedring_e19.py`.

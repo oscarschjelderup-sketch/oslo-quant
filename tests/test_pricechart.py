@@ -64,7 +64,9 @@ def test_the_payload_is_plain_json_one_entry_per_session_and_the_buttons_carry_o
     assert d["c"][-1] == pytest.approx(float(c.iloc[-1]), rel=1e-5) and d["prev"] == pytest.approx(float(c.iloc[-2]), rel=1e-5)
     assert all(lo <= min(o, cl) and hi >= max(o, cl) for o, hi, lo, cl in zip(d["o"], d["h"], d["l"], d["c"], strict=True))
     one = next(p for p in d["periods"] if p["key"] == "1a")
-    assert one["enough"] and d["default"] == "1a" and one["ret"] == pytest.approx(float(c.iloc[-1] / c.iloc[-251] - 1), rel=1e-4)
+    year_back = c[c.index <= c.index[-1] - pd.DateOffset(months=12)]        # a year is twelve calendar months, not 250 sessions (funn #59)
+    assert one["enough"] and d["default"] == "1a" and one["ret"] == pytest.approx(float(c.iloc[-1] / year_back.iloc[-1] - 1), rel=1e-4)
+    assert one["x0"] == f"{year_back.index[-1]:%Y-%m-%d}"
     assert not next(p for p in d["periods"] if p["key"] == "5a")["enough"]          # 300 sessions: 5Å is honestly off
     # the buttons' data-r has the dates only, so a missing volume can never put NaN in it (funn #4)
     for r in re.findall(r"data-r='([^']*)'", html):
@@ -80,7 +82,9 @@ def test_the_chart_uses_the_whole_history_in_the_store_so_5a_and_maks_mean_what_
     d = pc.payload(snap, "AAA")
     assert d["t"][0] == "2020-01-01" and len(d["t"]) == 1600
     five, maks = (next(p for p in d["periods"] if p["key"] == k) for k in ("5a", "maks"))
-    assert five["enough"] and five["sessions"] == 1250 and maks["x0"] == "2020-01-01"
+    closes = long.panel["close"]["AAA"]
+    back = closes[closes.index <= closes.index[-1] - pd.DateOffset(months=60)]
+    assert five["enough"] and five["x0"] == f"{back.index[-1]:%Y-%m-%d}" and five["sessions"] == len(closes) - len(back) and maks["x0"] == "2020-01-01"
 
 
 def test_history_falls_back_to_the_snapshot_and_repairs_impossible_bars(monkeypatch):
