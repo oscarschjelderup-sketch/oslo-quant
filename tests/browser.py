@@ -140,7 +140,9 @@ class Page:
 class Browser:
     def __init__(self, exe: str):
         self.prof = tempfile.mkdtemp(prefix="oq-cdp-")
-        self.proc = subprocess.Popen([exe, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars",
+        # a CI runner on Linux has no user namespaces for Chrome's sandbox; the pages opened are our own, served locally
+        sandbox = ["--no-sandbox"] if sys.platform.startswith("linux") and os.environ.get("CI") else []
+        self.proc = subprocess.Popen([exe, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", *sandbox,
                                       "--font-render-hinting=none", f"--user-data-dir={self.prof}", "--remote-debugging-port=0", "about:blank"],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         port_file = Path(self.prof) / "DevToolsActivePort"
