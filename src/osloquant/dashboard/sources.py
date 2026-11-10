@@ -320,7 +320,21 @@ def banner_html(sts: list[dict], static: bool = False) -> str:
     if not bad:
         return ""
     items = []
+    # feeds that are stale for the same reason – the evening job did not run – are one line, not nine
+    late = [s for s in bad if s["kind"] == "feed" and s["state"] == "stale" and s["last_ok"] is not None]
+    groups: dict[str, list[dict]] = {}
+    for s in late:
+        groups.setdefault(f"{s['last_ok']:%Y-%m-%d %H}", []).append(s)
+    grouped = {id(s) for g in groups.values() if len(g) >= 3 for s in g}
+    for g in groups.values():
+        if len(g) < 3:
+            continue
+        oldest = min(s["last_ok"] for s in g)
+        items.append(f'<li><b>{len(g)} kilder er ikke hentet siden {dato_tid(oldest, True)}</b> – kveldsoppgaven har ikke kjørt etter siste børsdag: '
+                     f'{E(", ".join(s["name"] for s in g))}. <span class="src">Påvirker {E("; ".join(s["affects"] for s in g))}.</span></li>')
     for s in bad:
+        if id(s) in grouped:
+            continue
         when = f"sist hentet {dato_tid(s['last_ok'], True)}" if s["last_ok"] is not None else "aldri hentet"
         why = (f"siste forsøk {dato_tid(s['last_attempt'], True)} feilet: {s['error']}" if s["state"] == "failed" and s["error"] else s["detail"])
         items.append(f'<li><b>{E(s["name"])}</b> ({E(s["origin"])}) – {E(s["state_no"])}: {E(why.rstrip("."))}{"" if s["kind"] == "table" else " (" + E(when) + ")"}. '
