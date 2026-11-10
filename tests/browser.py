@@ -141,15 +141,31 @@ class Browser:
     def __init__(self, exe: str):
         self.prof = tempfile.mkdtemp(prefix="oq-cdp-")
         # a CI runner on Linux has no user namespaces for Chrome's sandbox; the pages opened are our own, served locally
-        sandbox = ["--no-sandbox"] if sys.platform.startswith("linux") and os.environ.get("CI") else []
-        self.proc = subprocess.Popen([exe, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", *sandbox,
-                                      "--font-render-hinting=none", f"--user-data-dir={self.prof}", "--remote-debugging-port=0", "about:blank"],
-                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        linux = sys.platform.startswith("linux")
+        sandbox = ["--no-sandbox"] if linux and os.environ.get("CI") else []
+        shm = ["--disable-dev-shm-usage"] if linux else []          # a runner's /dev/shm is small; Chrome then dies at start
+        # Chrome's own log goes to a file outside the profile, so a browser that will not start says why
+        self.log = Path(tempfile.gettempdir()) / f"{Path(self.prof).name}.log"
+        with self.log.open("wb") as err:
+            self.proc = subprocess.Popen([exe, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", *sandbox, *shm,
+                                          "--font-render-hinting=none", f"--user-data-dir={self.prof}", "--remote-debugging-port=0", "about:blank"],
+                                         stdout=subprocess.DEVNULL, stderr=err)
         port_file = Path(self.prof) / "DevToolsActivePort"
-        for _ in range(200):
+        end = time.monotonic() + 45                      # a cold runner needs far longer than a warm laptop
+        while time.monotonic() < end:
             if port_file.exists() and port_file.read_text().strip():
                 break
+            if self.proc.poll() not in (None, 0):       # crashed. Exit code 0 is normal on Windows: the launcher hands over and leaves
+                break
             time.sleep(0.05)
+        if not (port_file.exists() and port_file.read_text().strip()):
+            try:
+                tail = self.log.read_text(encoding="utf-8", errors="replace")[-1500:]
+            except OSError:
+                tail = "(the log could not be read)"
+            code = self.proc.poll()
+            self.close()
+            raise RuntimeError(f"{exe} did not open its DevTools port (exit code {code}; still running: {code is None}). Its log ends:\n{tail}")
         self.port = port_file.read_text().split()[0]
 
     def page(self) -> Page:
@@ -164,6 +180,10 @@ class Browser:
         except subprocess.TimeoutExpired:
             self.proc.kill()
         shutil.rmtree(self.prof, ignore_errors=True)
+        try:
+            self.log.unlink(missing_ok=True)
+        except OSError:                                  # on Windows a child of Chrome may hold the log a moment longer
+            pass
 
 
 def console_errors(urls: list[str]) -> list[dict]:
