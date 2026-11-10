@@ -296,6 +296,85 @@ def status(now: pd.Timestamp | None = None) -> list[dict]:
     return out
 
 
+# ------------------------------------------------------------------------------------------------ one source against another
+FX_TOLERANCE = 0.015          # Norges Bank fixes at 14:15 CET, Yahoo closes later: a normal day is well inside 1.5 %
+PRICE_TOLERANCE = 0.005       # the adjusted series ends on the quoted close, so the last two must agree
+
+
+def cross_checks(fx_table: dict[str, pd.Series] | None = None, adj_last: dict | None = None, raw_last: dict | None = None) -> list[dict]:
+    """Where two sources give the same number, compare them (funn D12). Each row: what, the two values with their
+    sources, the difference, the limit, and whether it is over. A check that cannot be made says why."""
+    out = []
+    fx = fd.read("fx") or {}
+    if fx_table is None:
+        from osloquant.recorders.yahoo.cleaning import fx_rates
+
+        fx_table = fx_rates()
+    for ccy, key in (("USD", "USDNOK"), ("EUR", "EURNOK")):
+        nb, day = fx.get(key), fx.get("date")
+        series = fx_table.get(ccy)
+        row = {"what": f"{ccy}/NOK", "a_source": "Norges Bank", "b_source": "Yahoo Finance", "limit": FX_TOLERANCE, "a": nb, "b": None, "diff": None, "date": day, "over": False, "note": ""}
+        if nb is None or not day:
+            row["note"] = "Norges Bank-kursen er ikke hentet"
+        elif series is None or pd.Timestamp(day) not in series.index:
+            row["note"] = f"lageret har ingen Yahoo-kurs for {dato(day)}"
+        else:
+            row["b"] = float(series.loc[pd.Timestamp(day)])
+            row["diff"] = row["b"] / float(nb) - 1
+            row["over"] = abs(row["diff"]) > FX_TOLERANCE
+        out.append(row)
+    if adj_last is None or raw_last is None:
+        adj_last, raw_last = _last_closes("Stock1dAdjKdata"), _last_closes("Stock1dKdata")
+    both = [(c, adj_last[c], raw_last[c]) for c in adj_last if c in raw_last and adj_last[c][0] == raw_last[c][0] and raw_last[c][1]]
+    off = sorted(((c, a[1] / r[1] - 1) for c, a, r in both if abs(a[1] / r[1] - 1) > PRICE_TOLERANCE), key=lambda x: -abs(x[1]))
+    out.append({"what": "Siste sluttkurs, justert mot notert", "a_source": "justert tabell", "b_source": "notert tabell", "limit": PRICE_TOLERANCE, "a": None, "b": None,
+                "diff": off[0][1] if off else (0.0 if both else None), "date": None, "over": bool(off),
+                "note": (f"{len(off)} av {len(both)} aksjer avviker: " + ", ".join(f"{c} {d * 100:+.1f} %" for c, d in off[:6])) if off
+                        else (f"{len(both)} aksjer med samme siste dato stemmer" if both else "ingen aksjer har samme siste dato i begge tabeller – de noterte kursene ligger etter")})
+    return out
+
+
+def _last_closes(schema_name: str) -> dict[str, tuple[pd.Timestamp, float]]:
+    """code -> (date, close) of the newest row in a price table."""
+    import osloquant.domain as dm
+    from osloquant.contract.api import get_data
+
+    try:
+        df = get_data(getattr(dm, schema_name), columns=["code", "timestamp", "close"], start_timestamp=pd.Timestamp.now().normalize() - pd.Timedelta(days=45))
+    except Exception:  # noqa: BLE001
+        return {}
+    if df is None or df.empty:
+        return {}
+    last = df.dropna(subset=["close"]).sort_values("timestamp").groupby("code").tail(1)
+    return {r.code: (pd.Timestamp(r.timestamp), float(r.close)) for r in last.itertuples()}
+
+
+def cross_html(rows: list[dict]) -> str:
+    from osloquant.dashboard.render import E
+
+    def num(x, d=3):
+        return "–" if x is None else f"{x:.{d}f}"
+
+    def diff(r):
+        return "–" if r["diff"] is None else f'{r["diff"] * 100:+.2f} %'
+
+    body = "".join(
+        f'<tr><td class="l">{E(r["what"])}' + (f' <span class="src">{dato(r["date"])}</span>' if r["date"] else "") + '</td>'
+        f'<td>{num(r["a"])} <span class="src">{E(r["a_source"])}</span></td><td>{num(r["b"])} <span class="src">{E(r["b_source"])}</span></td>'
+        f'<td>{diff(r)}</td><td>{r["limit"] * 100:.1f} %</td>'
+        f'<td class="l {"st-bad" if r["over"] else "st-ok"}">{"over grensen" if r["over"] else ("ikke sammenlignet" if r["diff"] is None else "innenfor")}</td>'
+        f'<td class="l" style="white-space:normal">{E(r["note"])}</td></tr>' for r in rows)
+    return ('<div class="card" id="kildekontroll"><h3>Kontroll mellom kilder</h3><table class="odds"><thead><tr><th class="l">Tall</th><th>Kilde A</th><th>Kilde B</th><th>Avvik</th>'
+            f'<th>Grense</th><th class="l">Status</th><th class="l">Merknad</th></tr></thead><tbody>{body}</tbody></table>'
+            '<div class="src">Der to kilder gir samme tall, sammenlignes de hver gang siden åpnes. Valuta: Norges Banks fixing 14:15 mot Yahoos sluttkurs samme dag, '
+            'så et lite avvik er normalt. Kurs: den justerte serien ender på den noterte sluttkursen, så siste kurs skal være lik. Utbytter kontrolleres mot NewsWeb i kortet under.</div></div>')
+
+
+def cross_lines(rows: list[dict]) -> list[str]:
+    return [f"kildekontroll: {r['what']} avviker {r['diff'] * 100:+.2f} % mellom {r['a_source']} og {r['b_source']} (grense {r['limit'] * 100:.1f} %)"
+            + (f" – {r['note']}" if r["note"] else "") for r in rows if r["over"]]
+
+
 def not_ok(sts: list[dict]) -> list[dict]:
     """The sources the reader must know about before reading a number: stale, failed or never fetched."""
     return [s for s in sts if s["state"] in ("stale", "failed", "never")]

@@ -182,3 +182,17 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
   bekreftet lagret.
 - **Test:** et avvist skjema svarer med vurderingsfanen åpen og teksten i feltet; en adresse med et radnummer som
   ikke finnes, eller som tilhører et annet selskap eller en annen radtype, gir ingen bekreftelse.
+
+## Fase 3 (fortsatt)
+
+### E18 Kontroll mellom kilder, og kronekursindeksen fra Norges Bank (D12, fase 3 punkt 4 og 5)
+- **Problem:** Ingen kilde kontrolleres mot en annen i daglig drift. USD/NOK og EUR/NOK finnes både fra Norges
+  Bank og Yahoo, og siste sluttkurs finnes i både den justerte og den noterte tabellen.
+- **Endring:**
+  - Datahelse viser kortet «Kontroll mellom kilder»: valutakursene fra Norges Bank mot Yahoo samme dag (grense
+    1,5 %), og siste sluttkurs i justert mot notert tabell (grense 0,5 %). Et avvik over grensen står under «Ting å
+    vite nå». En kontroll som ikke kan gjøres, sier hvorfor.
+  - Kronekursindeksen I44 hentes fra Norges Bank i samme kall som valutakursene (NLOD, samme åpne API som før) og
+    vises som sektordriver for industri og sjømat. Feiler den, hentes valutakursene likevel.
+- **Test:** `tests/test_kildekontroll.py`: avvik under og over grensen, kontroller som ikke kan gjøres, kortet på
+  Datahelse, og at en feil på I44 ikke koster valutakursene.

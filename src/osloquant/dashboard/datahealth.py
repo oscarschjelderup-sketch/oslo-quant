@@ -272,7 +272,7 @@ def case_health(cases, closes: pd.DataFrame | None = None, today: pd.Timestamp |
 def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> dict:
     return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(), "cases": case_health(cases, closes),
             "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(), "sources": _sources(),
-            "corporate": fd.corporate_events(),
+            "corporate": fd.corporate_events(), "cross": _cross(),
             "generated": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
@@ -302,6 +302,18 @@ def corporate_html(events: list[dict]) -> str:
 REPORT_STATUS_NO = {"ok": "ok", "no spec": "ingen spesifikasjon", "no report read": "ingen rapport lest", "rows missing": "rader mangler"}
 
 
+def _cross() -> list[dict]:
+    from osloquant.dashboard import sources as src
+
+    try:
+        return src.cross_checks()
+    except Exception:  # noqa: BLE001 – a comparison that cannot be made must not take the page down
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("cross checks failed")
+        return []
+
+
 def _sources() -> list[dict]:
     from osloquant.dashboard import sources as src
 
@@ -319,6 +331,7 @@ def problems(ov: dict) -> list[str]:
     from osloquant.dashboard import sources as src
 
     out = src.problem_lines(ov.get("sources") or [])
+    out += src.cross_lines(ov.get("cross") or [])
     corp = corporate_lines(ov.get("corporate") or [])
     if corp:
         out.append("selskapshendelser siste 14 dager – universet og kursene bør sjekkes: " + "; ".join(corp[:6]))
@@ -431,5 +444,5 @@ def page_html(ov: dict) -> str:
     from osloquant.dashboard import sources as src
 
     kilder = src.table_html(ov["sources"]) if ov.get("sources") else store + feeds
-    return page("Datahelse", "/health", head + kilder + corporate_html(ov.get("corporate") or []) + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
+    return page("Datahelse", "/health", head + kilder + (src.cross_html(ov["cross"]) if ov.get("cross") else "") + corporate_html(ov.get("corporate") or []) + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
                 )

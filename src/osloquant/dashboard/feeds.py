@@ -118,14 +118,16 @@ def sector_drivers() -> dict[str, list[dict]]:
                      "fetched_at": rates.get("fetched_at"), "error": rates.get("error")}
     usd = fx and {"value": fx.get("USDNOK"), "date": fx.get("date"), "source": fx.get("source"), "fetched_at": fx.get("fetched_at"), "error": fx.get("error")}
     eur = fx and {"value": fx.get("EURNOK"), "date": fx.get("date"), "source": fx.get("source"), "fetched_at": fx.get("fetched_at"), "error": fx.get("error")}
+    i44 = fx and fx.get("I44") is not None and {"value": fx.get("I44"), "date": fx.get("I44_date"), "source": fx.get("source"), "fetched_at": fx.get("fetched_at")}
+    krone = [_value(i44, "Kronekursindeks I44 (høyere = svakere krone)", "{:.2f}")] if i44 else []
     unavailable = lambda label, why: {"label": label, "value": "not free", "source": why}  # noqa: E731
     return {
         "Energy": [_value(brent, "Brent", "USD {:.2f}/bbl"), _value(usd, "USD/NOK", "{:.3f}")],
         "Shipping": [unavailable("Freight rates (Baltic indices, TCE)", "licensed by the Baltic Exchange – not available free"),
                      _value(usd, "USD/NOK", "{:.3f}")],
-        "Seafood": [_value(salmon, "Salmon export price (fresh, whole)", "NOK {:.2f}/kg"), _value(eur, "EUR/NOK", "{:.3f}")],
+        "Seafood": [_value(salmon, "Salmon export price (fresh, whole)", "NOK {:.2f}/kg"), _value(eur, "EUR/NOK", "{:.3f}"), *krone],
         "Finance": [_value(pr, "Policy rate", "{:.2f}%"), _value(y10, "10-year government bond", "{:.2f}%")],
-        "Industrials & materials": [_value(usd, "USD/NOK", "{:.3f}"), _value(eur, "EUR/NOK", "{:.3f}")],
+        "Industrials & materials": [_value(usd, "USD/NOK", "{:.3f}"), _value(eur, "EUR/NOK", "{:.3f}"), *krone],
         "Consumer, telecom & real estate": [_value(pr, "Policy rate", "{:.2f}%")],
         "Technology & renewables": [_value(y10, "10-year government bond", "{:.2f}%"), _value(usd, "USD/NOK", "{:.3f}")],
         "Investment companies": [_value(y10, "10-year government bond", "{:.2f}%")],
@@ -291,8 +293,14 @@ def fetch_rates() -> dict:
 
 def fetch_fx() -> dict:
     rows = {r["BASE_CUR"]: r for r in _nb_last("EXR/B.USD+EUR.NOK.SP")}
-    return {"USDNOK": float(rows["USD"]["OBS_VALUE"]), "EURNOK": float(rows["EUR"]["OBS_VALUE"]),
-            "date": rows["USD"]["TIME_PERIOD"], "source": "Norges Bank (NLOD), daily fixing ~16:00 CET, not live"}
+    out = {"USDNOK": float(rows["USD"]["OBS_VALUE"]), "EURNOK": float(rows["EUR"]["OBS_VALUE"]),
+           "date": rows["USD"]["TIME_PERIOD"], "source": "Norges Bank (NLOD), daily fixing ~16:00 CET, not live"}
+    try:        # the import-weighted krone index (D63): one more series from the same open API; its failure never costs the rates above
+        i44 = _nb_last("EXR/B.I44.NOK.SP")[-1]
+        out["I44"], out["I44_date"] = float(i44["OBS_VALUE"]), i44["TIME_PERIOD"]
+    except Exception as e:  # noqa: BLE001
+        out["errors"] = [f"I44: {type(e).__name__}"]
+    return out
 
 
 SSB_SALMON = ("https://data.ssb.no/api/pxwebapi/v2/tables/03024/data?lang=en&outputFormat=csv"
