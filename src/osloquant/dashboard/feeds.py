@@ -410,7 +410,7 @@ FRED_NOTICE = "This product uses the FRED® API but is not endorsed or certified
 FRED_TERMS = "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
 #: driver key -> FRED series id. Only series without a copyright line: the terms leave third-party data to its owner
 #: («notes contain the word 'Copyright'»), and the fetch reads the notes every run, so a series that gains one is dropped.
-MACRO_FRED = {"us2y": "DGS2", "fed": "DFEDTARU", "esb": "ECBDFR", "dollar": "DTWEXBGS"}
+MACRO_FRED = {"us2y": "DGS2", "fed": "DFEDTARU", "dollar": "DTWEXBGS"}       # ECBDFR is marked «Copyright» (ECB): not used
 #: US releases that move rates, the krone and Oslo Børs, by FRED release id; the dates FRED publishes ahead are kept
 FRED_RELEASES = {10: "KPI i USA", 50: "Sysselsetting i USA (Employment Situation)", 53: "BNP i USA"}
 FRED_RELEASE_DAYS = 120

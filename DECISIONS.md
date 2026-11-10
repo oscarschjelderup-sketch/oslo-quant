@@ -1200,3 +1200,31 @@ announcement flagged a stock (a buy-back notice as much as a report), the filter
   orden» while the front page says the quoted prices are stale.
 - **Unchanged:** no role writes free text, every finding has a number, a source and a time, the desk writes only its
   own log, and the chain never ends in a buy.
+
+## D70. FRED: US rates, the dollar and the US release calendar, with the owner's own key
+
+Oscar asked for FRED on 10 Nov 2026, the first item on the research list's «worth building later» (`docs/loft/research.md`,
+B3). FRED's keyless CSV works but the site discourages automated extraction; the API with a free key is the allowed way.
+
+- **What it adds.** Three drivers: the US 2-year yield (DGS2), the Fed funds target's upper bound (DFEDTARU) and the
+  broad dollar index (DTWEXBGS). And the coming release dates for US CPI, the jobs report
+  and GDP from FRED's release calendar, in «Det som kommer» on /makro. The US 10-year stays on Yahoo: it is current
+  where FRED's is a day behind, and one source per driver keeps the cell's source line true.
+- **The key is the owner's.** It is read from `FRED_API_KEY` or from `keys/fred.txt` in the private home, never from
+  the repository. It is taken out of every text that can reach a feed, the run log or a page (`feeds._scrub`), and the
+  test fixture removes the variable so no test ever sees it. Without a key nothing is asked and nothing is an alarm:
+  the three cards say what a key would add. A key FRED rejects stops at the first request.
+- **The terms** (read 10 Nov 2026, https://fred.stlouisfed.org/docs/api/terms_of_use.html):
+  - The required notice («This product uses the FRED® API but is not endorsed or certified by the Federal Reserve
+    Bank of St. Louis.») is shown at the top and the foot of /makro whenever the page shows FRED data, with a link to
+    the terms. Without FRED data the page does not claim to use it.
+  - Third-party data needs its owner's permission, and such series are marked by «Copyright» in their notes. The fetch
+    reads each series' notes on every run and refuses a series that carries the word; a copy from an earlier run is
+    dropped too. Checked on the real API on 10 Nov 2026: the ECB deposit rate (ECBDFR) carries «Copyright» and was
+    taken out; DGS2, DFEDTARU and DTWEXBGS do not. VIX (CBOE) and the ICE bond indices are not taken from FRED either.
+  - No fixed rate limit is stated. The feed asks nine times a day (three series with their notes, three calendars).
+- **The Fed rate is shown, not measured.** Like Norges Bank's policy rate it moves in a handful of weeks in three
+  years, so the sensitivity (D65, `MIN_MOVES`) leaves it out. The 2-year yield and the dollar index are measured.
+- **Not built:** the FOMC and ECB meeting dates. FRED's «FOMC Press Release» (101) and «Key ECB Interest Rates» (484)
+  list every day the data is updated, not the meetings. The ECB rate itself can come from the ECB's own data portal
+  once its terms are read. SSB's release calendar is not built either.

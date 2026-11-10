@@ -138,7 +138,7 @@ def calendar_html(events: list[dict], today: pd.Timestamp, days: int = 45) -> st
         return '<p class="empty">Ingen daterte hendelser de neste ukene i kildene vi har.</p>'
     rows.sort(key=lambda r: r[0])
     tr = "".join(f'<tr><td class="l">{dato(d, False, short_weekday=True)}</td><td class="l">{(d - today).days} d</td>'
-                 f'<td class="l">{_link(tag) if tag and tag != "Renter" and tag.isalnum() and tag.isupper() else _E(tag)}</td>'
+                 f'<td class="l">{_link(tag) if tag and tag not in ("Renter", "USA") and tag.isalnum() and tag.isupper() else _E(tag)}</td>'
                  f'<td class="l" style="white-space:normal">{_E(what)}</td><td class="l src">{_E(src)}</td></tr>' for d, tag, what, src in rows[:24])
     return (f'<table class="odds"><thead><tr><th class="l">Dato</th><th class="l">Om</th><th class="l">Hvem</th><th class="l">Hva</th><th class="l">Kilde</th></tr></thead>'
             f'<tbody>{tr}</tbody></table>')

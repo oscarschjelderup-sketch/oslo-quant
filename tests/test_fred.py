@@ -106,7 +106,8 @@ def test_a_series_with_a_copyright_line_is_never_used_and_an_old_copy_is_dropped
     doc = fd.fetch_macro()
     assert "dollar" not in doc["series"] and doc["fred"]["refused"] == ["dollar"]
     assert "dollar: opphavsrett i serienotatet – ikke brukt (FRED-vilkårene)" in doc["errors"]
-    assert {"us2y", "fed", "esb"} <= set(doc["series"])
+    assert {"us2y", "fed"} <= set(doc["series"])
+    assert "esb" not in fd.MACRO_FRED and "ECBDFR" not in fd.MACRO_FRED.values()       # checked on the real API 10 Nov 2026: the ECB rate is marked «Copyright»
 
 
 def test_a_rejected_key_stops_at_the_first_request_and_is_never_in_an_error(monkeypatch):
@@ -157,6 +158,7 @@ def test_the_macro_page_shows_the_fred_notice_and_the_us_releases(app, monkeypat
     assert 'id="fred-notice"' in html and fd.FRED_NOTICE.replace("®", "") in html.replace("®", "").replace("&#174;", "")
     assert fd.FRED_TERMS in html
     assert "Tallslipp: KPI i USA" in html and "FRED-kalenderen (St. Louis Fed)" in html
+    assert 'href="/aksje/USA"' not in html                                             # the country is not a ticker
     assert 'id="d-us2y"' in html and 'id="d-dollar"' in html
     # without FRED data there is no FRED notice: the page does not claim to use what it does not use
     fd.write("macro", {"series": {}, "errors": [], "source": "test", "fred": {"key": "mangler", "series": [], "refused": []}, "releases": []})

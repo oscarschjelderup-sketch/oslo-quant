@@ -59,7 +59,6 @@ DRIVERS: tuple[Driver, ...] = (
     Driver("us10y", "USA 10 år", "Renter", "%", "rate", 2, "Yahoo Finance (^TNX), forsinket", step=0.25),
     Driver("us2y", "USA 2 år", "Renter", "%", "rate", 2, "FRED (DGS2, US Treasury)", "følger forventningene til Fed-renten tettest", step=0.25),
     Driver("fed", "Fed-renten, øvre grense", "Renter", "%", "rate", 2, "FRED (DFEDTARU, Federal Reserve)", step=0.25),
-    Driver("esb", "ESBs innskuddsrente", "Renter", "%", "rate", 2, "FRED (ECBDFR, Den europeiske sentralbanken)", "styringsrenten i euroområdet", step=0.25),
     Driver("usdnok", "USD/NOK", "Valuta", "", "price", 3, "Norges Bank, fixing 14:15"),
     Driver("eurnok", "EUR/NOK", "Valuta", "", "price", 3, "Norges Bank, fixing 14:15"),
     Driver("i44", "Kronekursindeks I44", "Valuta", "", "price", 2, "Norges Bank", "importveid; høyere = svakere krone"),

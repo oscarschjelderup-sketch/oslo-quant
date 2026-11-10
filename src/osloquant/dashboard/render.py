@@ -371,7 +371,7 @@ if(t.scrollWidth<=room(t)+1)return;t.classList.add('fit');if(t.scrollWidth<=room
 var d=document.createElement('div');d.className='tscroll';t.parentNode.insertBefore(d,t);d.appendChild(t)})}
 var timer;window.addEventListener('resize',function(){clearTimeout(timer);timer=setTimeout(fit,120)});
 document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('nav.tabs a,[data-tab],details>summary'))setTimeout(fit,60)});
-fit();window.fitTables=fit})();</script>"""
+fit();window.addEventListener('load',fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);window.fitTables=fit})();</script>"""
 
 
 def link(code: str, text: str | None = None, static: bool = False) -> str:
