@@ -145,6 +145,7 @@ def refresh(codes: list[str] | None = None) -> dict[str, str]:
     """Fetch every feed into the cache; returns feed -> 'ok' or the error. A failed feed keeps its old cache."""
     from osloquant.dashboard import calendar as cal
     from osloquant.dashboard import insiders as ins
+    from osloquant.dashboard import sources as src
 
     out = {}
     year = datetime.now(UTC).year
@@ -153,22 +154,56 @@ def refresh(codes: list[str] | None = None) -> dict[str, str]:
                      ("insiders", lambda: ins.fetch(codes or [], start_year=year, log=lambda s: None)),
                      ("calendar", lambda: cal.fetch_financial_calendars(followed_codes()))):
         try:
-            write(name, fn())
+            write(name, src.timed(src.FEED_KEY.get(name, name), fn))
             out[name] = "ok"
-        except Exception as e:  # noqa: BLE001 – one feed down must not stop the others
+        except Exception as e:  # noqa: BLE001 – one feed down must not stop the others; the attempt is in the run log
             out[name] = f"{type(e).__name__}: {e}"[:200]
     return out
 
 
-def _get(url: str, method: str = "GET", timeout: int = 20) -> bytes:
-    req = urllib.request.Request(url, method=method, headers={"User-Agent": UA, "Accept": "*/*"},
-                                 data=b"" if method == "POST" else None)
+RETRY_PAUSES = (2.0, 5.0)        # seconds before the second and third attempt
+RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _open(req, timeout: int) -> bytes:
     with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 – fixed https URLs below
         return r.read()
 
 
+def _get(url: str, method: str = "GET", timeout: int = 20, pauses: tuple[float, ...] | None = None) -> bytes:
+    """One request with up to three attempts. A network error, a timeout, a 429 or a 5xx is tried again after a pause;
+    any other HTTP status (404: no such page) is an answer and is raised at once."""
+    import time
+    import urllib.error
+
+    pauses = RETRY_PAUSES if pauses is None else pauses
+    for attempt in range(len(pauses) + 1):
+        req = urllib.request.Request(url, method=method, headers={"User-Agent": UA, "Accept": "*/*"},
+                                     data=b"" if method == "POST" else None)
+        try:
+            return _open(req, timeout)
+        except urllib.error.HTTPError as e:
+            if e.code not in RETRY_STATUS or attempt == len(pauses):
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == len(pauses):
+                raise
+        time.sleep(pauses[attempt])
+    raise RuntimeError("unreachable")
+
+
 NEWSWEB = "https://api3.oslo.oslobors.no/v1/newsreader"
 ANN_DAYS, ANN_KEEP_DAYS = 14, 120
+
+
+def days_to_fetch(fetched_at: str | None, today, most: int = ANN_DAYS) -> int:
+    """How many calendar days back a list must go: the days since the last good fetch plus one of overlap, at most
+    ``most``. Fetched yesterday evening gives 2 (today and yesterday), not 14."""
+    try:
+        last = datetime.strptime(str(fetched_at), "%Y-%m-%dT%H:%M:%SZ").date()
+    except ValueError:
+        return most
+    return max(2, min(most, (today - last).days + 2))
 
 
 def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
@@ -176,7 +211,9 @@ def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
     Stores title, time, category and the NewsWeb link – never the body. Merged with the cache, kept 120 days."""
     want = {c.upper() for c in codes}
     today = datetime.now(UTC).date()
-    items = {a["id"]: a for a in (read("announcements") or {}).get("items", [])}
+    old = read("announcements") or {}
+    items = {a["id"]: a for a in old.get("items", [])}
+    days = days_to_fetch(old.get("fetched_at"), today, days) if items else days
     for i in range(days):
         d = f"{today - timedelta(days=i):%Y-%m-%d}"
         doc = json.loads(_get(f"{NEWSWEB}/list?fromDate={d}&toDate={d}", method="POST"))

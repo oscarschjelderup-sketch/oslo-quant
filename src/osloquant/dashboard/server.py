@@ -67,6 +67,14 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     from osloquant.dashboard import desk
 
     ctx["desk"] = desk.front_summary(f"{snap.asof:%Y-%m-%d}")
+    from osloquant.dashboard import sources as src
+
+    try:
+        ctx["sources"] = src.status()
+    except Exception:  # noqa: BLE001 – the front page opens without the source list; the old price warning still shows
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("source status failed")
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
         td.save_state(state)

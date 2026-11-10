@@ -21,7 +21,7 @@ Revisjon 10. nov. 2026 på grenen `forbedring-2026-11-10`, før noe er endret. G
 | Gruppe | Nye funn her | Fra 9. nov. (uten duplikater) | Løst av kursgrafen (D59) |
 |---|---|---|---|
 | 1 Krasj og feil | 1 | 4 | 1 (#4) |
-| 2 Feil tall og logikk | 2 | 59 | 1 (#12) |
+| 2 Feil tall og logikk | 1 (N2 trukket) | 59 | 1 (#12) |
 | 3 Datainnhenting | 14 | (tre av de 59 hører hjemme her: #15, #36, #37) | 0 |
 | 4 Visuelt og tekst | 9 | 29 samlet for 4 og 5 («Brukbarhet») | 0 |
 | 5 Funksjoner og flyt | 6 | – | 0 |
@@ -58,7 +58,7 @@ De 59 funnene fra 9. nov. står i vedlegget. De som veier tyngst:
 | #30, #31 | A | Dagsendring og 12 m lav/høy bruker justerte kurser, så de er feil rundt hver eks-dag. |
 | #44 | A | Utfallsodds gir dommen «klart mot kill-nivået» når det ikke finnes noen simulering. |
 | #45, #46, #48 | A | Oppdateringsskjemaet godtar etterpåklokskap, kaster nye sannsynligheter stille og skriver «nan» og «inf» i loggen. |
-| N2 | B | `IncomeStatement`, `BalanceSheet` og `CashFlowStatement` har rader datert 29. nov. 2026, altså frem i tid. Lageret tar perioden fra Yahoo uten å sjekke den mot dagens dato. |
+| N2 | – | Trukket: regnskapsradene «datert 29. nov. 2026» er ikke en feil. Tidsstempelet er periodeslutt pluss antatt publiseringstid (60 dager), brukt for å unngå å se inn i fremtiden i tilbaketester. Perioden står i `report_date`. |
 | N3 | B | Desk-tabellen viser «EV +999 % mot null-vekst» for AutoStore. Tallet er et tak, ikke en måling, og det står ikke. |
 
 ## 3 Datainnhenting

@@ -294,8 +294,13 @@ def today_page(ctx: dict, static: bool = False) -> str:
     while expected.weekday() >= 5:
         expected -= pd.Timedelta(days=1)
     stale = asof.normalize() < expected if asof is not None and asof == asof else True
-    banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {dato(asof, False, weekday=True)} – eldre enn siste virkedag ({dato(expected, False)}). '
-              'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
+    if ctx.get("sources") is not None:          # D60: every source that is not ok, with the numbers it affects
+        from osloquant.dashboard import sources as src
+
+        banner = src.banner_html(ctx["sources"], static)
+    else:
+        banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {dato(asof, False, weekday=True)} – eldre enn siste virkedag ({dato(expected, False)}). '
+                  'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
     urgency_word = {0: "Gjør først", 1: "I dag", 2: "Kan vente"}
     minutes = {"kill-check": 10, "report": 15, "pre-report": 20, "post-report": 20, "re-rate": 15, "re-assess": 10, "risk-signal": 3, "stale-view": 10, "report-tp": 15,
                "update": 5, "forecast": 10, "chief": 10, "review": 30}

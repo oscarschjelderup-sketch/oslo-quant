@@ -271,19 +271,30 @@ def case_health(cases, closes: pd.DataFrame | None = None, today: pd.Timestamp |
 
 def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> dict:
     return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(), "cases": case_health(cases, closes),
-            "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(),
+            "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(), "sources": _sources(),
             "generated": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+def _sources() -> list[dict]:
+    from osloquant.dashboard import sources as src
+
+    try:
+        return src.status()
+    except Exception:  # noqa: BLE001 – the page must open even when the run log is unreadable
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("source status failed")
+        return []
 
 
 def problems(ov: dict) -> list[str]:
     """One line per thing that should worry the reader, for the front page and the morning."""
-    out = []
+    from osloquant.dashboard import sources as src
+
+    out = src.problem_lines(ov.get("sources") or [])
     p = ov["prices"]
-    if p["stale"]:
-        out.append(f"{len(p['stale'])} aksjer uten sluttkurs {p['asof']}: {', '.join(p['stale'][:8])}")
-    for f in ov["feeds"]:
-        if f["status"] != "ok":
-            out.append(f"feed {f['feed']}: {f['status']}" + (f" ({f['age_days']} d gammel, grense {f['limit_days']})" if f["age_days"] is not None else ""))
+    if p["stale"] and not any(s["key"] == "prices_adj" and s["state"] in ("stale", "partial") for s in ov.get("sources") or []):
+        out.append(f"{len(p['stale'])} aksjer uten sluttkurs {dato(p['asof'])}: {', '.join(p['stale'][:8])}")
     for r in ov["reports"]:
         if r["status"] != "ok" and r.get("oscar_view", True):
             out.append(f"rapportleseren {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
@@ -386,5 +397,8 @@ def page_html(ov: dict) -> str:
                 + ("".join(f'<div class="err">{E(x)}</div>' for x in lg["problems"]) if lg["problems"] else "") + '</div>'
                 f'<div class="card"><h3>Frosne testdata</h3><p>{"present" if ov["testdata"]["present"] else "<b>missing</b>"} – {E(ov["testdata"]["path"])}, prices to {E(ov["testdata"]["frozen_to"])}; '
                 f'{len(ov["testdata"]["files"])} files.</p><div class="src">The deterministic tests (odds, brackets, insider study, SATS reports) run on this copy and skip without it.</div></div></div>')
-    return page("Datahelse", "/health", head + cases_html + store + prices + feeds + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
+    from osloquant.dashboard import sources as src
+
+    kilder = src.table_html(ov["sources"]) if ov.get("sources") else store + feeds
+    return page("Datahelse", "/health", head + kilder + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
                 + f'<div class="src">Generated {E(_fmt_dt(ov["generated"]))}.</div>')

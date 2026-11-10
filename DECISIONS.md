@@ -972,3 +972,44 @@ It had gaps for weekends on the date axis, and its unified hover box sat on the 
     active tab counts) and the panel with its text hidden.
   - Baselines exist per platform. On a platform without them, such as CI on Linux, the visual comparison skips and
     the state tests still run.
+
+## D60. Improvement pass (10 Nov 2026): branch, order and the data sources in one list
+
+Oscar's brief: audit and improve the whole dashboard (visual, functions, data fetching), on a branch, no merge, no
+push, no questions. Findings are in `docs/forbedring/funn.md`, each change in `docs/forbedring/endringer.md` before
+it is made, progress in `PROGRESS.md`.
+
+- **Branch:** `forbedring-2026-11-10`, cut from `natt-2026-11-10`. The brief names the price chart as the standard
+  the rest must hold, and that chart lives on the night branch. The findings of 9 Nov (`feilsok-2026-11-09`) are
+  merged in, so their numbers (#1–#132) stay valid references.
+- **Phase 1 reuses the audit of 9 Nov.** Its 105 open findings were checked against this branch instead of being
+  found again. New work went where that audit had not looked: every data source, the scheduled task's logs, the
+  visual system and the three flows.
+- **One list of sources (`dashboard/sources.py`).** Before, a feed's age came from its cache file and a table's age
+  from its newest row. Both hid the two real faults in the data: the scheduled task never fetched quoted prices or
+  statements, and a failed fetch left no trace outside a log file.
+  - Every attempt is written to `feeds/_runs.json` in the home folder (the last 60 per source). The file is the
+    dashboard's own and is not in git.
+  - Four states: ok, stale, failed, never fetched. «Partial» is a fifth for a source that answered in part (one
+    newspaper down, one stock without the last close). Partial shows on data health only; the front page warns for
+    the other three.
+  - A daily source is stale when it has not been fetched since the last session's close. The alternative, a number
+    of days per feed, let a daily feed be three to seven days old before anything showed.
+  - Today's close is expected from 18:30 Oslo time. The evening job starts 17:45 and takes about ten minutes, so an
+    earlier limit would warn every evening while the job runs.
+  - Oslo Børs' holidays are computed (Easter by the Gregorian algorithm, plus the fixed days and the two half-week
+    closures at Christmas), so the morning after a holiday is not a false alarm (funn #58).
+  - Store tables are measured per stock. The statements use `report_date` (the period), not `timestamp`, which is
+    the period plus an assumed publication lag.
+- **The scheduled scripts.** `run_signals.ps1` now runs `oq record --raw`: the quoted bars come from the same
+  download as the adjusted ones, so the cost is zero requests. `run_weekly.ps1` runs `oq record --raw --finance`
+  on Sundays: six requests per company once a week, not every evening. The scripts take effect when the branch is
+  merged, because the task runs the scripts in the main checkout.
+- **Retries.** `feeds._get` makes up to three attempts with 2 and 5 seconds between them, on network errors,
+  timeouts, 429 and 5xx. A 404 is an answer and is not retried. Longer waits were not chosen: the job runs twice
+  an evening, so the second run is the long retry.
+- **Fewer requests to NewsWeb.** Announcements ask for the days since the last good fetch plus one, at most 14.
+  Insider lists ask from the day before the last listing. NewsWeb's terms allow private use; asking for less is
+  the polite reading of them. The short register has no partial query, so it is still fetched whole.
+- **Consensus (MFN).** A 404 means the company published none. Any other failure is now written to the run log
+  and shows as «feilet», because «no consensus» and «could not ask» are different facts.

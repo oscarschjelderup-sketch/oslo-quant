@@ -306,10 +306,22 @@ def last_fy_figures(code: str, year: int) -> dict | None:
 def fetch_consensus(slug: str, year: int, q: int) -> dict | None:
     """The consensus a company publishes through Modular Finance before its report (MNOK unless stated)."""
     url = MFN.format(slug=slug, q=q, year=year)
+    import urllib.error
+
+    from osloquant.dashboard import sources as src
+
     try:
         html = fd._get(url).decode("utf-8", "ignore")
-    except Exception:  # noqa: BLE001 – no release is a normal answer
+    except urllib.error.HTTPError as e:
+        if e.code == 404:              # no release for this quarter: a normal answer
+            src.record_run("consensus", True, note=f"{slug} Q{q} {year}: ingen konsensus publisert")
+            return None
+        src.record_run("consensus", False, f"{slug} Q{q} {year}: HTTP {e.code}")
         return None
+    except Exception as e:  # noqa: BLE001 – the report is read without consensus, but the failure is on record
+        src.record_run("consensus", False, f"{slug} Q{q} {year}: {type(e).__name__}: {e}")
+        return None
+    src.record_run("consensus", True)
     text = re.sub(r"\s*\n\s*", "|", re.sub(r"<[^>]+>", "\n", re.sub(r"<script.*?</script>|<style.*?</style>", "", html, flags=re.S)))
     if f"Q{q} {year}E" not in text:
         return None
