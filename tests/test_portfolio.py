@@ -33,7 +33,7 @@ def test_exposure_finds_shared_drivers_and_one_group():
     assert ex["total_loss_at_kill"] == 3800 and ex["total_loss_share"] == pytest.approx(0.038)
     assert ex["drivers"]["margin"]["loss"] == 3800 and ex["drivers"]["volume"]["cases"] == ["AAA"]
     w = pf.warnings(ex)
-    assert any("one sector group" in x for x in w) and any("same driver – margin: AAA, BBB" in x for x in w)
+    assert any("samme sektorgruppe" in x for x in w) and any("samme driver – margin: AAA, BBB" in x for x in w)
     html = pf.block_html(ex)
     assert "Boken samlet" in html and "margin" in html and "AAA" in html
     spread = pf.exposure(cases, {"AAA": "Consumer", "BBB": "Energy", "CCC": "Energy"}, None)

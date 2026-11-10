@@ -299,6 +299,9 @@ def corporate_html(events: list[dict]) -> str:
             'listen bør oppdateres, og en splitt eller fisjon at kursene bør sjekkes mot en annen kilde. En tittel kan misforstås – åpne meldingen.</div></div>')
 
 
+REPORT_STATUS_NO = {"ok": "ok", "no spec": "ingen spesifikasjon", "no report read": "ingen rapport lest", "rows missing": "rader mangler"}
+
+
 def _sources() -> list[dict]:
     from osloquant.dashboard import sources as src
 
@@ -324,7 +327,8 @@ def problems(ov: dict) -> list[str]:
         out.append(f"{len(p['stale'])} aksjer uten sluttkurs {dato(p['asof'])}: {', '.join(p['stale'][:8])}")
     for r in ov["reports"]:
         if r["status"] != "ok" and r.get("oscar_view", True):
-            out.append(f"rapportleseren {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
+            out.append(f"rapportleseren {r['code']}: {REPORT_STATUS_NO.get(r['status'], r['status'])}"
+                       + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
     lg = ov["log"]
     if lg["chain_ok"] is False or lg["problems"]:
         out.append("vurderingsloggen: " + "; ".join(lg["problems"][:2]))
@@ -379,7 +383,7 @@ def page_html(ov: dict) -> str:
                  for f in ov["feeds"])
     feeds = ('<div class="card"><h3>Feeds</h3><table class="odds"><thead><tr><th>Feed</th><th>Status</th><th>Hentet</th><th>Alder (d)</th><th>Grense</th><th>Rader</th><th></th></tr></thead>'
              f'<tbody>{fe}</tbody></table><div class="src">Hentes av oq dashboard --refresh og kveldsoppgaven. Grensen er dager før feeden regnes som utdatert.</div></div>')
-    rp_rows = "".join(f'<tr><td>{link(r["code"])}</td><td class="{"k" if r["status"] != "ok" else ""}">{E(r["status"])}</td><td>{E(str(r["latest"] or "–"))[:60]}</td>'
+    rp_rows = "".join(f'<tr><td>{link(r["code"])}</td><td class="l {"st-bad" if r["status"] != "ok" else "st-ok"}">{E(REPORT_STATUS_NO.get(r["status"], r["status"]))}</td><td>{E(str(r["latest"] or "–"))[:60]}</td>'
                       f'<td>{E(str(r["published"] or "–"))}</td><td style="white-space:normal">{E(", ".join(r["missing"]))}</td><td>{r["kill_rules"]} av {r["kill_texts"]}</td></tr>' for r in ov["reports"])
     reports = ('<div class="card"><h3>Rapportleseren</h3><table class="odds"><thead><tr><th>Case</th><th>Status</th><th>Siste rapport lest</th><th>Publisert</th>'
                f'<th>Rader ikke funnet</th><th>Kill-regler</th></tr></thead><tbody>{rp_rows or "<tr><td colspan=6 class=empty>ingen caser i research book</td></tr>"}</tbody></table>'
@@ -422,10 +426,10 @@ def page_html(ov: dict) -> str:
                 f'<li><b>Kjede</b>: {"verifiserer" if lg["chain_ok"] else ("BRUTT" if lg["chain_ok"] is False else "tom")}</li>'
                 f'<li><b>Sist logget</b>: {E(_fmt_dt(lg["last_logged_at"]))}</li><li><b>Head</b>: {E(str(lg["head"] or "–"))}</li></ul>'
                 + ("".join(f'<div class="err">{E(x)}</div>' for x in lg["problems"]) if lg["problems"] else "") + '</div>'
-                f'<div class="card"><h3>Frosne testdata</h3><p>{"present" if ov["testdata"]["present"] else "<b>missing</b>"} – {E(ov["testdata"]["path"])}, prices to {E(ov["testdata"]["frozen_to"])}; '
-                f'{len(ov["testdata"]["files"])} files.</p><div class="src">The deterministic tests (odds, brackets, insider study, SATS reports) run on this copy and skip without it.</div></div></div>')
+                f'<div class="card"><h3>Frosne testdata</h3><p>{"finnes" if ov["testdata"]["present"] else "<b>mangler</b>"} – {E(ov["testdata"]["path"])}, kurser til {E(ov["testdata"]["frozen_to"])}; '
+                f'{len(ov["testdata"]["files"])} filer.</p><div class="src">De deterministiske testene (odds, intervaller, innsidestudien, SATS-rapportene) kjører på denne kopien og hopper over uten den.</div></div></div>')
     from osloquant.dashboard import sources as src
 
     kilder = src.table_html(ov["sources"]) if ov.get("sources") else store + feeds
     return page("Datahelse", "/health", head + kilder + corporate_html(ov.get("corporate") or []) + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
-                + f'<div class="src">Generated {E(_fmt_dt(ov["generated"]))}.</div>')
+                )

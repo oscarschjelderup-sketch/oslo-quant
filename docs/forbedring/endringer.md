@@ -129,3 +129,33 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
   Plotly-grafene får desimalkomma gjennom den norske lokalen.
 - **Test:** `tests/test_tall.py`: 20 skrivemåter som skal endres, 19 som ikke skal det, skjemafelt og skript urørt,
   og passet gir samme resultat om det kjøres to ganger på hver side.
+
+### E13 Én aksentfarge, grønn og rød bare for opp og ned, tekst til venstre og tall til høyre (V5, V7)
+- **Problem:** Rød brukes til beslutningslisten, feilmeldinger og statuser som «no spec». Tabeller høyrejusterer
+  også tekstkolonner.
+- **Endring:**
+  - Beslutningslisten og merkelappene bruker aksentfargen. Feilmeldinger er ravgule med tykk kant, bekreftelser i
+    aksentfargen. Statuser har egne klasser (`st-ok`, `st-warn`, `st-bad`): ok er dempet, et problem er ravgult og
+    fet. Grønn og rød står igjen for kursbevegelser, kursmål og kill-nivå.
+  - Ett skript på hver side venstrejusterer en tabellkolonne når de fleste cellene er tekst. Tallkolonner står
+    høyrejustert som før. En celle med egen justering beholder den.
+- **Test:** nettlesertest: på Datahelse er «Kilde» og «Status» venstrejustert og «Feil» høyrejustert; på Sektorer er
+  navnekolonnen venstrejustert og avkastningskolonnene høyrejustert.
+
+### E14 «I dag» på norsk, med lenker dit handlingen gjøres (V1, V3, F2, #89, #90)
+- **Problem:** Overskrifter og forklaringer i beslutningslisten er engelske, merkelappene er interne nøkler
+  («stale-view»), lenkene lander på Oversikt, og tre av handlingene finnes ikke i dashbordet.
+- **Endring:** Tekstene er oversatt. Merkelappene har norske navn. Hver lenke går til fanen der handlingen gjøres:
+  Min vurdering, Rapporter eller Teknisk. «log a kill check», «close the case» og «renew or retire it» er erstattet
+  med handlingen som finnes: logg en ny vurdering. Datahelse bruker norske statuser.
+- **Test:** forsiden har ingen av de engelske setningene, og en «gammelt syn»-lenke peker på `/aksje/<kode>/vurdering`.
+
+### E15 Røyktest i nettleser, og en tom tilstand på «Prisen krever» (K2, fase 5)
+- **Problem:** Ingen test starter dashbordet og leser nettleserkonsollen på tvers av sidene. Første kjøring av en
+  slik test fant et tomt kort på «Prisen krever» når ingen lette caser er bygget.
+- **Endring:** `tests/test_royk_browser.py` starter dashbordet på en syntetisk kopi, åpner de 12 fellessidene og 13
+  visninger for to aksjer, og feiler ved konsollfeil, feilside, tomt hovedfelt uten forklaring, tomme kort,
+  vannrett rulling, eller ordene «undefined», «NaN», «None» og «Traceback». Den kjører i CI: GitHub-maskinen har
+  Chrome, og `websockets` følger med yfinance. Det tomme kortet sier nå hva som mangler og hvilken kommando som
+  bygger det.
+- **Test:** testen selv, 38 sider.

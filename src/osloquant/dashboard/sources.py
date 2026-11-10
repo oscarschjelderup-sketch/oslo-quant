@@ -340,7 +340,7 @@ def table_html(sts: list[dict]) -> str:
     fails = lambda s: f'{s["fails"]} av {s["runs"]}' if s["runs"] else "–"  # noqa: E731
     rows = "".join(
         f'<tr><td class="l"><b>{E(s["name"])}</b><div class="src">{E(s["origin"])}</div></td>'
-        f'<td class="l {"k" if s["state"] in ("stale", "failed", "never") else ("warn-t" if s["state"] == "partial" else "t")}">{E(s["state_no"])}</td>'
+        f'<td class="l {"st-bad" if s["state"] in ("stale", "failed", "never") else ("st-warn" if s["state"] == "partial" else "st-ok")}">{E(s["state_no"])}</td>'
         f'<td class="l">{when(s["last_ok"])}</td><td class="l">{when(s["last_attempt"])}</td>'
         f'<td>{fails(s)}</td><td class="l">{E(s["expected"])}</td>'
         f'<td class="l" style="white-space:normal">{E(s["error"] or s["detail"])}</td><td class="l" style="white-space:normal">{E(s["affects"])}</td></tr>'

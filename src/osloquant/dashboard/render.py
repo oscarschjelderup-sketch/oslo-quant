@@ -162,12 +162,14 @@ table.keyfig td:first-child { font-weight:500; } table.keyfig tr.sep td { border
 table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
 .heat td { text-align:right; } .heat td:first-child, .heat td:nth-child(2) { text-align:left; }
 /* the decision box */
-.decide { border:1px solid var(--risk); border-left:6px solid var(--risk); padding:10px 16px 12px; margin:6px 0 10px; }
-.decide h2 { margin-top:0; color:var(--risk); border-bottom-color:var(--risk-bg); }
+.decide { border:1px solid var(--line); border-left:6px solid var(--accent-dark); padding:10px 16px 12px; margin:6px 0 10px; }
+.decide h2 { margin-top:0; color:var(--accent-dark); border-bottom-color:var(--accent-pale); }
 .item { padding:9px 0; border-top:1px solid var(--line); } .item:first-of-type { border-top:0; }
 .item .why { color:var(--muted); font-size:12.5px; }
 .tag { display:inline-block; font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:2px; margin-right:6px; text-transform:uppercase; letter-spacing:0.3px; }
-.tag.u0 { background:var(--risk); color:#fff; } .tag.u1 { background:var(--gold-bg); color:var(--gold); } .tag.u2 { background:var(--info-bg); color:var(--info); }
+.tag.u0 { background:var(--accent-dark); color:#fff; } .tag.u1 { background:var(--accent-pale); color:var(--accent-dark); } .tag.u2 { background:var(--panel); color:var(--muted); }
+/* a status is not a price move: ok is quiet, a problem is amber and bold. Green and red are for up and down only. */
+.st-ok { color:var(--muted); } .st-warn { color:var(--gold); font-weight:600; } .st-bad { color:var(--gold); font-weight:700; }
 /* chips, alerts, lists */
 .chips { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 0; }
 .chip { display:inline-block; padding:2px 9px; border-radius:2px; font-size:11.5px; font-weight:700; }
@@ -187,8 +189,8 @@ details.card summary { color:var(--text); }
 .bracket { display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
 .t { color:var(--buy); font-weight:700; } .k { color:var(--risk); font-weight:700; } .warn-t { color:var(--gold); }
 ul.issues { margin:0; padding-left:16px; } ul.issues li { margin:2px 0; } ul.issues details { display:inline; } ul.issues summary { display:inline; cursor:pointer; color:var(--risk); font-weight:600; }
-.err { background:var(--risk-bg); color:var(--risk); padding:8px 12px; border-left:4px solid var(--risk); margin:8px 0; }
-.ok { background:var(--buy-bg); color:var(--buy); padding:8px 12px; border-left:4px solid var(--buy); margin:8px 0; }
+.err { background:var(--gold-bg); color:#5a3d00; padding:8px 12px; border-left:6px solid var(--gold); margin:8px 0; font-weight:600; }
+.ok { background:var(--accent-pale); color:var(--accent-dark); padding:8px 12px; border-left:4px solid var(--accent); margin:8px 0; }
 .warn { background:var(--gold-bg); color:#6b4a00; padding:8px 12px; border-left:4px solid var(--gold); margin:8px 0; font-size:13px; }
 .warn ul { margin:4px 0 0; padding-left:18px; }
 /* the judgement form */
@@ -277,7 +279,17 @@ def page(title: str, active: str, body: str, generated: datetime | None = None, 
 <nav class="top"><span class="brand">Oslo Børs<span class="long"> · beslutninger</span></span><span class="links">{nav}</span>{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Kurser: daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret – forsinket, ikke sanntid. Signaloddsene er målt på lagerets egen historikk (oq signals score). Ingenting her handler eller gir råd.</div></div>
-</div></body></html>"""))
+</div>{ALIGN_SCRIPT}</body></html>"""))
+
+
+#: Every table on every page: a column where most cells are text is left-aligned, a column of numbers stays right-aligned.
+#: One rule in one place instead of a class on each of a few hundred cells. A cell with its own alignment keeps it.
+ALIGN_SCRIPT = """<script>(function(){var NUM=/^[+\\-\u2212\u2013]?\\s?(NOK|USD|EUR|DKK|kr)?\\s?[\\d\\s\u00a0\u202f.,:/]+\\s?(%|x|pp|m|mrd|mill\\.?|d|R|kr|NOK|bp)?$/;
+document.querySelectorAll('table').forEach(function(t){if(!t.tBodies.length)return;var rows=[];Array.prototype.forEach.call(t.tBodies,function(b){
+Array.prototype.push.apply(rows,b.rows)});if(!rows.length)return;var n=0;rows.forEach(function(r){var c=0;Array.prototype.forEach.call(r.cells,function(x){c+=x.colSpan||1});if(c>n)n=c});
+for(var c=0;c<n;c++){var num=0,tot=0;rows.forEach(function(r){if(r.cells.length!==n)return;var x=(r.cells[c].textContent||'').trim();if(!x||x==='\u2013'||x==='-')return;tot++;
+if(NUM.test(x))num++});if(!tot||num/tot>=0.5)continue;rows.forEach(function(r){if(r.cells.length===n&&!r.cells[c].style.textAlign)r.cells[c].classList.add('l')});
+if(t.tHead)Array.prototype.forEach.call(t.tHead.rows,function(r){if(r.cells.length===n)r.cells[c].classList.add('l')})}})})();</script>"""
 
 
 def link(code: str, text: str | None = None, static: bool = False) -> str:
@@ -288,6 +300,8 @@ def link(code: str, text: str | None = None, static: bool = False) -> str:
 # ------------------------------------------------------------------------------------------------ I dag
 def today_page(ctx: dict, static: bool = False) -> str:
     """ctx: decisions, upcoming, moves, alerts, sessions, announcements, asof, feeds_note"""
+    from osloquant.dashboard import today as td
+
     L = lambda c, t=None: link(c, t, static)  # noqa: E731
     dec = ctx["decisions"]
     today = ctx.get("today") or pd.Timestamp.now().normalize()
@@ -315,14 +329,17 @@ def today_page(ctx: dict, static: bool = False) -> str:
     def title_link(i):
         if i.kind in page_of and not static:
             return f'<a href="{page_of[i.kind]}">{E(i.title)}</a>'
+        tab = td.KIND_TAB.get(i.kind)
+        if tab and i.code and not static:           # land where the action is: the form, the report or the technical picture (funn #89)
+            return f'<a href="/aksje/{E(i.code)}/{tab}">{E(i.title)}</a>'
         return L(i.code, i.title)
     total_min = sum(minutes.get(i.kind, 5) for i in dec)
     if dec:
         summary = (f'<p style="margin:0 0 8px"><b>{len(dec)} ting, omtrent {total_min} minutter, i denne rekkefølgen:</b> '
-                   + " ".join(f'{n}) {E(i.code or i.kind)}' for n, i in enumerate(dec, 1)) + '</p>')
+                   + " ".join(f'{n}) {E(i.code or td.KIND_NO.get(i.kind, i.kind))}' for n, i in enumerate(dec, 1)) + '</p>')
         dec_html = summary + "".join(
             f'<div class="item"><span class="tag {["u0", "u1", "u2"][i.urgency]}">{n}. {E(urgency_word[i.urgency])}</span>'
-            f'<span class="src">{E(i.kind)} · ~{minutes.get(i.kind, 5)} min</span><br><b>{title_link(i)}</b>'
+            f'<span class="src">{E(td.KIND_NO.get(i.kind, i.kind))} · ~{minutes.get(i.kind, 5)} min</span><br><b>{title_link(i)}</b>'
             f'<div class="why">{E(i.detail)}'
             + (f' <a href="/stock/{E(i.code)}/pretrade">Før du kjøper →</a>' if (not static and i.kind in ("pre-report", "post-report", "re-rate", "re-assess", "report-tp")) else '')
             + '</div></div>' for n, i in enumerate(dec, 1))
@@ -386,7 +403,7 @@ def today_page(ctx: dict, static: bool = False) -> str:
     foot = ('<div class="src">Odds: meravkastning mot de 64 aksjene 20/60 handelsdager etter denne typen signal, treffrate og antall '
             '(oq signals score, 2010–2026, bare dagens aksjer). Ingen kjøpssignal har betalt seg etter kostnader på 20 dager; grad A–D under hvert '
             'signal sier om tallet har holdt seg.</div>')
-    open_part = "".join(row(a) for a in mine) or '<p class="empty">no new signals on research-book stocks</p>'
+    open_part = "".join(row(a) for a in mine) or '<p class="empty">ingen nye signaler på aksjene i research book</p>'
     folded = (f'<details><summary>{len(rest)} signaler på andre aksjer – vis</summary>{"".join(row(a) for a in rest[:60])}</details>' if rest else '')
     body.append(f'<h2>Nye signaler siden sist ({len(alerts)}, {len(mine)} på dine aksjer)</h2><div class="card">{open_part}{folded}{foot}</div>')
     return page("I dag", "/", "\n".join(body), static=static)
@@ -1378,7 +1395,9 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
               'Bygget med <code>oq case build --all</code>; se datoen på hver aksjeside.</div></div>')
     return page("Prisen krever", "/screen", (
         '<h1>Hva prisen krever</h1><div class="sub">Hele universet: veksten kursen betaler for, mot det selskapet har levert, med kvaliteten på tallene ved siden av.</div>'
-        + intro + cands + '<h2>Alle selskaper, per sektorgruppe</h2><div class="card">' + "".join(body) + '</div>' + caveat))
+        + intro + cands + '<h2>Alle selskaper, per sektorgruppe</h2><div class="card">'
+        + ("".join(body) or '<p class="empty">Ingen lette caser er bygget ennå. Kjør <code>oq case build --all</code> (leser regnskapet i lageret, ett minutt), og last siden på nytt.</p>')
+        + '</div>' + caveat))
 
 
 def lcm_g() -> float:
