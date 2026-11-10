@@ -106,7 +106,7 @@ table.stm td:first-child { font-weight:500; } table.stm th { white-space:nowrap;
 /* the price chart (night 10 Nov 2026, K1–K3): TradingView Lightweight Charts drawing the store's own bars */
 .pc-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px 16px; flex-wrap:wrap; border-bottom:1px solid var(--line); margin:0 0 4px; padding-bottom:3px; }
 .pc-head h3 { border:0; margin:0; padding:0; } .pc-head .unit { color:var(--muted); font-weight:600; font-size:12px; }
-.info { display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; border-radius:50%; background:var(--panel); border:1px solid var(--line); color:var(--muted); font-size:10.5px; font-weight:700; font-style:normal; cursor:help; vertical-align:1px; }
+.pc-info { display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; border-radius:50%; background:var(--panel); border:1px solid var(--line); color:var(--muted); font-size:10.5px; font-weight:700; font-style:normal; cursor:help; vertical-align:1px; }
 .pc-ret { font-size:13px; cursor:help; } .pc-ret b { font-size:14.5px; } .pc-ret .src { margin-left:6px; }
 .pc-sub { color:var(--muted); font-size:12px; margin:0 0 4px; }
 .pc-sub .delayed, .pc .delayed { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; color:var(--gold); background:var(--gold-bg); border-radius:3px; padding:0 5px; }
@@ -157,6 +157,11 @@ th { color:var(--text); font-weight:700; border-top:0; border-bottom:1px solid v
 th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
 table.odds td, table.odds th { text-align:right; } table.odds td:first-child, table.odds th:first-child { text-align:left; }
 table.odds th.grp { text-align:center; }
+/* a table with stated column shares never grows past its card, and two such tables line up under each other */
+table.colfix { table-layout:fixed; } table.colfix td, table.colfix th { white-space:normal; overflow-wrap:break-word; }
+table.colfix td .chip { white-space:nowrap; }
+table.fit, table.fit td, table.fit th { white-space:normal; } table.fit .chip, table.fit .tag { white-space:nowrap; }
+.tscroll { overflow-x:auto; max-width:100%; }
 th.l, td.l, table.odds th.l, table.odds td.l { text-align:left; }      /* text reads from the left, numbers line up on the right */
 table.keyfig td:first-child { font-weight:500; } table.keyfig tr.sep td { border-top:2px solid var(--line); }
 table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
@@ -272,14 +277,14 @@ def page(title: str, active: str, body: str, generated: datetime | None = None, 
     note = ('<div class="src">Statisk kopi skrevet av kveldsoppgaven. Det levende dashbordet: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
     gen = f'<div class="src">Generert {dato_tid((generated or datetime.now()), True)}. Privat: research book og vurderingsloggen leses fra ~/osloquant-home og publiseres aldri.</div>{note}'
-    from osloquant.dashboard.tall import norske_tall
+    from osloquant.dashboard.tall import norske_grupper, norske_tall
 
-    return norske_tall(norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    return norske_grupper(norske_tall(norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)} – Oslo Børs dashboard</title>{icon}<style>{CSS}</style>{plotly}</head><body><div class="wrap">
 <nav class="top"><span class="brand">Oslo Børs<span class="long"> · beslutninger</span></span><span class="links">{nav}</span>{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Kurser: daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret – forsinket, ikke sanntid. Signaloddsene er målt på lagerets egen historikk (oq signals score). Ingenting her handler eller gir råd.</div></div>
-</div>{ALIGN_SCRIPT}</body></html>"""))
+</div>{ALIGN_SCRIPT}{FIT_SCRIPT}</body></html>""")))
 
 
 #: Every table on every page: a column where most cells are text is left-aligned, a column of numbers stays right-aligned.
@@ -290,6 +295,20 @@ Array.prototype.push.apply(rows,b.rows)});if(!rows.length)return;var n=0;rows.fo
 for(var c=0;c<n;c++){var num=0,tot=0;rows.forEach(function(r){if(r.cells.length!==n)return;var x=(r.cells[c].textContent||'').trim();if(!x||x==='\u2013'||x==='-')return;tot++;
 if(NUM.test(x))num++});if(!tot||num/tot>=0.5)continue;rows.forEach(function(r){if(r.cells.length===n&&!r.cells[c].style.textAlign)r.cells[c].classList.add('l')});
 if(t.tHead)Array.prototype.forEach.call(t.tHead.rows,function(r){if(r.cells.length===n)r.cells[c].classList.add('l')})}})})();</script>"""
+
+
+#: No table leaves its card. A table wider than the card first lets its text wrap (class ``fit``); if it is still too
+#: wide it gets a frame that scrolls inside the card (class ``tscroll``), so the page itself never scrolls sideways.
+#: Runs after the alignment script, again when the window changes size, and when a hidden tab is opened.
+FIT_SCRIPT = """<script>(function(){function room(t){var c=t.closest('.tscroll')?t.closest('.tscroll').parentElement:t.parentElement;if(!c)return 1e9;var s=getComputedStyle(c);
+return c.clientWidth-parseFloat(s.paddingLeft||0)-parseFloat(s.paddingRight||0)}
+function fit(){document.querySelectorAll('.card table').forEach(function(t){if(t.offsetParent===null)return;var w=t.closest('.tscroll');
+t.classList.remove('fit');if(w){w.parentNode.insertBefore(t,w);w.remove()}
+if(t.scrollWidth<=room(t)+1)return;t.classList.add('fit');if(t.scrollWidth<=room(t)+1)return;
+var d=document.createElement('div');d.className='tscroll';t.parentNode.insertBefore(d,t);d.appendChild(t)})}
+var timer;window.addEventListener('resize',function(){clearTimeout(timer);timer=setTimeout(fit,120)});
+document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('nav.tabs a,[data-tab],details>summary'))setTimeout(fit,60)});
+fit();window.fitTables=fit})();</script>"""
 
 
 def link(code: str, text: str | None = None, static: bool = False) -> str:
@@ -1362,7 +1381,7 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
             return "–"
         return f'{pct(r["hist"], 1, r["measure"] != "ROE")}{" ROE snitt" if r["measure"] == "ROE" else " /år"} <span class="src">({h.get("from")}–{h.get("to")})</span>'
 
-    def line(r, with_group=False):
+    def line(r, with_group=False, with_reading=True):
         verdict_cls = "" if r["verdict"] in ("more", "less", "fall", "above_wacc") else "src"     # no colour: a gap is not good or bad
         gap = "–" if r["gap"] is None else f'{r["gap"] * 100:+.1f} pp'
         roic = ("–" if r["financial"] else f'{pct(r.get("now"), 0, False)} / {pct(r.get("roic_avg"), 0, False)} <span class="src">mot {pct(r.get("wacc"), 1, False)} EST</span>')
@@ -1370,13 +1389,19 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
                 + f'<td>{_level_chip(r["level"]) if r["level"] else "–"}</td><td>{grade_chip(r["quality"])}</td>'
                 f'<td><b>{req(r)}</b> <span class="src">{E(r["basis"])}</span></td><td style="white-space:normal">{hist(r)}</td>'
                 f'<td>{gap}</td>'
-                f'<td>{roic}</td><td class="{verdict_cls}" style="white-space:normal">{E(r["label"])}</td></tr>')
+                f'<td>{roic}</td>' + (f'<td class="{verdict_cls}">{E(r["label"])}</td>' if with_reading else "") + '</tr>')
     head = ('<thead><tr><th>Selskap</th>{grp}<th>Nivå</th><th>Kvalitet</th><th>Prisen krever</th><th>Sammenlignet med (omsetning; bank: ROE; syklisk: 2 % EST)</th>'
-            '<th>Spenn</th><th>ROIC nå / snitt</th><th>Lesning</th></tr></thead>')
+            '<th>Spenn</th><th>ROIC nå / snitt</th>{reading}</tr></thead>')
+    # column shares in per cent. The candidate tables say their reading in the heading above them, so they have no
+    # «Lesning» column; the per-group tables have no group column. Both sets add up to 100.
+    shares = {(True, False): (16, 15, 8, 7, 17, 21, 7, 9), (False, True): (14, 8, 7, 17, 21, 7, 11, 15), (True, True): (13, 12, 7, 6, 15, 19, 7, 9, 12)}
 
-    def table(items, with_group=False, empty="ingen"):
-        body = "".join(line(r, with_group) for r in items) or f'<tr><td colspan="9" class="empty">{empty}</td></tr>'
-        return f'<table class="odds">{head.format(grp="<th>Gruppe</th>" if with_group else "")}<tbody>{body}</tbody></table>'
+    def table(items, with_group=False, empty="ingen", with_reading=True):
+        cols = "".join(f'<col style="width:{w}%">' for w in shares[(with_group, with_reading)])
+        n = 7 + with_group + with_reading
+        body = "".join(line(r, with_group, with_reading) for r in items) or f'<tr><td colspan="{n}" class="empty">{empty}</td></tr>'
+        return (f'<table class="odds colfix"><colgroup>{cols}</colgroup>'
+                f'{head.format(grp="<th>Gruppe</th>" if with_group else "", reading="<th>Lesning</th>" if with_reading else "")}<tbody>{body}</tbody></table>')
 
     groups, body = [], []
     for g in [x for x in mk_group_order() if any(r["group"] == x for r in rs)]:
@@ -1394,8 +1419,9 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
              'Kapitalkostnad og langsiktig vekst er EST. Kvalitet A/B/C: se D42 (C = lesningen kan ikke brukes).</div></div>')
     cands = ('<h2>Kandidater for full dekning</h2><div class="card"><p>Der prisen og historikken spriker mest, blant caser som kan brukes og ikke alt har full case. '
              'En full case avgjør hvem som har rett – listen sier ikke hvem, og den er ikke et kjøps- eller salgsråd.</p>'
-             '<h3>Prisen krever mer enn selskapet har levert (syklisk: mer enn 2 % for alltid)</h3>' + table(cand["more"], True)
-             + '<h3 style="margin-top:14px">Prisen krever mindre enn selskapet har levert (syklisk: mindre enn 2 % for alltid)</h3>' + table(cand["less"], True)
+             '<h3>Prisen krever mer enn selskapet har levert (syklisk: mer enn 2 % for alltid)</h3>' + table(cand["more"], True, with_reading=False)
+             + '<h3 style="margin-top:14px">Prisen krever mindre enn selskapet har levert (syklisk: mindre enn 2 % for alltid)</h3>'
+             + table(cand["less"], True, with_reading=False)
              + '<div class="src">Planen endres med <code>oq coverage set KODE --target full</code>; en full case starter med <code>oq case export KODE</code> og '
              'Toolkitens <code>new_case.py</code>.</div></div>')
     caveat = ('<div class="card"><div class="src"><b>Ikke testet mot avkastning.</b> Lageret har regnskapene slik de ser ut i dag, ikke slik de så ut på hver dato, '

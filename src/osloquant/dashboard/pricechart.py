@@ -353,7 +353,7 @@ def card_html(data: dict, div_id: str = "chart-price") -> str:
     lines_txt = " · ".join(f'{E(ln["title"])} {E(_nf(ln["p"]))} (<span class="{"up" if ln["dist"] >= 0 else "down"}">{E(_pct(ln["dist"]))}</span> fra dagens kurs)' for ln in data["lines"])
     lines_html = f'<div class="pc-lines" title="{E("; ".join(ln["src"] for ln in data["lines"]))}">{lines_txt}</div>' if data["lines"] else ""
     blob = json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(",", ":")).replace("</", "<\\/")
-    return (f'<div class="pc"><div class="pc-head"><h3>Kurs <span class="unit">NOK</span> <span class="info" title="{E(info)}">i</span></h3>'
+    return (f'<div class="pc"><div class="pc-head"><h3>Kurs <span class="unit">NOK</span> <span class="pc-info" title="{E(info)}">i</span></h3>'
             f'<div class="pc-ret" aria-live="polite"></div></div>'
             f'<div class="pc-sub">{E(code)} · daglige sluttkurser til {dato(last)} · justert for utbytte og splitt · Yahoo Finance via lageret, '
             f'<span class="delayed" title="{E(SOURCE)}">forsinket</span></div>{lines_html}{tools}'
