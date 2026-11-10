@@ -71,3 +71,48 @@ def test_a_build_older_than_a_month_is_marked():
     warn = fc.stale_html(b, pd.Timestamp("2026-11-10"))
     assert 'id="bygg-gammelt"' in warn and "41 dager gammelt" in warn and "oq funds build --write" in warn
     assert fc.stale_html(_build(), pd.Timestamp("2026-11-10")) == "" and fc.stale_html({}, pd.Timestamp("2026-11-10")) == ""
+
+
+def test_the_nav_charts_use_the_frontier_charts_colours_and_neither_green_nor_red():
+    b = _build()
+    colours = fc.fund_colours(b)
+    assert list(colours) == [f["name"] for f in b["funds"]] and len(set(colours.values())) == 6
+    series = {n: {"2026-11-02": 100.0, "2026-11-03": 100.0 + i} for i, n in enumerate(sorted(colours))} | {"OSEBX": {"2026-11-02": 100.0, "2026-11-03": 99.0}}
+    html = fc.nav_html(series, "NAV fra 100 ved første skriving", colours, 300)
+    m = re.search(r"Plotly\.newPlot\(\s*\"[^\"]+\",\s*(\[.*?\]),\s*(\{.*?\}),\s*\{\"displayModeBar\"", html, re.S)
+    assert m, "no Plotly figure in the NAV chart"
+    data, layout = json.loads(m.group(1)), json.loads(m.group(2))
+    by_name = {t["name"]: t["line"] for t in data}
+    assert all(by_name[n]["color"] == colours[n] for n in colours)                   # a fund is the same colour in every chart on the page
+    assert by_name["OSEBX"]["dash"] == "dot" and by_name["Likevektet"]["width"] > by_name["Risikoparitet"]["width"]
+    assert not {str(line["color"]).lower() for line in by_name.values()} & {"#0b7a4b", "#b3261e", "green", "red"}
+    assert "title" not in layout and html.startswith('<div class="src"') and "NAV fra 100 ved første skriving" in html.split("<script")[0]
+    assert '"displayModeBar": false' in html
+    # a fund the build does not know still gets a colour, and not one that is taken
+    extra = fc.nav_html({"Likevektet": {"2026-11-02": 100.0}, "Ny oppskrift": {"2026-11-02": 100.0}}, "x", colours)
+    assert "Ny oppskrift" in extra
+
+
+def test_the_note_under_a_fund_reads_in_norwegian():
+    assert fc.note_text("every stock the same weight; the reference") == "alle aksjer samme vekt; referansen"
+    assert fc.note_text("lowest variance, long-only, no stock above 15%; no means used") == "lavest varians, bare lange posisjoner, ingen aksje over 15%; ingen forventet avkastning brukt"
+    assert fc.note_text("80% in the tangency portfolio, 20% at the policy rate – a point on the CML with 8% volatility") == (
+        "80% i tangensporteføljen, 20% til styringsrenten – et punkt på kapitalmarkedslinjen med 8% volatilitet")
+    assert fc.note_text("max Sharpe on the targets' implied returns (EST), 4 stocks with a view above the policy rate, cap 25%") == (
+        "maks Sharpe på kursmålenes impliserte avkastning (EST), 4 aksjer med syn over styringsrenten, tak 25% per aksje")
+    assert fc.note_text("en tekst listen ikke kjenner") == "en tekst listen ikke kjenner" and fc.note_text(None) == ""
+
+
+def test_every_note_the_allocation_code_writes_is_known():
+    import numpy as np
+
+    from osloquant import allocation as al
+
+    codes = ["AAA", "BBB", "CCC", "DDD"]
+    cov = pd.DataFrame(np.diag([0.04, 0.05, 0.06, 0.07]) + 0.005, index=codes, columns=codes)
+    mu = pd.Series([0.08, 0.10, 0.12, 0.14], index=codes)
+    tangency = al.max_sharpe(mu, cov, 0.045, 0.5)
+    made = [al.equal_weight(codes), al.inverse_vol(cov), al.min_variance(cov, 0.5), tangency, al.cml_point(tangency, cov, 0.08), al.risk_parity(cov),
+            al.view_weighted(mu, cov, 0.045), al.view_weighted(mu * 0, cov, 0.045)]
+    for p in made:
+        assert fc.note_text(p.note) != p.note, p.note                                 # no English line reaches the page

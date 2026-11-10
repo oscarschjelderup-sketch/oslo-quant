@@ -11,8 +11,6 @@ import pandas as pd
 
 from osloquant import signals as sg
 from osloquant.dashboard.dates import (
-    DATE_HOVER,
-    DATE_TICKS,
     PLOTLY_LOCALE,
     dato,
     dato_tid,
@@ -1681,55 +1679,6 @@ def _sh(v):
     return "–" if v is None else f"{v:.2f}"
 
 
-def frontier_chart(b: dict) -> str:
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-    fr = b.get("frontier") or []
-    if fr:
-        fig.add_trace(go.Scatter(x=[r["vol"] for r in fr], y=[r["ret"] for r in fr], mode="lines", name="Effisient front (lang, tak 15 %)", line=dict(color="#0f7c7c", width=2)))
-    rf, t = b["rf"], b.get("tangency")
-    if t and t.get("vol"):
-        slope = (t["ret"] - rf) / t["vol"]
-        xmax = max(max(r["vol"] for r in fr) if fr else t["vol"], t["vol"]) * 1.15
-        fig.add_trace(go.Scatter(x=[0, xmax], y=[rf, rf + slope * xmax], mode="lines", name="Kapitalmarkedslinjen (CML)", line=dict(color="#9a6700", width=1.5, dash="dash")))
-    xs = [v["vol"] for v in b["inputs"].values()]
-    ys = [v["mu"] for v in b["inputs"].values()]
-    fig.add_trace(go.Scatter(x=xs, y=ys, mode="markers", name="Enkeltaksjer (3 år, krympet snitt)", marker=dict(size=5, color="#b7c1c9"),
-                             text=list(b["inputs"].keys()), hovertemplate="%{text}: vol %{x:.1%}, E[r] %{y:.1%}<extra></extra>"))
-    cols = ["#1a2126", "#1f5f99", "#0b7a4b", "#0f7c7c", "#9a6700", "#b3261e", "#6a1b9a"]
-    for i, f in enumerate(b["funds"]):
-        e = f["est"]
-        if e.get("vol") is None:
-            continue
-        fig.add_trace(go.Scatter(x=[e["vol"]], y=[e["ret"]], mode="markers", name=f["name"], marker=dict(size=11, color=cols[i % len(cols)], symbol="diamond"),
-                                 hovertemplate=f'{f["name"]}: vol %{{x:.1%}}, E[r] %{{y:.1%}}<extra></extra>'))
-    fig.update_layout(height=430, margin=dict(l=50, r=20, t=40, b=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="closest",
-                      font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), legend=dict(orientation="h", y=-0.18, x=0, font=dict(size=11)),
-                      title=dict(text=f"Forventet avkastning mot volatilitet, {b['lookback_years']:.0f} års historikk til {b['asof']} (EST – se teksten)", font=dict(size=12.5)))
-    fig.update_xaxes(title="Volatilitet (årlig)", tickformat=".0%", gridcolor="#e6ebee", rangemode="tozero")
-    fig.update_yaxes(title="Forventet avkastning (årlig, EST)", tickformat=".0%", gridcolor="#e6ebee")
-    return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
-
-
-def nav_chart(series: dict[str, dict], title: str, height: int = 320) -> str:
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-    cols = ["#1a2126", "#1f5f99", "#0b7a4b", "#0f7c7c", "#9a6700", "#b3261e", "#6a1b9a", "#555"]
-    for i, (name, s) in enumerate(series.items()):
-        if not s:
-            continue
-        xs = list(s.keys())
-        fig.add_trace(go.Scatter(x=xs, y=list(s.values()), mode="lines", name=name, line=dict(color=cols[i % len(cols)], width=2.2 if name in ("OSEBX", "Likevektet") else 1.5,
-                                                                                               dash="dot" if name == "OSEBX" else "solid")))
-    fig.update_layout(height=height, margin=dict(l=44, r=16, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="x unified",
-                      font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), legend=dict(orientation="h", y=-0.14, x=0, font=dict(size=11)),
-                      title=dict(text=title, font=dict(size=12.5)))
-    fig.update_xaxes(gridcolor="#e6ebee", tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER)
-    fig.update_yaxes(gridcolor="#e6ebee")
-    return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
-
 
 def funds_page(b: dict | None, tracked: list[dict], today) -> str:
     from osloquant.dashboard import fundchart as fc
@@ -1754,7 +1703,7 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                      f'<details><summary>Vekter{more}</summary><table class="odds">{w}{cash}</table></details>'
                      + (f'<div class="src" style="margin-top:6px"><b>Ut av prøven, {bt.get("rebalances", 0)} mnd:</b> {E(fn.verdict(bt_row, f["name"]))}.</div>' if bt_row else
                         ('<div class="src" style="margin-top:6px">Ingen backtest: synene er nye, så oppskriften kan bare måles fremover.</div>' if not f.get("backtest", True) or f["name"].startswith("Synene") else ''))
-                     + f'<div class="src">{E(f["note"])}</div></div>')
+                     + f'<div class="src">{E(fc.note_text(f["note"]))}</div></div>')
     # 2. backtest table
     order = [f["name"] for f in b["funds"] if f["name"] in rows] + (["OSEBX"] if "OSEBX" in rows else [])
     trs = "".join(
@@ -1763,7 +1712,8 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
     bt_html = ('<h2>Ut av prøven: oppskriftene bygget på nytt hver måned, fem år</h2><div class="card">'
                '<table class="odds"><thead><tr><th>Portefølje</th><th>Avkastning p.a.</th><th>Volatilitet</th><th>Sharpe</th><th>Største fall</th><th>Omsetning/mnd</th><th>Mot likevekt</th></tr></thead>'
                f'<tbody>{trs}</tbody></table>'
-               + nav_chart(bt.get("nav") or {}, f"Verdi av 1 fra {bt.get('start', '?')}, bygget på nytt hver måned av foregående tre år, kostnad {b['cost']:.2%} av omsetning")
+               + fc.nav_html(bt.get("nav") or {}, f"Verdi av 1 fra {bt.get('start', '?')}, bygget på nytt hver måned av foregående tre år, kostnad {b['cost']:.2%} av omsetning",
+                             fc.fund_colours(b))
                + f'<div class="src">Walk-forward: ved hvert månedsskifte bygges porteføljen av de foregående {b["lookback_years"]:.0f} årene alene og holdes én måned. '
                f'Sharpe mot styringsrenten ({E(fc.rf_text(b["rf_label"]))}). Intervallene er måneds-blokk-bootstrap (1000 trekk) på Sharpe-differansen. '
                '<b>Universet er dagens aksjer i lageret – overlevere. Likevekt slo OSEBX med god margin i denne perioden av samme grunn; '
@@ -1778,7 +1728,8 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                         f'<td class="{cls(t["ew"])}">{pct(t["ew"])}</td><td class="{cls(t["osebx"])}">{pct(t["osebx"])}</td><td>{_pc(t["max_dd"])}</td></tr>' for t in tracked)
         track_html = ('<h2>Papirfondene siden de ble skrevet</h2><div class="card"><table class="odds"><thead><tr><th>Fond</th><th>Fra</th><th>Rebalanseringer</th><th>NAV</th>'
                       f'<th>Avkastning</th><th>Likevekt samme dager</th><th>OSEBX</th><th>Største fall</th></tr></thead><tbody>{trows}</tbody></table>'
-                      + nav_chart({t["name"]: t["series"] for t in tracked if t["series"]}, "NAV fra 100 ved første skriving (daglig, kostnad på hver rebalansering)", 300)
+                      + fc.nav_html({t["name"]: t["series"] for t in tracked if t["series"]}, "NAV fra 100 ved første skriving (daglig, kostnad på hver rebalansering)",
+                                    fc.fund_colours(b), 300)
                       + '<div class="src">Vektene er skrevet til ~/osloquant-home/funds/ og endres ikke; en ny måned er en ny rad. Papirpenger. '
                       'Et fond som har levd kortere enn et år sier lite – det står her for å kunne dømmes om et år, ikke nå.</div></div>')
     else:

@@ -1159,6 +1159,12 @@ sources may be used.
   grid and number format are the price chart's; the toolbar and the in-plot title are gone.
 - A build older than 31 days is marked above the chart with the command that rebuilds it.
 - D33 stands and is said under the chart: no recipe beat equal weight out of sample.
+- The two NAV charts below it (the walk-forward test and the paper funds) follow: a fund has the same colour in all three
+  charts, the index is grey and dotted, the title is text above the plot, and the old chart functions in `render.py` are
+  gone. They had a green and a red line, which on this dashboard mean up and down.
+- The one-line note under each fund is read in Norwegian (`fundchart.note_text`). The build stores it in English, so the
+  page translates it rather than waiting for the next build; a test fails if the allocation code writes a note the
+  list does not know.
 
 ## D69. The desk reads news, events and macro
 

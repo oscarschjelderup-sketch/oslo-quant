@@ -18,6 +18,7 @@ eller slått sammen: Oscar ser på det først. Valgene står i `DECISIONS.md` D6
 - **Runde 3, nyheter** (9c5841b): `news.py`, «Nyheter som betyr noe», nyheter dag for dag på aksjesiden, M-merker
   på kursgrafen, drivere og nyheter per sektor.
 - **Runde 4, porteføljesiden** (0335841): `fundchart.py`.
+  Etter gjennomsyn av etter-bildene: NAV-grafene fikk samme farger og tema, og fondsnotatene står på norsk.
 - **Runde 5, desken** (63f3fa5): utløservekt, filterregel for svake utløsere, makro som inndata, «klar» via tung
   utløser, tak på fem, felles kildeliste, `desk.replay`.
 
@@ -25,7 +26,7 @@ eller slått sammen: Oscar ser på det først. Valgene står i `DECISIONS.md` D6
 - Makrokalender med tallslipp (KPI, BNP, utenlandske sentralbanker): trenger en kilde med avklarte vilkår.
 - Rentebane fra Norges Bank: finnes bare som regneark med ny adresse for hver rapport.
 - Måling av om en utløser er verdt noe (D69): trenger vurderinger å måle på.
-- Ett Plotly-tema for de øvrige grafene (multipler, regnskap, NAV).
+- Ett Plotly-tema for de øvrige grafene på aksjesiden (multipler, regnskap).
 - Kraftprisen og TTF-gass har kort historikk og bygges opp dag for dag.
 
 ## Før sammenslåing

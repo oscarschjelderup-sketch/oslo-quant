@@ -86,6 +86,69 @@ def rf_text(label: str) -> str:
             .replace("fallback", "reserveverdi"))
 
 
+NOTES = (
+    (r"^every stock the same weight; the reference$", "alle aksjer samme vekt; referansen"),
+    (r"^weight 1/σ: calmer stocks weigh more, no means used$", "vekt 1/σ: roligere aksjer veier mer; ingen forventet avkastning brukt"),
+    (r"^lowest variance, long-only, no stock above (\S+); no means used$", r"lavest varians, bare lange posisjoner, ingen aksje over \1; ingen forventet avkastning brukt"),
+    (r"^the tangency portfolio on the capital market line, long-only, cap (\S+)$", r"tangensporteføljen på kapitalmarkedslinjen, bare lange posisjoner, tak \1 per aksje"),
+    (r"^(\S+) in the tangency portfolio, (\S+) at the policy rate – a point on the CML with (\S+) volatility$",
+     r"\1 i tangensporteføljen, \2 til styringsrenten – et punkt på kapitalmarkedslinjen med \3 volatilitet"),
+    (r"^each stock the same share of the portfolio's variance; no means used$", "hver aksje samme andel av porteføljens varians; ingen forventet avkastning brukt"),
+    (r"^max Sharpe on the targets' implied returns \(EST\), (\d+) stocks with a view above the policy rate, cap (\S+)$",
+     r"maks Sharpe på kursmålenes impliserte avkastning (EST), \1 aksjer med syn over styringsrenten, tak \2 per aksje"),
+    (r"^no view with an expected return above the policy rate$", "ingen syn med forventet avkastning over styringsrenten"),
+)
+
+
+def note_text(note: str) -> str:
+    """The recipe's one-line note as a person reads it. The build stores it in English (it is written by the allocation
+    code); a note this list does not know is shown as it is."""
+    import re
+
+    s = str(note or "")
+    for pattern, repl in NOTES:
+        if re.match(pattern, s):
+            return re.sub(pattern, repl, s)
+    return s
+
+
+def fund_colours(b: dict) -> dict[str, str]:
+    """One colour per fund, the same in the frontier chart and in the two NAV charts."""
+    funds = [f for f in b["funds"] if (f.get("est") or {}).get("vol") is not None]
+    return {f["name"]: PALETTE[i % len(PALETTE)] for i, f in enumerate(funds)}
+
+
+def nav_html(series: dict[str, dict], title: str, colours: dict[str, str] | None = None, height: int = 320) -> str:
+    """Value over time for a set of funds: the frontier chart's theme. The index is grey and dotted, equal weight (the
+    reference every recipe is measured against) is the thick dark line, and nothing is green or red: a fund is not up
+    or down because of its colour."""
+    import html as _html
+
+    import plotly.graph_objects as go
+
+    from osloquant.dashboard.dates import DATE_HOVER, DATE_TICKS
+
+    colours = dict(colours or {})
+    free = [c for c in PALETTE if c not in colours.values()] or list(PALETTE)
+    fig = go.Figure()
+    for name, s in series.items():
+        if not s:
+            continue
+        if name == "OSEBX":
+            line = dict(color="#8a949c", width=1.8, dash="dot")
+        else:
+            if name not in colours:
+                colours[name] = free[len(colours) % len(free)]
+            line = dict(color=colours[name], width=2.4 if name == "Likevektet" else 1.6)
+        fig.add_trace(go.Scatter(x=list(s.keys()), y=list(s.values()), mode="lines", name=name, line=line))
+    fig.update_layout(height=height, margin=dict(l=44, r=16, t=8, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="x unified",
+                      font=dict(color=TEXT, family="Segoe UI, Arial, sans-serif", size=11.5), legend=dict(orientation="h", y=-0.14, x=0, font=dict(size=11)))
+    fig.update_xaxes(gridcolor=GRID, tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER, linecolor="#d9e0e5")
+    fig.update_yaxes(gridcolor=GRID, zeroline=False)
+    return (f'<div class="src" style="margin:12px 0 0">{_html.escape(title)}</div>'
+            + fig.to_html(include_plotlyjs=False, full_html=False, config={"displayModeBar": False}))
+
+
 def html(b: dict, today=None) -> str:
     import plotly.graph_objects as go
 
