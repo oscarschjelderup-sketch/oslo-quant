@@ -30,6 +30,7 @@ from pathlib import Path
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 CHIEF_DIR = "chief"
@@ -545,14 +546,14 @@ def page_html(doc: dict, prev: dict | None, stored: bool, msg: dict | None = Non
                      '<div><label>Hvis avvist</label><select name="reason_kind"><option value="">–</option>' + "".join(f"<option>{k}</option>" for k in REASON_KINDS) + '</select></div>'
                      '<button class="go" name="decision" value="godkjent" type="submit">Godkjenn</button><button class="go" name="decision" value="avvist" type="submit" '
                      'style="background:var(--risk)">Avvis</button></form></div>')
-    backlog = "".join(f'<li>{E(b["id"])} – {E(rule(b["rule"]).title)} (godkjent {E(b["date"])}: {E(b["reason"])})</li>' for b in doc["backlog"]) or "<li class=empty>tom</li>"
+    backlog = "".join(f'<li>{E(b["id"])} – {E(rule(b["rule"]).title)} (godkjent {dato(b["date"])}: {E(b["reason"])})</li>' for b in doc["backlog"]) or "<li class=empty>tom</li>"
     held = "".join(f'<li>{E(h["id"])} – {E(rule(h["rule"]).title)}: {E(h["why"])}</li>' for h in doc["held"]) or "<li class=empty>ingen</li>"
     over = ", ".join(f'{E(o["code"])} ({o["days"]} d)' for o in doc.get("overdue_updates") or []) or "ingen"
     notes = "".join(f'<div class="err">{E(m)}</div>' for m in (msg or {}).get("errors", [])) + "".join(f'<div class="ok">{E(m)}</div>' for m in (msg or {}).get("ok", []))
     c = doc["counts"]
     return ('<h1>Analysesjefen</h1><div class="sub">Hver uke: oppsettet målt mot 30 regler fra de beste investorene og prognosemakerne, og et forslag til neste forbedring. '
             'Systemet foreslår; du godkjenner eller avviser, med grunn. Ingenting endres av seg selv.</div>' + notes
-            + f'<div class="card"><p><b>{E(doc["date"])}</b>{"" if stored else " (beregnet nå, ikke lagret – oq chief run --write lagrer ukens kjøring)"}: '
+            + f'<div class="card"><p><b>{dato(doc["date"])}</b>{"" if stored else " (beregnet nå, ikke lagret – oq chief run --write lagrer ukens kjøring)"}: '
             f'{c["ok"]} ok, {c["brudd"]} brudd, {c["for lite data"]} for lite data, {c["ikke målt"]} ikke målt{", " + str(c["feil"]) + " feil" if c["feil"] else ""}. '
             f'Ikke oppdatert etter rapport (Tetlock): {over}.</p></div>'
             + f'<h2>Forslag, rangert</h2><div class="card">{"".join(props) or "<p class=empty>ingen regel er utenfor målet</p>"}'

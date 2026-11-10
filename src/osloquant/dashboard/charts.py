@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from osloquant.dashboard import market as mk
+from osloquant.dashboard.dates import DATE_HOVER, DATE_TICKS, dato, maaned
 
 
 def price_chart(snap: mk.Snapshot, code: str, case=None, sessions: int = 260) -> str:
@@ -50,11 +51,12 @@ def price_chart(snap: mk.Snapshot, code: str, case=None, sessions: int = 260) ->
         if v_.get("price") and d >= c.index[0]:
             fig.add_trace(go.Scatter(x=[d], y=[v_["price"]], mode="markers", name="Synet", marker=dict(size=10, color="#c98500", symbol="diamond")), row=1, col=1)
     months = max(round(len(c) / 21), 1)
-    title = f"{code} – daglig sluttkurs, {months} måneder (Yahoo Finance, forsinket)" + (f"; kjegle til synets bear / kursmål / bull i {x_end:%b %Y} (EST)" if x_end != last_day else "")
+    title = f"{code} – daglig sluttkurs, {months} måneder (Yahoo Finance, forsinket)" + (f"; kjegle til synets bear / kursmål / bull i {maaned(x_end)} (EST)" if x_end != last_day else "")
     fig.update_layout(height=440, margin=dict(l=44, r=16, t=60, b=16), legend=dict(orientation="h", y=1.01, yanchor="bottom", x=0), hovermode="x unified",
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", title=dict(text=title, font=dict(size=12.5), y=0.985, yanchor="top"),
                       font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"))
-    fig.update_xaxes(gridcolor="#e6ebee", zeroline=False, range=[c.index[0], x_end + pd.Timedelta(days=25 if x_end != last_day else 3)])
+    fig.update_xaxes(gridcolor="#e6ebee", zeroline=False, range=[c.index[0], x_end + pd.Timedelta(days=25 if x_end != last_day else 3)],
+                     tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER)
     fig.update_yaxes(gridcolor="#e6ebee", zeroline=False)
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
 
@@ -69,14 +71,16 @@ def short_chart(series: list[tuple[str, float]], code: str) -> str:
     fig.update_layout(height=200, margin=dict(l=40, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                       font=dict(color="#4a5560"), showlegend=False,
                       title=dict(text=f"{code} – offentlige shortposisjoner, % av aksjene (Finanstilsynet)", font=dict(size=12)))
-    fig.update_xaxes(gridcolor="#e6ebee")
+    fig.update_xaxes(gridcolor="#e6ebee", tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER)
     fig.update_yaxes(gridcolor="#e6ebee", rangemode="tozero", ticksuffix=" %")
     return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
 
 
 # ------------------------------------------------------------------------------------------------ the stock page (D57)
-#: the period buttons on the stock page: label and sessions back (None = year to date, 0 = everything in the chart)
-PERIODS = [("5D", 5), ("1M", 21), ("6M", 126), ("YTD", None), ("1Å", 250), ("5Å", 1250), ("Maks", 0)]
+#: the period buttons on the stock page: label and how far back. An int is sessions (5D), ``("m", n)`` is n calendar
+#: months, None is the year to date and 0 everything in the chart. Months are calendar months, as every other source
+#: counts them: a fixed 126 sessions is not half a year in a spring with three holidays (funn #59).
+PERIODS = [("5D", 5), ("1M", ("m", 1)), ("6M", ("m", 6)), ("YTD", None), ("1Å", ("m", 12)), ("5Å", ("m", 60)), ("Maks", 0)]
 CHART_SESSIONS = 1260          # five years of daily closes in the overview chart
 
 
@@ -89,20 +93,25 @@ def period_ranges(c: pd.Series, v: pd.Series | None = None) -> list[dict]:
     last = c.index[-1]
     out = []
     for label, n in PERIODS:
+        enough = True
         if n is None:
             before = c[c.index < pd.Timestamp(last.year, 1, 1)]
             base_i = len(before) - 1 if len(before) else 0
         elif n == 0:
             base_i = 0
+        elif isinstance(n, tuple):                      # the last close on or before the same date n months back
+            back = last - pd.DateOffset(months=n[1])
+            before = c[c.index <= back]
+            base_i, enough = (len(before) - 1, True) if len(before) else (0, False)
         else:
-            base_i = max(len(c) - 1 - n, 0)
+            base_i, enough = max(len(c) - 1 - n, 0), len(c) - 1 >= n          # n sessions need n + 1 closes (funn #70)
         seg = c.iloc[base_i:]
         lo, hi = float(seg.min()), float(seg.max())
         pad = (hi - lo) * 0.04 or hi * 0.02
         vmax = float(v.reindex(seg.index).max()) if v is not None and len(v) else None
         out.append({"key": label.replace("Å", "a").lower(), "label": label, "x0": f"{seg.index[0]:%Y-%m-%d}", "x1": f"{last:%Y-%m-%d}",
                     "y0": lo - pad, "y1": hi + pad, "v1": vmax * 1.05 if vmax else None, "ret": float(seg.iloc[-1] / seg.iloc[0] - 1) if seg.iloc[0] else None,
-                    "sessions": len(seg) - 1, "enough": base_i > 0 or n in (0, None)})
+                    "sessions": len(seg) - 1, "enough": enough, "from_listing": base_i == 0 and n is None})
     return out
 
 
@@ -125,12 +134,12 @@ def long_chart(snap: mk.Snapshot, code: str, sessions: int = CHART_SESSIONS, div
         if ma.notna().any():
             fig.add_trace(go.Scatter(x=c.index, y=ma.values, name=f"MA{n}", line=dict(color=colr, width=1), hovertemplate="%{y:.2f}<extra>MA" + str(n) + "</extra>"), row=1, col=1)
     fig.add_trace(go.Bar(x=v.index, y=v.values, name="Volum", marker_color="#b7c1c9", hovertemplate="%{y:,.0f}<extra>Volum</extra>"), row=2, col=1)
-    r0 = next((r for r in ranges if r["key"] == default), ranges[-1])
-    title = f"{code} – daglig sluttkurs til {c.index[-1]:%d %b %Y} (Yahoo Finance via lageret, forsinket)"
+    r0 = next((r for r in ranges if r["key"] == default and r["enough"]), ranges[-1])
+    title = f"{code} – daglig sluttkurs til {dato(c.index[-1])} (Yahoo Finance via lageret, forsinket)"
     fig.update_layout(height=430, margin=dict(l=44, r=16, t=56, b=16), legend=dict(orientation="h", y=1.01, yanchor="bottom", x=0), hovermode="x unified",
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", title=dict(text=title, font=dict(size=12.5), y=0.985, yanchor="top"),
                       font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), bargap=0.1)
-    fig.update_xaxes(gridcolor="#e6ebee", zeroline=False, range=[r0["x0"], r0["x1"]])
+    fig.update_xaxes(gridcolor="#e6ebee", zeroline=False, range=[r0["x0"], r0["x1"]], tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER)
     fig.update_yaxes(gridcolor="#e6ebee", zeroline=False, range=[r0["y0"], r0["y1"]], row=1, col=1)
     if r0.get("v1"):
         fig.update_yaxes(gridcolor="#e6ebee", zeroline=False, range=[0, r0["v1"]], row=2, col=1)

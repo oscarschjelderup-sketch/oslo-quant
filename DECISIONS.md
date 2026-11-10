@@ -904,3 +904,181 @@ patterns, copy nothing, keep everything the page already had. The inventory of e
 - Kitron (KIT) joined the universe under Industrials & materials and was recorded so the page could be tested on
   SATS, Kitron and Elkem. `view_rail` and `case_block` were split into cards the tabs place separately; the old
   composites remain for anything that calls them.
+
+## D58. Dates in one Norwegian form
+
+Oscar (9 Nov 2026), on the OUTLT page: «kan du fikse alle datoene». The page mixed three forms – «2026-11-09» in the
+bar, «12 Nov 2026» for the next report, «Sep 27 / Oct 4» on the chart axis – and the rest of the dashboard added
+English weekdays («Monday 09 Nov») and UTC stamps («2026-11-09T17:47:07Z»).
+
+- **One form** (`dashboard/dates.py`): «9. nov. 2026», «9. nov.» without the year where the year is obvious,
+  «mandag 9. nov. 2026» in page headings, «9. nov. 2026 18:47» for a time, «nov. 2026» for a month. Month
+  abbreviations as Språkrådet writes them (mars, april, mai, juni and juli in full). UTC stamps are shown as Oslo time.
+  Light-case periods read «LTM til 30. sep. 2026» and «år til 31. des. 2025».
+- **The charts** get a Norwegian Plotly locale registered once per page (month and day names; numbers keep the page's
+  point decimals and space thousands so a chart and its table read alike) and date ticks in Norwegian order:
+  «27. sep.» for days, «sep. 2026» for months, «2026» for years; hover shows «9. nov. 2026».
+- **A last pass in `page()`** turns any ISO date left in visible text into the same form. It never touches tags or
+  attributes (links, the period buttons' data), scripts, styles, form fields, code or file names – it changes what is
+  read, never what is sent or stored. Logs, rows, run ids and files keep ISO dates.
+- Left as they are: sentences stored in English (the light case's readings and warnings, rationales on log rows),
+  citations («26 Sep 2016»), the weekly mail and the public signals page, which are written in English.
+- With it: a stock listed less than a year ago opens its chart on «Maks» instead of a disabled «1Å», and a period
+  button that reaches back before the first close shows no return – before, OUTLT showed +9.2 % under 6M, 1Å and 5Å
+  for six weeks of history.
+
+## D59. The price chart on TradingView Lightweight Charts
+
+Oscar (10 Nov 2026): «vil ha tradingview hvis det gjør det bedre», and yes to downloading the library. Night brief,
+part 1. The old Plotly chart read the 800-day snapshot, so 5Å was always off and Maks was about two years (funn #12).
+It had gaps for weekends on the date axis, and its unified hover box sat on the line it described.
+
+- **Library:** TradingView Lightweight Charts™ 5.2.1 (Apache-2.0, 198 kB). It sits in `dashboard/static` next to its
+  LICENSE and NOTICE, is served locally and is carried by the static copy (D44).
+- **Attribution:** the licence asks for credit. The chart keeps TradingView's attribution logo, and the NOTICE text
+  with a link to tradingview.com stands under the chart. This is the one TradingView mark on the dashboard. The D57
+  rule «no logos from TradingView» still holds for everything else.
+- **Data:** the library only draws. The data are the store's own adjusted daily bars for the whole history, one query
+  per stock and cached per snapshot bar. Nothing is fetched from TradingView. The paid TradingView MCP connector was
+  not added; that is Oscar's call.
+- **Our own code:** `pricechart.py` builds one JSON payload and `static/pricechart.js` draws it.
+  - Area chart by default, with candles as an option. Volume sits in its own pane, so the price axis never runs below
+    zero.
+  - No time gaps: every series shares the stock's sessions.
+  - The period buttons set the window, the colour (green up, red down) and the return in the header in one step.
+    Zooming or dragging does the same for the visible window.
+  - Log scale only for 5Å and Maks, and never while comparing.
+  - The last price is on the axis. The previous close, the view's target and the kill level are dashed lines, the
+    target and kill level with their distance from today's price. The axis stretches so both stay on screen.
+- **Comparison:** OSEBX (a total-return index, like the adjusted prices) and the rest of the stock's group, equal
+  weighted. Both are rebased to the first session in the window where every line has a close. The header then shows
+  each line's return from that session. The sector line is marked as our own calculation, and the button says it
+  uses today's universe.
+- **Event markers**, each with its own toggle:
+  - Reports (calendar and downloads; older report dates are not in the store, and the button says so).
+  - Ex-dividends and splits.
+  - Insider trades. Off by default, because a long history makes them crowd.
+  - Oscar's judgements: his rows in the log plus the book's view. Claude's rows are not shown.
+- **SMA 50 and 200** are off by default.
+- **Hover box:** it always sits beside the point, in both panes. A browser test checks this against the real mouse
+  position.
+- **Fallback:** if the new chart fails on the server, the old Plotly chart is drawn, so the page always opens. The
+  period buttons' `data-r` now carries only dates, so a missing volume can no longer put NaN into it (funn #4).
+- **Tests:**
+  - Unit tests of the payload, events, lines and comparisons.
+  - Browser tests (`tests/browser.py`, DevTools protocol) of the state after every button, panes after rebuilds, the
+    hover box, a chart opened in a hidden tab, and console errors on every tab.
+  - Visual baselines (`tests/visual/win32`) of three chart views and, for every tab, the bar (fine cells, so the
+    active tab counts) and the panel with its text hidden.
+  - Baselines exist per platform. On a platform without them, such as CI on Linux, the visual comparison skips and
+    the state tests still run.
+
+## D60. Improvement pass (10 Nov 2026): branch, order and the data sources in one list
+
+Oscar's brief: audit and improve the whole dashboard (visual, functions, data fetching), on a branch, no merge, no
+push, no questions. Findings are in `docs/forbedring/funn.md`, each change in `docs/forbedring/endringer.md` before
+it is made, progress in `PROGRESS.md`.
+
+- **Branch:** `forbedring-2026-11-10`, cut from `natt-2026-11-10`. The brief names the price chart as the standard
+  the rest must hold, and that chart lives on the night branch. The findings of 9 Nov (`feilsok-2026-11-09`) are
+  merged in, so their numbers (#1–#132) stay valid references.
+- **Phase 1 reuses the audit of 9 Nov.** Its 105 open findings were checked against this branch instead of being
+  found again. New work went where that audit had not looked: every data source, the scheduled task's logs, the
+  visual system and the three flows.
+- **One list of sources (`dashboard/sources.py`).** Before, a feed's age came from its cache file and a table's age
+  from its newest row. Both hid the two real faults in the data: the scheduled task never fetched quoted prices or
+  statements, and a failed fetch left no trace outside a log file.
+  - Every attempt is written to `feeds/_runs.json` in the home folder (the last 60 per source). The file is the
+    dashboard's own and is not in git.
+  - Four states: ok, stale, failed, never fetched. «Partial» is a fifth for a source that answered in part (one
+    newspaper down, one stock without the last close). Partial shows on data health only; the front page warns for
+    the other three.
+  - A daily source is stale when it has not been fetched since the last session's close. The alternative, a number
+    of days per feed, let a daily feed be three to seven days old before anything showed.
+  - Today's close is expected from 18:30 Oslo time. The evening job starts 17:45 and takes about ten minutes, so an
+    earlier limit would warn every evening while the job runs.
+  - Oslo Børs' holidays are computed (Easter by the Gregorian algorithm, plus the fixed days and the two half-week
+    closures at Christmas), so the morning after a holiday is not a false alarm (funn #58).
+  - Store tables are measured per stock. The statements use `report_date` (the period), not `timestamp`, which is
+    the period plus an assumed publication lag.
+- **The scheduled scripts.** `run_signals.ps1` now runs `oq record --raw`: the quoted bars come from the same
+  download as the adjusted ones, so the cost is zero requests. `run_weekly.ps1` runs `oq record --raw --finance`
+  on Sundays: six requests per company once a week, not every evening. The scripts take effect when the branch is
+  merged, because the task runs the scripts in the main checkout.
+- **Retries.** `feeds._get` makes up to three attempts with 2 and 5 seconds between them, on network errors,
+  timeouts, 429 and 5xx. A 404 is an answer and is not retried. Longer waits were not chosen: the job runs twice
+  an evening, so the second run is the long retry.
+- **Fewer requests to NewsWeb.** Announcements ask for the days since the last good fetch plus one, at most 14.
+  Insider lists ask from the day before the last listing. NewsWeb's terms allow private use; asking for less is
+  the polite reading of them. The short register has no partial query, so it is still fetched whole.
+- **Consensus (MFN).** A 404 means the company published none. Any other failure is now written to the run log
+  and shows as «feilet», because «no consensus» and «could not ask» are different facts.
+
+## D61. Numbers in one Norwegian form, as a last pass
+
+- **What:** `dashboard/tall.py`. `norske_tall` runs last in `page()`, after the date pass (D58): decimal comma, a
+  no-break space before the per cent sign, a real minus sign, and «−0,00» becomes «0,00».
+- **Why a pass and not sixteen rewritten helpers:** the audit counted sixteen formatting helpers in three forms
+  (funn #128). Rewriting them would touch a few hundred call sites and still miss the next one written. One pass
+  makes every page read alike, including pages written later.
+- **What it never touches:** tags and attributes (links, form values, data for scripts), `script`, `style`, `code`,
+  `pre`, `textarea` and `select`. Version numbers (5.2.1), addresses (127.0.0.1), dotted dates (09.11.2026), file
+  names, and a number hyphenated to a word (Apache-2.0) are left as written. Hover text in `title="…"` is the one
+  attribute that is read by a person, so it is formatted.
+- **Idempotent, so no regrouping of thousands.** After the pass «9.410» reads «9,410». A second pass that grouped
+  thousands would read that as nine thousand. Counts are grouped where they are written (`tall.heltall`).
+- **A user's own text is formatted too.** A kill criterion typed as «margin below 10%» is shown as «10 %». The log
+  keeps what was typed; only the page changes.
+- **Plotly** gets the decimal comma through the Norwegian locale registered on every page. The price chart already
+  wrote Norwegian numbers (D59).
+
+## D62. The visual system: one accent, green and red for up and down, text left and numbers right
+
+- **Colours.** The accent is the teal already in the nav. Green and red now mean one thing: a price went up or
+  down, or a level above or below the price (target, kill). The decision list, its tags, error boxes, confirmation
+  boxes and status words no longer use them. An error box is amber with a thick border; a status is quiet when ok
+  and amber and bold when not (`st-ok`, `st-warn`, `st-bad`).
+- **Tables.** One script on every page left-aligns a column when most of its cells are text. A class on each cell
+  was the alternative; there are a few hundred cells, and the next table would forget it. A cell with its own
+  alignment keeps it.
+- **Language.** The front page's decisions, the book's warnings and data health are in Norwegian, and each kind of
+  decision has a Norwegian name. Machine statuses and log fields keep their English keys; only what is shown is
+  translated. Error messages from the judgement form's validation are still English (see the report's open list).
+- **Not done here:** one Plotly theme for every chart (the price chart is the standard; the others have the decimal
+  comma but their own grid and colours), and a hover with source and time on every key figure outside the stock
+  page.
+
+## D63. New free sources assessed
+
+Only one source was built, and its terms are the ones verified earlier in `docs/dashboard/data-sources.md`. For the
+others the terms column is what is generally known of them: they were not re-read in this session, and each must be
+read before anything is built on it.
+
+| Source | Gives | Terms | Decision |
+|---|---|---|---|
+| Norges Bank open data, I44 | the import-weighted krone index, daily | NLOD 2.0, verified earlier, same API | **built** (E18): one more series in the FX fetch |
+| Norges Bank, more yields (2y, 5y) | the government curve | NLOD 2.0 | not built: no page uses a curve yet |
+| Brønnøysund, Regnskapsregisteret open API | annual accounts as filed | NLOD | not built now; the best candidate for checking Yahoo's statements against a second source |
+| Companies' IR pages, largest shareholders | top-20 lists | each site has its own terms; the lists come from Euronext Securities or Modular Finance under licence | rejected: no uniform terms, sixty-five different pages to scrape |
+| Companies' IR pages, report calendar | report dates | as above | rejected: the issuers' own «Financial calendar» announcements on NewsWeb already give this |
+| Euronext live.euronext.com | delayed quotes, company data | the site's terms forbid automated collection | rejected |
+| ECB reference rates | EUR crosses, daily | free reuse with attribution | not built: Norges Bank against Yahoo already gives two sources for USD and EUR |
+| SSB, more tables (CPI, exports) | macro series | CC BY 4.0 | not built: no page asks for them |
+
+Paid or paywalled sources were not considered.
+
+## D64. Corrections to the store's data that take effect on the next recording
+
+Two fixes change stored prices, and both need Oscar's eyes before a merge because the paper accounts read the same
+store.
+
+- **Dividends in another currency (cleaning rule 0, E9).** The adjusted history of every stock that has paid in USD
+  or DKK is restated the first time `oq record` runs: FRO, HAFNI, OET, BWLPG, BWO, SNI, WAWI, BORR, ODL, MPCC, EQNR,
+  AKRBP and BAKKA. One-year total returns rise by 10–40 percentage points for the tanker and gas names. Checked on
+  Yahoo's real histories without writing anything: FRO +82.0 % → +107.5 %, where quoted closes plus the dividends
+  give +107.3 %. DNB, MOWI and SATS do not move. The currency is named by the ratio between the reported amount and
+  the amount Yahoo adjusted with, so nothing is changed unless a rate fits within 6 %.
+- **KOG, 15 Apr 2026 (E10).** The demerger day's move is removed from the adjusted series, as for AKSO in 2024. The
+  whole close-to-close move is taken as the distribution, so returns across the date are an estimate.
+- **Quoted prices for the day's change and the 12-month range (E16)** read the quoted table and fall back to the
+  adjusted one, labelled, while the quoted table lags.

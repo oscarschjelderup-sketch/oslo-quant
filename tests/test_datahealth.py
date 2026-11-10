@@ -51,7 +51,7 @@ def test_problem_list_and_page(home, monkeypatch):
     ov = dh.overview(c, [], c.index[-1])
     probs = dh.problems(ov)
     assert any("BBB" in x for x in probs) and any("utbytterevisjonen er aldri kjørt" in x for x in probs)
-    assert any("never fetched" in x for x in probs)
+    assert any(x.startswith("Børsmeldinger (Oslo Børs NewsWeb): aldri hentet") for x in probs)      # the sources list (D60), in Norwegian
     html = dh.page_html(ov)
     assert "Datahelse" in html and "BBB" in html and "Ting å vite nå" in html and "Ikke kjørt" in html
     fd.write(dh.AUDIT_FILE, {"since": "2010-01-01", "stocks": 3, "notices": 10, "missed": [
@@ -59,7 +59,7 @@ def test_problem_list_and_page(home, monkeypatch):
         "missed_yield_by_code": {"AAA": 0.0354}, "failed": [], "source": "test"})
     ov = dh.overview(c, [], c.index[-1])
     assert any("1 ex-utbyttemeldinger uten Yahoo-justering" in x for x in dh.problems(ov))
-    assert "3.5%" in dh.page_html(ov)
+    assert "3,5\N{NO-BREAK SPACE}%" in dh.page_html(ov)
 
 
 def test_dividend_audit_matches_notices_to_factor_jumps(monkeypatch):

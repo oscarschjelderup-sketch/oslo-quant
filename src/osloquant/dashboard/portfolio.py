@@ -67,7 +67,8 @@ def exposure(cases, groups: dict[str, str], config: dict | None = None) -> dict:
         e["loss"] += loss
         per_case.append({"code": c.code, "name": c.name, "group": g, "loss_at_kill": loss or None, "drivers": drivers,
                          "position_value": (c.view or {}).get("position_value")})
-    shared = {d: sorted(e["cases"]) for d, e in by_driver.items() if len(e["cases"]) >= 2}
+    # «other» is the bag for criteria where no driver was recognised: two views in it share nothing (funn #60)
+    shared = {d: sorted(e["cases"]) for d, e in by_driver.items() if len(e["cases"]) >= 2 and d != "other"}
     total_loss = sum(x["loss_at_kill"] or 0 for x in per_case)
     return {"views": len(views), "paper_capital": paper, "total_loss_at_kill": total_loss,
             "total_loss_share": (total_loss / paper) if paper else None,
@@ -81,13 +82,15 @@ def warnings(ex: dict) -> list[str]:
     out = []
     if ex["one_group"]:
         g = next(iter(ex["groups"]))
-        out.append(f"All {ex['views']} open BUY views sit in one sector group ({g}).")
+        out.append(f"Alle {ex['views']} åpne BUY-syn ligger i samme sektorgruppe ({g}).")
     for d, codes in ex["shared_drivers"].items():
-        out.append(f"{len(codes)} views can die from the same driver – {d}: {', '.join(codes)}.")
+        out.append(f"{len(codes)} syn kan dø av samme driver – {d}: {', '.join(codes)}.")
     if ex["total_loss_share"] is not None and ex["total_loss_at_kill"]:
-        out.append(f"Loss if every open view reaches its kill level: NOK {ex['total_loss_at_kill']:,.0f} = {ex['total_loss_share'] * 100:.1f} % of the paper sum "
-                   "(the per-view limit does not add them up).")
-    return [w.replace(",", " ") if "NOK" in w else w for w in out]
+        from osloquant.dashboard.tall import heltall
+
+        out.append(f"Tap hvis hvert åpne syn når kill-nivået sitt: NOK {heltall(ex['total_loss_at_kill'])} = {ex['total_loss_share'] * 100:.1f} % av papirsummen "
+                   "(grensen per syn legger dem ikke sammen).")
+    return out
 
 
 def block_html(ex: dict, static: bool = False) -> str:

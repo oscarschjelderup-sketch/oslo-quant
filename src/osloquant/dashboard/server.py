@@ -30,10 +30,7 @@ PORT = 8060
 def _num(v):
     if v in (None, ""):
         return None
-    try:
-        return float(str(v).replace(",", ".").replace(" ", ""))
-    except ValueError:
-        raise ValueError(f"'{v}' is not a number") from None
+    return jg.parse_number(v)
 
 
 def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
@@ -67,6 +64,17 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     from osloquant.dashboard import desk
 
     ctx["desk"] = desk.front_summary(f"{snap.asof:%Y-%m-%d}")
+    from osloquant.dashboard import sources as src
+
+    try:
+        from osloquant.dashboard import datahealth as dh
+
+        ctx["corporate"] = dh.corporate_lines(fd.corporate_events())
+        ctx["sources"] = src.status()
+    except Exception:  # noqa: BLE001 – the front page opens without the source list; the old price warning still shows
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("source status failed")
     if mark_seen:
         state["last_seen_session"] = f"{snap.asof:%Y-%m-%d}"
         td.save_state(state)
@@ -81,7 +89,7 @@ def stock_context(code: str) -> dict:
     ret = mk.returns(snap)
     alerts, _ = td.signals_since(snap, None, max_sessions=10)
     from osloquant.dashboard.casefile import reverse_dcf
-    from osloquant.dashboard.charts import long_chart, price_chart
+    from osloquant.dashboard.charts import price_chart
 
     lp = mk.last_price(snap, code)
     case_odds = None
@@ -103,10 +111,17 @@ def stock_context(code: str) -> dict:
     from osloquant.dashboard import afterreport as ar
     from osloquant.dashboard import desk
 
-    overview, periods = long_chart(snap, code)
+    tab = _tab_data(snap, code, c, today)
+    quoted = mk.quoted_view(snap, code)
+    tab["quoted"] = quoted
+    if quoted["fresh"]:                  # the bar's «endring mot forrige sluttkurs» is the quoted change (funn #30)
+        st["chg_1d"] = quoted["chg_1d"]
+    insider_items = _insider_items(code)
+    insiders = _insiders(code, insider_items)
+    overview, periods = _price_chart(snap, code, c, tab, insider_items)
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
-                long_chart=overview, periods=periods, **_tab_data(snap, code, c, today),
+                long_chart=overview, periods=periods, **tab,
                 update_html=_update_html(code, c, today),
                 inversion_html=_inversion_html(code, c, lp[0] if lp else None),
                 baserate_html=_baserate_html(code),
@@ -115,8 +130,40 @@ def stock_context(code: str) -> dict:
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c, sessions=500),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
-                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code),
+                odds=case_odds, report=_report(code) if c else None, insiders=insiders, sizing=_sizing(code),
                 desk_runs=desk.runs_for(code))
+
+
+def _insider_items(code: str) -> list[dict]:
+    """The company's insider notifications in the cache, newest first (read once per page)."""
+    from osloquant.dashboard import insiders as ins
+
+    try:
+        return ins.for_code(code, limit=500)
+    except Exception:  # noqa: BLE001 – no insider cache
+        return []
+
+
+def _price_chart(snap, code: str, c, tab: dict, insider_items: list[dict] | None = None) -> tuple[str, list[dict]]:
+    """The overview's price chart (night 10 Nov 2026, K1–K3): Lightweight Charts over the whole history with the
+    events the dashboard knows. Falls back to the old Plotly chart if anything in it fails, so the page always opens."""
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import pricechart as pc
+    from osloquant.dashboard.charts import long_chart
+
+    try:
+        try:
+            log_rows = jg.read_log()
+        except Exception:  # noqa: BLE001 – no log yet
+            log_rows = []
+        extra = {"dividends": tab.get("dividends"), "insiders": insider_items if insider_items is not None else _insider_items(code), "newsweb_reports": tab.get("newsweb_reports"),
+                 "cal_doc": fd.read(cal.CAL_FEED), "log_rows": log_rows}
+        html, periods = pc.build(snap, code, c, extra)
+        if periods:
+            return html, periods
+    except Exception:  # noqa: BLE001 – the old chart is better than no page
+        pass
+    return long_chart(snap, code)
 
 
 def _tab_data(snap, code: str, c, today: pd.Timestamp) -> dict:
@@ -270,12 +317,12 @@ def _sizing(code: str) -> dict | None:
             "open_loss": sum(float(r.get("loss_at_kill") or 0) for r in opened.values())}
 
 
-def _insiders(code: str) -> dict:
+def _insiders(code: str, items: list[dict] | None = None) -> dict:
     from osloquant.dashboard import insiders as ins
     from osloquant.dashboard.charts import short_chart
 
     year_ago = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=365)).strftime("%Y-%m-%d")
-    items = [i for i in ins.for_code(code, limit=200) if i["time"][:10] >= year_ago][:20]
+    items = [i for i in (items if items is not None else ins.for_code(code, limit=200)) if i["time"][:10] >= year_ago][:20]
     s = ins.shorts(code)
     return {"items": items, "shorts": s, "short_change_30": ins.short_change(s, 30) if s else None,
             "short_chart": short_chart(s["series"], code) if s else ""}
@@ -351,6 +398,19 @@ def _update_html(code: str, c, today) -> str:
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    @app.errorhandler(404)
+    def not_found(e):
+        return rd.error_page(404, request.path), 404
+
+    @app.errorhandler(Exception)
+    def crashed(e):
+        from werkzeug.exceptions import HTTPException
+
+        if isinstance(e, HTTPException):
+            return e
+        app.logger.exception("500 on %s", request.path)
+        return rd.error_page(500, request.path, f"{type(e).__name__}: {str(e)[:160]}"), 500
+
     @app.get("/ping")
     def ping():
         return Response("ok", mimetype="text/plain")                # the app launcher's "is it up" (D45)
@@ -394,11 +454,15 @@ def create_app() -> Flask:
 
     @app.get("/")
     def home():
+        if mk.snapshot().panel["close"].empty:
+            return rd.empty_store_page("I dag", "/")
         return rd.today_page(today_context(mark_seen=not app.config.get("SNAPSHOT")))     # a copy (D44) must not mark signals seen
 
     @app.get("/sectors")
     def sectors():
         snap = mk.snapshot()
+        if snap.panel["close"].empty:
+            return rd.empty_store_page("Sektorer", "/sectors")
         return rd.sectors_page(mk.returns(snap), fd.sector_drivers(), mk.GROUP_ORDER + ["Other"], snap.asof)
 
     @app.get("/go")
@@ -421,6 +485,26 @@ def create_app() -> Flask:
             abort(404)
         return _stock_page(code, tab, sub)
 
+    def _confirm(ctx, code):
+        """The confirmation after a form was sent, read from the log itself: the address only says which row to look
+        for. A row that is not there is said to be missing, never confirmed (funn #114)."""
+        from osloquant.dashboard.dates import stempel
+
+        rows = None
+        for key, kind, what in (("logged", "judgement", "Vurderingen"), ("passed", "pass", "Unnlatelsen"), ("forecast", "forecast", "Prognosen"),
+                                ("updated", "update", "Oppdateringen")):
+            seq = request.args.get(key)
+            if not seq:
+                continue
+            rows = jg.read_log() if rows is None and jg.log_path().exists() else (rows or [])
+            row = next((r for r in rows if str(r.get("seq")) == str(seq) and r.get("kind") == kind and r.get("code") == code), None)
+            if row:
+                ctx.setdefault("ok", []).append(f"{what} er lagret som rad #{row['seq']} i vurderingsloggen ({stempel(row.get('logged_at'))}). "
+                                                "Raden kan ikke endres; en ny vurdering legges til som en ny rad.")
+            else:
+                ctx.setdefault("errors", []).append(f"Fant ikke rad #{seq} for {code} i vurderingsloggen, så ingenting er bekreftet lagret. "
+                                                    "Se Kalibrering før du sender skjemaet på nytt.")
+
     def _stock_page(code, tab, sub):
         if not code.isalnum():
             abort(404)
@@ -429,14 +513,7 @@ def create_app() -> Flask:
         acted = any(request.args.get(k) for k in ("logged", "passed", "forecast", "updated", "checklist", "desk"))
         ctx["tab"] = tab or ("vurdering" if acted else "oversikt")
         ctx["subtab"] = sub
-        if request.args.get("logged"):
-            ctx["ok"] = [f"Logged as row #{request.args['logged']} in the judgement log."]
-        if request.args.get("passed"):
-            ctx["ok"] = [f"Pass logged as row #{request.args['passed']} in the judgement log."]
-        if request.args.get("forecast"):
-            ctx["ok"] = [f"Forecast logged as row #{request.args['forecast']} in the judgement log."]
-        if request.args.get("updated"):
-            ctx["ok"] = [f"Update logged as row #{request.args['updated']} in the judgement log."]
+        _confirm(ctx, code.upper())
         if request.args.get("checklist"):
             ctx["form"] = {"checklist": ",".join(k for k in request.args["checklist"].split(",") if k.replace("_", "").isalnum())}
         if request.args.get("desk"):
@@ -484,7 +561,7 @@ def create_app() -> Flask:
             except (ValueError, RuntimeError) as e:
                 errors.append(str(e))
         ctx = stock_context(code)
-        ctx["errors"], ctx["form"] = errors, form
+        ctx["errors"], ctx["form"], ctx["tab"] = errors, form, "vurdering"
         if form.get("desk_run"):
             attach_desk(ctx, code, form["desk_run"])
             ctx["form"] = form                                    # the typed values win over the prefill
@@ -505,7 +582,7 @@ def create_app() -> Flask:
             return redirect(f"/stock/{code}?passed={row['seq']}", code=303)
         except (ValueError, RuntimeError) as e:
             ctx = stock_context(code)
-            ctx["errors"] = [str(e)]
+            ctx["errors"], ctx["tab"] = [str(e)], "vurdering"
             return Response(rd.stock_page(code, ctx), status=400)
 
     @app.post("/stock/<code>/forecast")
@@ -522,7 +599,7 @@ def create_app() -> Flask:
             return redirect(f"/stock/{code}?forecast={row['seq']}", code=303)
         except (ValueError, RuntimeError) as e:
             ctx = stock_context(code)
-            ctx["errors"] = [str(e)]
+            ctx["errors"], ctx["tab"] = [str(e)], "vurdering"
             return Response(rd.stock_page(code, ctx), status=400)
 
     @app.post("/stock/<code>/update")
@@ -542,7 +619,7 @@ def create_app() -> Flask:
             return redirect(f"/stock/{code}?updated={row['seq']}", code=303)
         except (ValueError, RuntimeError) as e:
             ctx = stock_context(code)
-            ctx["errors"] = [str(e)]
+            ctx["errors"], ctx["tab"] = [str(e)], "vurdering"
             return Response(rd.stock_page(code, ctx), status=400)
 
     def _review_page(msg: dict | None = None, status: int = 200):
@@ -666,23 +743,26 @@ def create_app() -> Flask:
         fp = jg.fingerprint([dict(c.view, code=c.code) for c in bk.cases() if c.view])
         from osloquant.dashboard import learn
 
+        # every block on its own (rd.block): one row of an unexpected shape costs one block, never the page
         learn_html = ""
         if len(table):
-            prices = jg.load_prices(start=min(pd.Timestamp(j["date"]) for j in jg.judgements(rows)) - pd.Timedelta(days=10))
-            learn_html = learn.by_case_html(learn.by_case(table, rel)) + learn.patterns_html(learn.error_patterns(rows, table, prices))
-            from osloquant.dashboard import discipline as dsc
-
-            learn_html = dsc.grid_html(dsc.decision_grid(rows, table)) + learn_html          # D46: process against outcome
             from osloquant.dashboard import calendar as cal
+            from osloquant.dashboard import discipline as dsc
             from osloquant.dashboard import updates as up
 
-            learn_html += up.calibration_html(up.scoring(rows, table, pd.Timestamp.now().normalize(), bk.cases(), fd.read(cal.CAL_FEED)))   # D48
-        from osloquant.dashboard import forecasts as fcs
+            def prices():
+                return jg.load_prices(start=min(pd.Timestamp(j["date"]) for j in jg.judgements(rows)) - pd.Timedelta(days=10))
 
-        learn_html += fcs.calibration_html(fcs.scoring(rows))                                         # D52
+            learn_html = (rd.block("Prosess mot utfall", lambda: dsc.grid_html(dsc.decision_grid(rows, table)))            # D46
+                          + rd.block("Per case", lambda: learn.by_case_html(learn.by_case(table, rel)))
+                          + rd.block("Feilmønstre", lambda: learn.patterns_html(learn.error_patterns(rows, table, prices())))
+                          + rd.block("Oppdateringer", lambda: up.calibration_html(up.scoring(rows, table, pd.Timestamp.now().normalize(), bk.cases(),
+                                                                                              fd.read(cal.CAL_FEED)))))    # D48
+        from osloquant.dashboard import forecasts as fcs
         from osloquant.dashboard import passes as pss
 
-        learn_html += pss.calibration_html(pss.scoring(rows))                                         # D54
+        learn_html += rd.block("Kvartalsprognoser (80 %-intervall)", lambda: fcs.calibration_html(fcs.scoring(rows)))      # D52
+        learn_html += rd.block("Unnlatelser", lambda: pss.calibration_html(pss.scoring(rows)))                             # D54
         return rd.calibration_page(table, summary, check, kills, rel, fp, jg.head_to_head(table), learn_html)
 
     @app.get("/funds")

@@ -35,7 +35,7 @@ def test_a_full_case_view_carries_its_story(app):  # noqa: F811
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "estimates_2026-11-02.json").write_text(json.dumps(EST), encoding="utf-8")
     form = client.get("/stock/AAA").get_data(as_text=True)
-    assert "Fortelling mot tall (Damodaran)" in form and 'name="story_ebitda_m"' in form and "Modellen: 20.0 %" in form
+    assert "Fortelling mot tall (Damodaran)" in form and 'name="story_ebitda_m"' in form and "Modellen: 20,0\N{NO-BREAK SPACE}%" in form
     r = client.post("/stock/AAA/judge", data=GOOD)
     assert r.status_code == 400 and "needs its story" in r.get_data(as_text=True)
     ok = GOOD | {"story": "Fictional: steady growth on a fixed cost base lifts the margin.", "story_rev_cagr": "10", "story_ebitda_m": "25", "story_eps": "2.6"}

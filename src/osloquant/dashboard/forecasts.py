@@ -23,6 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 METRICS = {"revenue": "omsetning", "ebitda": "EBITDA", "ebit": "EBIT"}
@@ -56,7 +57,17 @@ def upcoming(code: str, cases, today: pd.Timestamp) -> dict | None:
 
 
 def forecasts(rows: list[dict], code: str | None = None, analyst: str = jg.DEFAULT_ANALYST) -> list[dict]:
-    return [r for r in rows if r.get("kind") == "forecast" and (code is None or r["code"] == code) and jg.analyst_of(r) == analyst]
+    return [r | {"report": report_of(r)} for r in rows
+            if r.get("kind") == "forecast" and (code is None or r["code"] == code) and jg.analyst_of(r) == analyst]
+
+
+def report_of(row: dict) -> dict:
+    """The report a forecast is about as ``{date, what, source}``, whatever shape the row has. The dashboard writes a
+    dict; a hand-written or older row may hold plain text, and then the date is unknown ("")."""
+    rep = row.get("report")
+    if isinstance(rep, dict):
+        return {"date": str(rep.get("date") or "")[:10], "what": str(rep.get("what") or ""), "source": str(rep.get("source") or "")}
+    return {"date": "", "what": "" if rep is None else str(rep), "source": "tekst i loggraden, uten dato"}
 
 
 def form_problems(form: dict, allowed: dict, report: dict | None, today: pd.Timestamp) -> list[str]:
@@ -68,8 +79,10 @@ def form_problems(form: dict, allowed: dict, report: dict | None, today: pd.Time
     if form.get("metric") not in allowed:
         out.append(f"metric must be one of {', '.join(allowed)}")
     try:
-        lo, mid, hi = (float(form[k]) for k in ("low", "mid", "high"))
-    except (TypeError, ValueError, KeyError):
+        lo, mid, hi = (jg.parse_number(form.get(k)) for k in ("low", "mid", "high"))
+    except ValueError as e:
+        return out + [f"give the low end, the middle and the high end of the 80 % interval as numbers ({e})"]
+    if lo is None or mid is None or hi is None:
         return out + ["give the low end, the middle and the high end of the 80 % interval as numbers"]
     if not lo <= mid <= hi:
         out.append("low ≤ middle ≤ high")
@@ -87,7 +100,7 @@ def write(code: str, form: dict, report: dict | None, today: pd.Timestamp, rows:
     if problems:
         raise ValueError("; ".join(problems))
     return jg.append("forecast", dict(code=code, date=f"{today:%Y-%m-%d}", report=report, metric=form["metric"], label=allowed[form["metric"]],
-                                      low=float(form["low"]), mid=float(form["mid"]), high=float(form["high"]), interval=INTERVAL,
+                                      low=jg.parse_number(form["low"]), mid=jg.parse_number(form["mid"]), high=jg.parse_number(form["high"]), interval=INTERVAL,
                                       unit="NOKm (or the report's currency), the quarter as printed", source="dashboard"))
 
 
@@ -139,14 +152,14 @@ def block_html(code: str, report: dict | None, rows: list[dict]) -> str:
     allowed = metrics_for(code)
     done = {f["metric"] for f in forecasts(rows, code) if f["report"]["date"] == report["date"]}
     left = {k: v for k, v in allowed.items() if k not in done}
-    mine = "".join(f'<li>{E(f["label"])}: {f["low"]:g} – <b>{f["mid"]:g}</b> – {f["high"]:g} (logget {E(f["date"])})</li>'
+    mine = "".join(f'<li>{E(f["label"])}: {f["low"]:g} – <b>{f["mid"]:g}</b> – {f["high"]:g} (logget {dato(f["date"])})</li>'
                    for f in forecasts(rows, code) if f["report"]["date"] == report["date"])
     opts = "".join(f'<option value="{E(k)}">{E(v)}</option>' for k, v in left.items())
     hidden = "".join(f'<input type="hidden" name="report_{k}" value="{E(str(report.get(k) or ""))}">' for k in ("date", "what", "source"))
     form = (f'<form class="judge" method="post" action="/stock/{E(code)}/forecast">{hidden}<div class="row4"><div><label>Tall</label><select name="metric">{opts}</select></div>'
             '<div><label>Lav (10 %)</label><input name="low" inputmode="decimal"></div><div><label>Midt</label><input name="mid" inputmode="decimal"></div>'
             '<div><label>Høy (90 %)</label><input name="high" inputmode="decimal"></div></div><button class="go" type="submit">Logg prognosen</button></form>') if left else ""
-    return (f'<h2>Prognose for neste rapport</h2><div class="card"><p><b>{E(report["what"])}</b> {E(report["date"])} ({E(report["source"])}). '
+    return (f'<h2>Prognose for neste rapport</h2><div class="card"><p><b>{E(report["what"])}</b> {dato(report["date"])} ({E(report["source"])}). '
             'Skriv kvartalets tall som et 80 %-intervall før rapporten: rapportleseren gir fasiten, og kalibreringen viser hvor ofte tallet havner innenfor.</p>'
             + (f'<ul>{mine}</ul>' if mine else "") + form
             + '<div class="src">Tetlock: mange prognoser med rask fasit er det som gjør kalibreringen målbar – en 12-måneders vurdering gir ett svar i året. '
@@ -154,8 +167,8 @@ def block_html(code: str, report: dict | None, rows: list[dict]) -> str:
 
 
 def calibration_html(sc: dict) -> str:
-    rows = "".join(f'<tr><td>{E(x["code"])}</td><td>{E(x["label"])}</td><td>{E(x["report"]["date"])}</td><td>{x["low"]:g} – {x["mid"]:g} – {x["high"]:g}</td>'
-                   + (f'<td>{x["answer"]["actual"]:g}</td><td>{"innenfor" if x["answer"]["inside"] else "utenfor"}</td><td>{x["answer"]["miss"] * 100:+.1f} %</td>'
+    rows = "".join(f'<tr><td>{E(x["code"])}</td><td>{E(x["label"])}</td><td>{dato(x["report"]["date"]) if x["report"]["date"] else E(x["report"]["what"]) + " (uten dato)"}</td><td>{x["low"]:g} – {x["mid"]:g} – {x["high"]:g}</td>'
+                   + (f'<td>{x["answer"]["actual"]:g}</td><td>{"innenfor" if x["answer"]["inside"] else "utenfor"}</td><td>{"–" if x["answer"]["miss"] is None else format(x["answer"]["miss"] * 100, "+.1f") + " %"}</td>'
                       if x["answer"] else '<td colspan="3" class="empty">ikke avgjort ennå</td>') + '</tr>' for x in sc["rows"])
     cov = "–" if sc["coverage"] is None else f'{sc["coverage"] * 100:.0f} %'
     return ('<h2>Kvartalsprognoser (80 %-intervall)</h2><div class="card">'

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from osloquant import signals as sg
+from osloquant.dashboard.dates import dato
 
 
 @dataclass
@@ -76,12 +77,13 @@ def rows(close: pd.Series, volume: pd.Series | None, high: pd.Series | None = No
         above = float(ma20.iloc[-1]) > float(ma60.iloc[-1])
         signal = "Golden cross MA 20/60" if above else "Death cross MA 20/60"
         out.append(Row("MA 20/60", f"{float(ma20.iloc[-1]):.2f} / {float(ma60.iloc[-1]):.2f}",
-                       (f"MA20 {'over' if above else 'under'} MA60" + (f" siden {when:%d %b %Y}" if when is not None else "")),
+                       (f"MA20 {'over' if above else 'under'} MA60" + (f" siden {dato(when)}" if when is not None else "")),
                        signal=signal, active=when is not None and (c.index[-1] - when).days <= 10, odds=_odds_for(signal, odds_doc)))
     # RSI and MACD: values only – not measured as signals
     if len(c) > 15:
         r = float(sg.rsi(c.to_frame()).iloc[-1, 0])
-        out.append(Row("RSI 14", f"{r:.0f}", "0–100; Wilder-glatting"))
+        # a flat series has no gains and no losses: 0/0, no RSI (funn #29)
+        out.append(Row("RSI 14", "–" if r != r else f"{r:.0f}", "0–100; Wilder-glatting" + ("; kursen har ikke beveget seg i perioden" if r != r else "")))
     if len(c) >= 35:
         line, sig, hist = macd(c)
         out.append(Row("MACD 12/26/9", f"{float(line.iloc[-1]):.2f}", f"signallinje {float(sig.iloc[-1]):.2f}, histogram {float(hist.iloc[-1]):+.2f}"))

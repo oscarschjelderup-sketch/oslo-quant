@@ -19,6 +19,7 @@ import pandas as pd
 
 from osloquant import judgements as jg
 from osloquant.dashboard import discipline as dsc
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 LESSON_MIN = 15
@@ -105,8 +106,8 @@ def page_html(its: list[dict], summ: dict, today: pd.Timestamp) -> str:
     for i in its:
         pm = "".join(f"<li>{n + 1}. {E(x)}</li>" for n, x in enumerate(i["premortem"])) or "<li class=empty>ingen pre-mortem på raden (logget før D46)</li>"
         now = "–" if i["price_now"] is None else f'{i["price_now"]:.2f}'
-        head = (f'<h3>{E(i["code"])} #{i["seq"]} – {E(i["rating"])} {i["target"]:g} fra {i["price"]:g} ({E(i["date"])}) · '
-                f'kurs nå {now} · mot kursmål {_p(i["vs_target"])} · mot OSEBX {_p(i["excess"])} · {E(i["status"])}</h3>')
+        head = (f'<h3>{E(i["code"])} #{i["seq"]} – {E(i["rating"])} {i["target"]:g} fra {i["price"]:g} ({dato(i["date"])}) · '
+                f'{"kurs ved horisonten" if i["status"] == "final" else "kurs nå"} {now} · mot kursmål {_p(i["vs_target"])} · mot OSEBX {_p(i["excess"])} · {E(i["status"])}</h3>')
         proc = (f'<div class="src">Prosess da vurderingen ble skrevet: {_p(i["process"]["score"], False)} – mangler: '
                 f'{E(", ".join(dsc.ITEM_LABEL.get(k, k) for k in i["process"]["missing"]) or "ingenting")}.</div>')
         if i["review"]:

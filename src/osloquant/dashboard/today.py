@@ -21,12 +21,24 @@ from osloquant import judgements as jg
 from osloquant import signals as sg
 from osloquant.dashboard import book as bk
 from osloquant.dashboard import market as mk
+from osloquant.dashboard.dates import dato
 
 STATE_FILE = "dashboard_state.json"
 MOVE = 0.10
 EVENT_LOOKBACK = 3
 UPCOMING_DAYS = 30
 KILL_SOON_DAYS = 14
+
+
+#: the report reader's statuses and the decision kinds, as a person reads them
+STATUS_NO = {"triggered": "brutt", "nearer": "nærmere grensen", "intact": "holder", "unknown": "ukjent", "no data": "ingen tall"}
+KIND_NO = {"kill-check": "kill-sjekk", "re-rate": "nytt kursmål", "re-assess": "ny gjennomgang", "risk-signal": "risikosignal", "stale-view": "gammelt syn",
+           "announcement": "børsmelding", "report": "rapport", "pre-report": "før rapport", "post-report": "etter rapport", "report-tp": "rapportens kursmål",
+           "update": "oppdatering", "forecast": "prognose", "catalyst": "katalysator", "chief": "analysesjefen", "review": "feilgjennomgang"}
+#: the tab where each kind of decision is acted on (funn #89): the form, the report, or the technical picture
+KIND_TAB = {"kill-check": "vurdering", "re-rate": "vurdering", "re-assess": "vurdering", "stale-view": "vurdering", "pre-report": "vurdering",
+            "post-report": "vurdering", "update": "vurdering", "forecast": "vurdering", "catalyst": "vurdering", "report": "rapporter",
+            "report-tp": "rapporter", "risk-signal": "teknisk"}
 
 
 @dataclass
@@ -68,33 +80,37 @@ def decisions(snap: mk.Snapshot, cases: list[bk.Case], alerts: list[sg.Alert], t
             d = pd.Timestamp(ev["date"])
             if today - pd.Timedelta(days=EVENT_LOOKBACK) <= d <= today and not _since_view(c, d):
                 items.append(Item(c.code, "kill-check", f"{c.name}: {ev['what'][:70]}",
-                                  f"{d:%d %b} – check the {len(c.kill)} kill criteria and log each (breached or intact, and what you did).", 0))
+                                  f"{dato(d, False)} – gå gjennom de {len(c.kill)} kill-kriteriene og logg en ny vurdering som sier hva som er brutt og hva du gjør.", 0))
         if lp is None or not v:
             continue
         px, day = lp
         tp, bear, bull, p0 = v.get("target"), v.get("bear"), v.get("bull"), v.get("price")
         if tp and ((tp >= (p0 or 0) and px >= tp) or (tp < (p0 or 0) and px <= tp)):
-            items.append(Item(c.code, "re-rate", f"{c.name} reached the target {tp:g}", f"price {px:.2f} ({day:%d %b}); set a new view or close the case.", 1))
+            items.append(Item(c.code, "re-rate", f"{c.name} har nådd kursmålet {tp:g}", f"kurs {px:.2f} ({dato(day, False)}): logg en ny vurdering med nytt kursmål, eller HOLD hvis caset er ferdig.", 1))
         if bear and px <= bear:
-            items.append(Item(c.code, "re-rate", f"{c.name} is at or below the bear value {bear:g}", f"price {px:.2f}: the bear case has happened – was it the scenario, or is the case broken?", 0))
+            items.append(Item(c.code, "re-rate", f"{c.name} er på eller under bear-verdien {bear:g}", f"kurs {px:.2f}: bear-scenariet har skjedd – var det scenariet, eller er caset brutt? Logg en ny vurdering.", 0))
         if bull and px >= bull:
-            items.append(Item(c.code, "re-rate", f"{c.name} is at or above the bull value {bull:g}", f"price {px:.2f}: re-rate the case.", 1))
+            items.append(Item(c.code, "re-rate", f"{c.name} er på eller over bull-verdien {bull:g}", f"kurs {px:.2f}: logg en ny vurdering.", 1))
         if p0:
             move = px / p0 - 1
             if abs(move) >= MOVE:
                 toward = (move > 0) == (tp is not None and tp > p0)
-                items.append(Item(c.code, "re-assess", f"{c.name} {move * 100:+.0f}% since the view of {v.get('date')}",
-                                  f"{p0:g} → {px:.2f}, {'towards' if toward else 'away from'} the target {tp:g}: re-assess and log the view (even if unchanged).", 1))
+                items.append(Item(c.code, "re-assess", f"{c.name} {move * 100:+.0f}% siden synet {v.get('date')}",
+                                  f"{p0:g} → {px:.2f}, {'mot' if toward else 'bort fra'} kursmålet {tp:g}: se på caset igjen og logg vurderingen, også om den er uendret.", 1))
         try:
             age = (today - pd.Timestamp(v.get("date"))).days
         except (TypeError, ValueError):
             age = 0
-        if age > 30 * int(v.get("horizon_months") or 12):
-            items.append(Item(c.code, "stale-view", f"{c.name}: the view is {age} days old", "past its horizon – renew or retire it.", 2))
+        try:        # twelve months are twelve calendar months, as the calibration counts them (funn #75)
+            past = today > pd.Timestamp(v.get("date")) + pd.DateOffset(months=int(v.get("horizon_months") or 12))
+        except (TypeError, ValueError):
+            past = False
+        if past:
+            items.append(Item(c.code, "stale-view", f"{c.name}: synet er {age} dager gammelt", "Horisonten er ute. Logg en ny vurdering – HOLD hvis du ikke lenger har et syn.", 2))
     book_codes = {c.code for c in cases}
     for a in alerts:
         if a.kind == sg.RISK and (a.code in book_codes or a.code in watched):
-            items.append(Item(a.code, "risk-signal", f"{a.name}: {a.signal}", f"{a.detail}. Historically: {sg._fmt_odds(a)}.", 2))
+            items.append(Item(a.code, "risk-signal", f"{a.name}: {a.signal}", f"{a.detail}. Historisk: {sg._fmt_odds(a)}.", 2))
     return sorted(items, key=lambda i: (i.urgency, i.code))
 
 
@@ -118,9 +134,10 @@ def report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = REPORT_D
         answered = [r for r in c.history if r["kind"] in ("judgement", "kill_check") and r["date"] >= s["published"][:10]]
         if hot and not answered:
             trig = [k for k in hot if k["status"] == "triggered"]
-            items.append(Item(c.code, "report", f"{c.name}: Q{s['quarter']} {s['year']} report – {len(trig)} kill criteria over the line, "
-                              f"{len(hot) - len(trig)} nearer",
-                              "; ".join(f"{k['criterion']}: {k['status']}" for k in hot) + " – read the analysis on the stock page and log a kill check.",
+            items.append(Item(c.code, "report", f"{c.name}: rapporten for Q{s['quarter']} {s['year']} – {len(trig)} kill-kriterier over grensen, "
+                              f"{len(hot) - len(trig)} nærmere",
+                              "; ".join(f"{k['criterion']}: {STATUS_NO.get(k['status'], k['status'])}" for k in hot)
+                              + " – les analysen under Rapporter og logg en ny vurdering som sier hva du gjør.",
                               0 if trig else 1))
     return items
 
@@ -147,9 +164,9 @@ def pre_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = PRE_
                 continue
             last = max(views) if views else None
             left = (d - today).days
-            items.append(Item(c.code, "pre-report", f"{c.name}: log your view before the report on {d:%d %b} ({left} d)",
-                              (f"The last view is from {last}; " if last else "No view is logged; ")
-                              + f"a view dated after the report would be scored with hindsight. {ev['what'][:70]}", 0 if left <= 3 else 1))
+            items.append(Item(c.code, "pre-report", f"{c.name}: logg synet ditt før rapporten {dato(d, False)} ({left} d)",
+                              (f"Siste syn er fra {last}. " if last else "Ingen vurdering er logget. ")
+                              + f"Et syn datert etter rapporten scores som etterpåklokskap. {ev['what'][:70]}", 0 if left <= 3 else 1))
     return items
 
 
@@ -186,9 +203,9 @@ def post_report_items(cases: list[bk.Case], today: pd.Timestamp, days: int = POS
         d, what = lr
         if any(r["kind"] in ("judgement", "update") and pd.Timestamp(r["date"][:10]) >= d for r in c.history):
             continue                     # a view, or an update of its probabilities (D48), dated after the report
-        items.append(Item(c.code, "post-report", f"{c.name}: the view of {c.view.get('date')} predates the report of {d:%d %b}",
-                          f"{what[:80]} is out ({(today - d).days} d ago) and the view has not been re-logged since. Re-assess and log the view "
-                          "(even if unchanged) – until then the research book carries a pre-report view.", 1))
+        items.append(Item(c.code, "post-report", f"{c.name}: synet {c.view.get('date')} er eldre enn rapporten {dato(d, False)}",
+                          f"{what[:80]} kom for {(today - d).days} dager siden, og synet er ikke logget på nytt. Se på caset og logg vurderingen, "
+                          "også om den er uendret – til da står et syn fra før rapporten i research book.", 1))
     return items
 
 
@@ -258,7 +275,7 @@ def habit_items(cases: list[bk.Case], today: pd.Timestamp, rows: list[dict] | No
         due = [j for j in jg.judgements(rows, jg.DEFAULT_ANALYST) if (today - pd.Timestamp(j["date"])).days >= 90 and j["seq"] not in done]
         if due:
             items.append(Item("", "review", f"Feilgjennomgang {rv.quarter(today)}: {len(due)} vurderinger venter",
-                              f"Største avvik først, de samme spørsmålene hver gang (Dalio, Duke, Klein). Kvartalet slutter {q_end:%d %b}.", 1))
+                              f"Største avvik først, de samme spørsmålene hver gang (Dalio, Duke, Klein). Kvartalet slutter {dato(q_end, False)}.", 1))
     return items
 
 

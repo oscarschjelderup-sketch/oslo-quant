@@ -18,6 +18,7 @@ import html
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 REASON_MIN = 15
@@ -66,7 +67,7 @@ def scoring(rows: list[dict], prices: jg.Prices | None = None, asof: pd.Timestam
 # ------------------------------------------------------------------------------------------------ html
 def stock_html(code: str, rows: list[dict]) -> str:
     mine = passes(rows, code)
-    earlier = "".join(f'<li>{E(p["date"])} ved {p["price"]:g}: {E(p["reason"])}{" (innenfor sirkelen)" if p.get("inside_circle") else ""}</li>' for p in mine)
+    earlier = "".join(f'<li>{dato(p["date"])} ved {p["price"]:g}: {E(p["reason"])}{" (innenfor sirkelen)" if p.get("inside_circle") else ""}</li>' for p in mine)
     return (f'<details class="card"><summary><b>Lar du være? Logg det (unnlatelse)</b>{f" – {len(mine)} tidligere" if mine else ""}</summary>'
             f'<form class="judge" method="post" action="/stock/{E(code)}/pass"><label>Hvorfor lar du være å kjøpe nå?</label><input name="reason" minlength="{REASON_MIN}">'
             '<label style="font-weight:600"><input type="checkbox" style="width:auto" name="inside" value="1"> Selskapet er innenfor sirkelen min (jeg forstår det)</label>'
@@ -82,7 +83,7 @@ def calibration_html(sc: dict) -> str:
 
     def pc(v):
         return "–" if v is None else f"{v * 100:+.1f} %"
-    rows = "".join(f'<tr><td>{E(x["code"])}</td><td>{E(x["date"])}</td><td>{x["price"]:g}</td><td>{"ja" if x["inside"] else "nei"}</td><td>{pc(x["tsr"])}</td>'
+    rows = "".join(f'<tr><td>{E(x["code"])}</td><td>{dato(x["date"])}</td><td>{x["price"]:g}</td><td>{"ja" if x["inside"] else "nei"}</td><td>{pc(x["tsr"])}</td>'
                    f'<td>{pc(x["excess"])}</td><td>{"mulig unnlatelse" if x.get("omission") else ""}</td><td>{"endelig" if x["final"] else "foreløpig"}</td>'
                    f'<td class="src">{E(x["reason"])}</td></tr>' for x in sc["rows"])
     return ('<h2>Unnlatelser (Buffett)</h2><div class="card">'

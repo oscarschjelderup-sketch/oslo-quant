@@ -37,7 +37,7 @@ oq = "osloquant.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-osloquant = ["resources/*.yaml"]
+osloquant = ["resources/*.yaml", "dashboard/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

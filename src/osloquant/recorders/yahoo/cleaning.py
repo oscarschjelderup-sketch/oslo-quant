@@ -2,6 +2,13 @@
 
 Each rule fixes one fault that was found in the data and can be recognised from the bar itself:
 
+0. *Dividend in another currency.* For a company that pays in USD, EUR or DKK, Yahoo reports the dividend converted
+   to NOK at the rate of the day you ask, but scales the adjusted prices with the amount in the foreign currency
+   against a price in NOK. The adjustment is then about ten times too small for a dollar dividend, and the adjusted
+   series shows a price fall where the shareholder was paid. Rule: the amount Yahoo adjusted with is read off its
+   own factor step; when the reported amount is larger by a factor that matches a currency rate, the dividend is
+   that amount in that currency, converted at the rate before the ex-date, and the adjusted prices are rescaled
+   (``fix_foreign_dividends``). It runs first, because rule 1 reads the dividend amount.
 1. *Dividend booked a day early.* On the last day before a stock goes ex-dividend, Yahoo often reports the
    close with the dividend already taken off, although the high and low of that day are not. The close then
    lies below the day's low by exactly the dividend, and the adjusted series shows a drop one day and a jump
@@ -40,11 +47,85 @@ STALE = 0.55
 STEADY_CLOSE = 0.25
 
 
-def clean_history(history: pd.DataFrame, drop_untraded: bool = True) -> tuple[pd.DataFrame, dict[str, int]]:
-    """Apply rules 1 to 5 to one symbol's history. Returns the cleaned frame and how often each rule fired."""
-    counts = {"dividend_close": 0, "open": 0, "range": 0, "spike": 0, "untraded": 0}
+#: a reported dividend this many times the amount Yahoo adjusted with is not rounding: it is another currency
+FOREIGN_MIN_RATIO = 1.15
+#: how close the ratio must be to a currency rate to name the currency (the download day's rate is not known exactly)
+FOREIGN_RATE_TOLERANCE = 0.06
+#: events of one download share one conversion rate: an event counts when its ratio is this close to the typical one
+FOREIGN_SPREAD = 0.03
+
+
+def fix_foreign_dividends(history: pd.DataFrame, fx: dict[str, pd.Series] | None) -> tuple[pd.DataFrame, int]:
+    """Rule 0. ``fx`` maps a currency code to its rate in NOK by date (``fx_rates()``). Returns the history with the
+    dividends in NOK at the rate before each ex-date and the adjusted closes rescaled, and how many events changed.
+    Without rates, or when no currency fits, nothing is touched."""
+    if history.empty or not fx or "dividend" not in history.columns or "adj_close" not in history.columns:
+        return history, 0
+    df = history.sort_values("timestamp").reset_index(drop=True).copy()
+    factor = (df["adj_close"] / df["close"]).to_numpy(dtype=float)
+    close = df["close"].to_numpy(dtype=float)
+    events = []
+    for i in df.index[df["dividend"].fillna(0) > 0]:
+        if i == 0 or not close[i - 1] > 0 or not factor[i] > 0:
+            continue
+        used = (1 - factor[i - 1] / factor[i]) * close[i - 1]          # the amount Yahoo's own adjustment took off
+        reported = float(df.at[i, "dividend"])
+        if used > 1e-9 and reported / used >= FOREIGN_MIN_RATIO:
+            events.append((i, used, reported / used))
+    if not events:
+        return history, 0
+    typical = float(np.median([r for _, _, r in events]))
+    newest = {ccy: float(s.dropna().iloc[-1]) for ccy, s in fx.items() if s is not None and len(s.dropna())}
+    near = {ccy: abs(typical / rate - 1) for ccy, rate in newest.items() if rate > 0}
+    if not near or min(near.values()) > FOREIGN_RATE_TOLERANCE:
+        return history, 0
+    ccy = min(near, key=near.get)
+    rates = fx[ccy].dropna().sort_index()
+    scale = np.ones(len(df))
+    fixed = 0
+    for i, used, ratio in events:
+        if abs(ratio / typical - 1) > FOREIGN_SPREAD:
+            continue
+        before = rates[rates.index < df.at[i, "timestamp"]]
+        if before.empty:
+            continue
+        nok = used * float(before.iloc[-1])                           # the foreign amount at the rate before the ex-date
+        old_step, new_step = 1 - used / close[i - 1], 1 - nok / close[i - 1]
+        if not 0 < new_step < 1:
+            continue
+        scale[:i] *= new_step / old_step
+        df.at[i, "dividend"] = nok
+        fixed += 1
+    if not fixed:
+        return history, 0
+    df["adj_close"] = df["adj_close"] * scale
+    return df, fixed
+
+
+def fx_rates() -> dict[str, pd.Series]:
+    """NOK per USD, EUR and DKK by date, from the store's own currency table (Yahoo). Empty when the table is."""
+    try:
+        from osloquant.contract.api import get_data
+        from osloquant.domain import Currency1dKdata
+
+        df = get_data(Currency1dKdata, columns=["code", "timestamp", "close"])
+    except Exception:  # noqa: BLE001 – no currency table yet: rule 0 then does nothing
+        return {}
+    if df is None or df.empty:
+        return {}
+    out = {}
+    for code, g in df.groupby("code"):
+        if isinstance(code, str) and code.endswith("NOK") and len(code) == 6:
+            out[code[:3]] = g.set_index("timestamp")["close"].sort_index()
+    return out
+
+
+def clean_history(history: pd.DataFrame, drop_untraded: bool = True, fx: dict[str, pd.Series] | None = None) -> tuple[pd.DataFrame, dict[str, int]]:
+    """Apply rules 0 to 5 to one symbol's history. Returns the cleaned frame and how often each rule fired."""
+    counts = {"foreign_dividend": 0, "dividend_close": 0, "open": 0, "range": 0, "spike": 0, "untraded": 0}
     if history.empty:
         return history, counts
+    history, counts["foreign_dividend"] = fix_foreign_dividends(history, fx)
     df = history.sort_values("timestamp").reset_index(drop=True).copy()
 
     if "dividend" in df.columns:

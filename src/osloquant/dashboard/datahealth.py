@@ -18,6 +18,7 @@ import pandas as pd
 
 from osloquant import judgements as jg
 from osloquant.dashboard import feeds as fd
+from osloquant.dashboard.dates import dato
 
 FEED_MAX_AGE_DAYS = {"announcements": 3, "news": 3, "rates": 7, "fx": 7, "brent": 7, "salmon": 14, "shorts": 7, "insiders": 7, "calendar": 14}
 GAP_RUN = 20                 # consecutive missing sessions that count as a source gap, not a thin day
@@ -270,22 +271,77 @@ def case_health(cases, closes: pd.DataFrame | None = None, today: pd.Timestamp |
 
 def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> dict:
     return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(), "cases": case_health(cases, closes),
-            "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(),
+            "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(), "sources": _sources(),
+            "corporate": fd.corporate_events(), "cross": _cross(),
             "generated": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+CORPORATE_ALERT_DAYS = 14
+
+
+def corporate_lines(events: list[dict], now: datetime | None = None) -> list[str]:
+    """One line per corporate event from the last fortnight: the universe is a fixed list and may need a look."""
+    cutoff = f"{(now or datetime.now(UTC)) - pd.Timedelta(days=CORPORATE_ALERT_DAYS):%Y-%m-%d}"
+    return [f"{e['code'] or e.get('issuer') or '?'}: {e['kind']} {dato(e['time'][:10], False)}" + ("" if e.get("in_universe") else " (ikke i universet)")
+            for e in events if e.get("time", "")[:10] >= cutoff]
+
+
+def corporate_html(events: list[dict]) -> str:
+    from osloquant.dashboard.render import E, link
+
+    rows = "".join(f'<tr><td class="l">{dato(e["time"][:10])}</td><td class="l">{link(e["code"]) if e.get("in_universe") else E(e.get("code") or "–")} '
+                   f'<span class="src">{E(e.get("issuer") or "")}</span></td><td class="l">{E(e["kind"])}</td>'
+                   f'<td class="l" style="white-space:normal"><a href="{E(e["url"])}" target="_blank" rel="noopener">{E(e["title"][:140])}</a></td></tr>' for e in events)
+    return ('<div class="card" id="selskapshendelser"><h3>Selskapshendelser (siste 120 dager)</h3><table class="odds"><thead><tr><th class="l">Dato</th><th class="l">Selskap</th>'
+            f'<th class="l">Hva</th><th class="l">Børsmelding</th></tr></thead><tbody>{rows or "<tr><td colspan=4 class=empty>ingen funnet i børsmeldingene</td></tr>"}</tbody></table>'
+            '<div class="src">Lest av titlene på børsmeldingene vi allerede henter (Oslo Børs NewsWeb): emisjon, splitt eller spleis, fisjon eller fusjon, navn- eller tickerendring, '
+            'avnotering og nye selskaper tatt opp til handel. Obligasjoner er holdt utenfor. Universet er en fast liste: en ny notering, en avnotering eller en tickerendring betyr at '
+            'listen bør oppdateres, og en splitt eller fisjon at kursene bør sjekkes mot en annen kilde. En tittel kan misforstås – åpne meldingen.</div></div>')
+
+
+REPORT_STATUS_NO = {"ok": "ok", "no spec": "ingen spesifikasjon", "no report read": "ingen rapport lest", "rows missing": "rader mangler"}
+
+
+def _cross() -> list[dict]:
+    from osloquant.dashboard import sources as src
+
+    try:
+        return src.cross_checks()
+    except Exception:  # noqa: BLE001 – a comparison that cannot be made must not take the page down
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("cross checks failed")
+        return []
+
+
+def _sources() -> list[dict]:
+    from osloquant.dashboard import sources as src
+
+    try:
+        return src.status()
+    except Exception:  # noqa: BLE001 – the page must open even when the run log is unreadable
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("source status failed")
+        return []
 
 
 def problems(ov: dict) -> list[str]:
     """One line per thing that should worry the reader, for the front page and the morning."""
-    out = []
+    from osloquant.dashboard import sources as src
+
+    out = src.problem_lines(ov.get("sources") or [])
+    out += src.cross_lines(ov.get("cross") or [])
+    corp = corporate_lines(ov.get("corporate") or [])
+    if corp:
+        out.append("selskapshendelser siste 14 dager – universet og kursene bør sjekkes: " + "; ".join(corp[:6]))
     p = ov["prices"]
-    if p["stale"]:
-        out.append(f"{len(p['stale'])} aksjer uten sluttkurs {p['asof']}: {', '.join(p['stale'][:8])}")
-    for f in ov["feeds"]:
-        if f["status"] != "ok":
-            out.append(f"feed {f['feed']}: {f['status']}" + (f" ({f['age_days']} d gammel, grense {f['limit_days']})" if f["age_days"] is not None else ""))
+    if p["stale"] and not any(s["key"] == "prices_adj" and s["state"] in ("stale", "partial") for s in ov.get("sources") or []):
+        out.append(f"{len(p['stale'])} aksjer uten sluttkurs {dato(p['asof'])}: {', '.join(p['stale'][:8])}")
     for r in ov["reports"]:
         if r["status"] != "ok" and r.get("oscar_view", True):
-            out.append(f"rapportleseren {r['code']}: {r['status']}" + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
+            out.append(f"rapportleseren {r['code']}: {REPORT_STATUS_NO.get(r['status'], r['status'])}"
+                       + (f" – {', '.join(r['missing'])}" if r["missing"] and r["status"] == "rows missing" else ""))
     lg = ov["log"]
     if lg["chain_ok"] is False or lg["problems"]:
         out.append("vurderingsloggen: " + "; ".join(lg["problems"][:2]))
@@ -307,7 +363,9 @@ def problems(ov: dict) -> list[str]:
 
 
 def _fmt_dt(s: str | None) -> str:
-    return s.replace("T", " ").replace("Z", " UTC") if s else "–"
+    from osloquant.dashboard.dates import stempel
+
+    return stempel(s) if s else "–"
 
 
 def page_html(ov: dict) -> str:
@@ -338,7 +396,7 @@ def page_html(ov: dict) -> str:
                  for f in ov["feeds"])
     feeds = ('<div class="card"><h3>Feeds</h3><table class="odds"><thead><tr><th>Feed</th><th>Status</th><th>Hentet</th><th>Alder (d)</th><th>Grense</th><th>Rader</th><th></th></tr></thead>'
              f'<tbody>{fe}</tbody></table><div class="src">Hentes av oq dashboard --refresh og kveldsoppgaven. Grensen er dager før feeden regnes som utdatert.</div></div>')
-    rp_rows = "".join(f'<tr><td>{link(r["code"])}</td><td class="{"k" if r["status"] != "ok" else ""}">{E(r["status"])}</td><td>{E(str(r["latest"] or "–"))[:60]}</td>'
+    rp_rows = "".join(f'<tr><td>{link(r["code"])}</td><td class="l {"st-bad" if r["status"] != "ok" else "st-ok"}">{E(REPORT_STATUS_NO.get(r["status"], r["status"]))}</td><td>{E(str(r["latest"] or "–"))[:60]}</td>'
                       f'<td>{E(str(r["published"] or "–"))}</td><td style="white-space:normal">{E(", ".join(r["missing"]))}</td><td>{r["kill_rules"]} av {r["kill_texts"]}</td></tr>' for r in ov["reports"])
     reports = ('<div class="card"><h3>Rapportleseren</h3><table class="odds"><thead><tr><th>Case</th><th>Status</th><th>Siste rapport lest</th><th>Publisert</th>'
                f'<th>Rader ikke funnet</th><th>Kill-regler</th></tr></thead><tbody>{rp_rows or "<tr><td colspan=6 class=empty>ingen caser i research book</td></tr>"}</tbody></table>'
@@ -368,7 +426,7 @@ def page_html(ov: dict) -> str:
     if d is None:
         div = '<p class="empty">Ikke kjørt. <code>oq data audit</code> sjekker hver ex-utbyttemelding på NewsWeb siden 2010 mot Yahoos justeringer (64 kall, noen minutter).</p>'
     else:
-        miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{E(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
+        miss = "".join(f'<tr><td>{link(m["code"])}</td><td>{dato(m["date"])}</td><td>{m["amount"]:g}</td><td>{m["price"] if m["price"] is not None else "–"}</td>'
                        f'<td>{pct(m["yield"], 1, False)}{" (før en senere splitt – ikke en yield)" if m.get("yield_doubtful") else ""}</td>'
                        f'<td><a href="{E(m["url"])}" target="_blank" rel="noopener">NewsWeb</a></td></tr>' for m in d["missed"])
         susp = f' Beløp fra før en senere splitt ({E(", ".join(d.get("split_suspect_codes", [])))}) er listet, men ikke summert.' if d.get("split_suspect_codes") else ""
@@ -381,7 +439,10 @@ def page_html(ov: dict) -> str:
                 f'<li><b>Kjede</b>: {"verifiserer" if lg["chain_ok"] else ("BRUTT" if lg["chain_ok"] is False else "tom")}</li>'
                 f'<li><b>Sist logget</b>: {E(_fmt_dt(lg["last_logged_at"]))}</li><li><b>Head</b>: {E(str(lg["head"] or "–"))}</li></ul>'
                 + ("".join(f'<div class="err">{E(x)}</div>' for x in lg["problems"]) if lg["problems"] else "") + '</div>'
-                f'<div class="card"><h3>Frosne testdata</h3><p>{"present" if ov["testdata"]["present"] else "<b>missing</b>"} – {E(ov["testdata"]["path"])}, prices to {E(ov["testdata"]["frozen_to"])}; '
-                f'{len(ov["testdata"]["files"])} files.</p><div class="src">The deterministic tests (odds, brackets, insider study, SATS reports) run on this copy and skip without it.</div></div></div>')
-    return page("Datahelse", "/health", head + cases_html + store + prices + feeds + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
-                + f'<div class="src">Generated {E(_fmt_dt(ov["generated"]))}.</div>')
+                f'<div class="card"><h3>Frosne testdata</h3><p>{"finnes" if ov["testdata"]["present"] else "<b>mangler</b>"} – {E(ov["testdata"]["path"])}, kurser til {E(ov["testdata"]["frozen_to"])}; '
+                f'{len(ov["testdata"]["files"])} filer.</p><div class="src">De deterministiske testene (odds, intervaller, innsidestudien, SATS-rapportene) kjører på denne kopien og hopper over uten den.</div></div></div>')
+    from osloquant.dashboard import sources as src
+
+    kilder = src.table_html(ov["sources"]) if ov.get("sources") else store + feeds
+    return page("Datahelse", "/health", head + kilder + (src.cross_html(ov["cross"]) if ov.get("cross") else "") + corporate_html(ov.get("corporate") or []) + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
+                )

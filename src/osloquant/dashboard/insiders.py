@@ -107,13 +107,17 @@ def fetch(codes: list[str], start_year: int = 2010, today: date | None = None, l
     today = today or datetime.now(UTC).date()
     doc = load()
     items, years = doc["items"], doc["fetched_years"]
+    listed = doc.setdefault("listed_to", {})          # code -> the last day its current-year list covered
     new = 0
     for code in codes:
         for y in range(start_year, today.year + 1):
             key = f"{code}:{y}"
             if years.get(key) and y < today.year:
                 continue
-            msgs = _pick(_list(code, date(y, 1, 1), min(date(y, 12, 31), today)))
+            first = date(y, 1, 1)
+            if y == today.year and years.get(key) and listed.get(code, "")[:4] == str(y):
+                first = max(first, date.fromisoformat(listed[code]) - timedelta(days=1))     # one day of overlap
+            msgs = _pick(_list(code, first, min(date(y, 12, 31), today)))
             time.sleep(PAUSE)
             for m in msgs:
                 mid = str(m["messageId"])
@@ -132,6 +136,8 @@ def fetch(codes: list[str], start_year: int = 2010, today: date | None = None, l
                     fd.write(cache_name(), {**doc, "source": "Oslo Børs NewsWeb, category 1102 (private use only)"})
                     log(f"  {new} new notifications cached (at {code} {y})")
             years[key] = True
+            if y == today.year:
+                listed[code] = f"{today:%Y-%m-%d}"
         log(f"{code}: done ({sum(1 for i in items.values() if i['code'] == code)} notifications)")
     fd.write(cache_name(), {**doc, "source": "Oslo Børs NewsWeb, category 1102 (private use only)"})
     return doc

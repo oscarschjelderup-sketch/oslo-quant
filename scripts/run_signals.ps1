@@ -14,6 +14,9 @@ New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir ("signals-output-{0}.log" -f (Get-Date -Format "yyyy-MM"))
 
 $env:PYTHONIOENCODING = "utf-8"
+# PowerShell 5.1 decodes a program's output with the console's code page: without this, «på» is logged as «p├Ñ»
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $env:COLUMNS = "160"
 $ErrorActionPreference = "Continue"
 
@@ -22,7 +25,9 @@ if (-not (Test-Path $oq)) {
     "oq is not installed at $oq. Create the environment first: uv venv; uv pip install -e ." | Out-File -FilePath $log -Append -Encoding utf8
     exit 3
 }
-$output = & $oq record 2>&1 | ForEach-Object { "$_" }
+# --raw: the quoted bars come from the same download as the adjusted ones, so they cost no extra request. Without
+# them market value, P/E and the calibration's price read a table that stops the last time someone ran it by hand.
+$output = & $oq record --raw 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "record exit code $code" | Out-File -FilePath $log -Append -Encoding utf8

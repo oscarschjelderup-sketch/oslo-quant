@@ -20,10 +20,22 @@ import html
 import pandas as pd
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 E = html.escape
 UPDATE_DUE_DAYS = 14
 REASON_MIN = 10
+
+
+def _better(updated: float | None, view: float | None) -> str:
+    """«bedre» when the update's Brier is lower. A Brier of 0.0 is a perfect score, not a missing one (funn #72)."""
+    if updated is None or view is None:
+        return "–"
+    return "bedre" if updated < view else ("lik" if updated == view else "ikke bedre")
+
+
+def horizon_end(view: dict) -> pd.Timestamp:
+    return pd.Timestamp(str(view["date"])[:10]) + pd.DateOffset(months=int(view.get("horizon_months") or 12))
 
 
 def updates(rows: list[dict], ref_seq: int | None = None) -> list[dict]:
@@ -44,6 +56,8 @@ def pending(rows: list[dict], cases, today: pd.Timestamp, cal_doc: dict | None =
     by_code = {c.code: c for c in cases}
     out = []
     for code, v in jg.latest_by_code(rows, analyst).items():
+        if today > horizon_end(v):          # the view has run its course: the question now is a new view, not an update (funn #45)
+            continue
         rep = ar.newest_report(by_code.get(code), today, cal_doc, code=code)
         if not rep:
             continue
@@ -55,21 +69,28 @@ def pending(rows: list[dict], cases, today: pd.Timestamp, cal_doc: dict | None =
     return sorted(out, key=lambda x: -x["days"])
 
 
-def form_problems(form: dict) -> list[str]:
-    probs = [form.get(k) for k in ("p_bear", "p_base", "p_bull")]
+def form_problems(form: dict, view: dict | None = None) -> list[str]:
     changed = form.get("changed")
     out = []
+    try:
+        probs = [jg.parse_number(form.get(k)) for k in ("p_bear", "p_base", "p_bull")]
+    except ValueError as e:
+        return [f"sannsynlighetene må være tall mellom 0 og 1 ({e})"]
     if changed:
-        if any(p in (None, "") for p in probs):
+        if any(p is None for p in probs):
             out.append("give the three probabilities after the news")
-        else:
-            ps = [float(p) for p in probs]
-            if any(not 0 <= p <= 1 for p in ps):
-                out.append("probabilities are between 0 and 1")
-            elif abs(sum(ps) - 1) > 0.011:
-                out.append(f"the probabilities sum to {sum(ps):.2f}, not 1")
-    elif len((form.get("reason") or "").strip()) < REASON_MIN:
-        out.append("say in a sentence why the news does not change the probabilities (at least 10 characters)")
+        elif any(not 0 <= p <= 1 for p in probs):
+            out.append("probabilities are between 0 and 1")
+        elif abs(sum(probs) - 1) > 0.011:
+            out.append(f"the probabilities sum to {sum(probs):.2f}, not 1")
+    else:
+        old = [(view or {}).get(k) for k in ("p_bear", "p_base", "p_bull")]
+        typed = [p for p in probs if p is not None]
+        if typed and (any(p is None for p in probs) or any(o is None or abs(p - o) > 0.005 for p, o in zip(probs, old, strict=True))):
+            # the log cannot be corrected afterwards: never write the old numbers when new ones were typed
+            out.append("du skrev nye sannsynligheter – kryss av for «endret» for å logge dem, eller tøm feltene for å logge «uendret»")
+        if len((form.get("reason") or "").strip()) < REASON_MIN:
+            out.append("say in a sentence why the news does not change the probabilities (at least 10 characters)")
     return out
 
 
@@ -79,14 +100,17 @@ def write(code: str, form: dict, price: float, price_date: str, today: str, rows
     view = jg.latest_by_code(rows).get(code)
     if not view:
         raise ValueError(f"no open view on {code} to update")
-    problems = form_problems(form)
+    if pd.Timestamp(today) > horizon_end(view):
+        raise ValueError(f"vurderingen #{view['seq']} er avsluttet (horisonten gikk ut {horizon_end(view):%Y-%m-%d}) – en oppdatering nå ville vært "
+                         "etterpåklokskap. Logg en ny vurdering i stedet.")
+    problems = form_problems(form, view)
     if problems:
         raise ValueError("; ".join(problems))
     trig = {"date": form.get("trigger_date"), "what": form.get("trigger_what"), "source": form.get("trigger_source")}
     if not trig["date"]:
         raise ValueError("an update needs the news it answers (trigger date)")
     changed = bool(form.get("changed"))
-    probs = [float(form[k]) for k in ("p_bear", "p_base", "p_bull")] if changed else [view.get("p_bear"), view.get("p_base"), view.get("p_bull")]
+    probs = [jg.parse_number(form[k]) for k in ("p_bear", "p_base", "p_bull")] if changed else [view.get("p_bear"), view.get("p_base"), view.get("p_bull")]
     fields = dict(code=code, date=today, ref_seq=view["seq"], trigger=trig, changed=changed,
                   p_bear=probs[0], p_base=probs[1], p_bull=probs[2],
                   prior=[view.get("p_bear"), view.get("p_base"), view.get("p_bull")],
@@ -107,10 +131,11 @@ def scoring(rows: list[dict], table: pd.DataFrame, today: pd.Timestamp, cases=()
     out = {"pairs": [], "answered": len(updates(rows)), "unchanged": sum(not u.get("changed") for u in updates(rows))}
     if len(table) and "scenario_hit" in table:
         for _, t in table[table["status"] == "final"].iterrows():
-            us = updates(rows, int(t["seq"]))
+            j = next(r for r in rows if r.get("seq") == int(t["seq"]))
+            end = f"{horizon_end(j):%Y-%m-%d}"
+            us = [u for u in updates(rows, int(t["seq"])) if str(u.get("date", ""))[:10] <= end]      # written with hindsight: not scored
             if not us or pd.isna(t.get("scenario_hit")):
                 continue
-            j = next(r for r in rows if r.get("seq") == int(t["seq"]))
             b0 = brier([j.get("p_bear"), j.get("p_base"), j.get("p_bull")], t["scenario_hit"])
             last = us[-1]
             b1 = brier([last.get("p_bear"), last.get("p_base"), last.get("p_bull")], t["scenario_hit"])
@@ -134,7 +159,7 @@ def block_html(item: dict | None, rows: list[dict]) -> str:
     late = (f' <span class="k">{item["days"]} dager siden – teller som «ikke oppdatert» til du svarer.</span>' if item["overdue"] else
             f' {item["days"]} dager siden.')
     hidden = "".join(f'<input type="hidden" name="trigger_{k}" value="{E(str(t.get(k) or ""))}">' for k in ("date", "what", "source"))
-    return (f'<div class="decide"><h2>Har sannsynligheten din endret seg?</h2><p><b>{E(t["what"])}</b> ({E(t["date"])}, {E(t["source"])}) kom etter '
+    return (f'<div class="decide"><h2>Har sannsynligheten din endret seg?</h2><p><b>{E(t["what"])}</b> ({dato(t["date"])}, {E(t["source"])}) kom etter '
             f'vurderingen din #{v["seq"]} av {E(str(v["date"]))[:10]}.{late} Nå: bear / base / bull {pvs}.</p>'
             f'<form class="judge" method="post" action="/stock/{E(item["code"])}/update">{hidden}'
             '<div class="row3"><div><label>Bear etter nyheten</label><input name="p_bear" inputmode="decimal"></div>'
@@ -149,7 +174,7 @@ def block_html(item: dict | None, rows: list[dict]) -> str:
 def calibration_html(sc: dict) -> str:
     pairs = sc.get("pairs") or []
     rows = "".join(f'<tr><td>{E(p["code"])} #{p["seq"]}</td><td>{p["updates"]}</td><td>{_b(p["brier_view"])}</td><td>{_b(p["brier_updated"])}</td>'
-                   f'<td>{"bedre" if (p["brier_updated"] or 9) < (p["brier_view"] or 9) else "ikke bedre"}</td></tr>' for p in pairs)
+                   f'<td>{_better(p["brier_updated"], p["brier_view"])}</td></tr>' for p in pairs)
     over = ", ".join(f'{E(p["code"])} ({E(p["trigger"]["what"])}, {p["days"]} d)' for p in sc.get("overdue") or []) or "ingen"
     return ('<h2>Oppdateringer etter ny informasjon</h2><div class="card">'
             f'<p>{sc["answered"]} oppdateringer logget, {sc["unchanged"]} av dem «uendret». Ikke oppdatert (nyhet eldre enn {UPDATE_DUE_DAYS} dager uten svar): {over}.</p>'

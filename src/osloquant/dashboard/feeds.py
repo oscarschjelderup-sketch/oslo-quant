@@ -41,8 +41,10 @@ def write(name: str, doc: dict) -> None:
 
 def _age(doc: dict | None) -> str:
     if not doc or not doc.get("fetched_at"):
-        return "not fetched"
-    return f"fetched {doc['fetched_at'].replace('T', ' ').replace('Z', ' UTC')}"
+        return "ikke hentet"
+    from osloquant.dashboard.dates import stempel
+
+    return f"hentet {stempel(doc['fetched_at'])}"
 
 
 # ------------------------------------------------------------------------------------------------ readers (pages)
@@ -102,7 +104,9 @@ def company_news(code: str, name: str, names: dict[str, str] | None = None) -> d
 def _value(doc: dict | None, label: str, fmt: str) -> dict | None:
     if not doc or doc.get("error") or doc.get("value") is None:
         return {"label": label, "value": "unavailable", "source": (doc or {}).get("error") or "not fetched (oq dashboard --refresh)"}
-    return {"label": label, "value": fmt.format(doc["value"]) + (f" ({doc['date']})" if doc.get("date") else ""),
+    from osloquant.dashboard.dates import dato
+
+    return {"label": label, "value": fmt.format(doc["value"]) + (f" ({dato(doc['date'])})" if doc.get("date") else ""),
             "source": f"{doc.get('source', '')}, {_age(doc)}" + ("; delayed" if doc.get("delayed") else "")}
 
 
@@ -114,14 +118,16 @@ def sector_drivers() -> dict[str, list[dict]]:
                      "fetched_at": rates.get("fetched_at"), "error": rates.get("error")}
     usd = fx and {"value": fx.get("USDNOK"), "date": fx.get("date"), "source": fx.get("source"), "fetched_at": fx.get("fetched_at"), "error": fx.get("error")}
     eur = fx and {"value": fx.get("EURNOK"), "date": fx.get("date"), "source": fx.get("source"), "fetched_at": fx.get("fetched_at"), "error": fx.get("error")}
+    i44 = fx and fx.get("I44") is not None and {"value": fx.get("I44"), "date": fx.get("I44_date"), "source": fx.get("source"), "fetched_at": fx.get("fetched_at")}
+    krone = [_value(i44, "Kronekursindeks I44 (høyere = svakere krone)", "{:.2f}")] if i44 else []
     unavailable = lambda label, why: {"label": label, "value": "not free", "source": why}  # noqa: E731
     return {
         "Energy": [_value(brent, "Brent", "USD {:.2f}/bbl"), _value(usd, "USD/NOK", "{:.3f}")],
         "Shipping": [unavailable("Freight rates (Baltic indices, TCE)", "licensed by the Baltic Exchange – not available free"),
                      _value(usd, "USD/NOK", "{:.3f}")],
-        "Seafood": [_value(salmon, "Salmon export price (fresh, whole)", "NOK {:.2f}/kg"), _value(eur, "EUR/NOK", "{:.3f}")],
+        "Seafood": [_value(salmon, "Salmon export price (fresh, whole)", "NOK {:.2f}/kg"), _value(eur, "EUR/NOK", "{:.3f}"), *krone],
         "Finance": [_value(pr, "Policy rate", "{:.2f}%"), _value(y10, "10-year government bond", "{:.2f}%")],
-        "Industrials & materials": [_value(usd, "USD/NOK", "{:.3f}"), _value(eur, "EUR/NOK", "{:.3f}")],
+        "Industrials & materials": [_value(usd, "USD/NOK", "{:.3f}"), _value(eur, "EUR/NOK", "{:.3f}"), *krone],
         "Consumer, telecom & real estate": [_value(pr, "Policy rate", "{:.2f}%")],
         "Technology & renewables": [_value(y10, "10-year government bond", "{:.2f}%"), _value(usd, "USD/NOK", "{:.3f}")],
         "Investment companies": [_value(y10, "10-year government bond", "{:.2f}%")],
@@ -141,6 +147,7 @@ def refresh(codes: list[str] | None = None) -> dict[str, str]:
     """Fetch every feed into the cache; returns feed -> 'ok' or the error. A failed feed keeps its old cache."""
     from osloquant.dashboard import calendar as cal
     from osloquant.dashboard import insiders as ins
+    from osloquant.dashboard import sources as src
 
     out = {}
     year = datetime.now(UTC).year
@@ -149,22 +156,88 @@ def refresh(codes: list[str] | None = None) -> dict[str, str]:
                      ("insiders", lambda: ins.fetch(codes or [], start_year=year, log=lambda s: None)),
                      ("calendar", lambda: cal.fetch_financial_calendars(followed_codes()))):
         try:
-            write(name, fn())
+            write(name, src.timed(src.FEED_KEY.get(name, name), fn))
             out[name] = "ok"
-        except Exception as e:  # noqa: BLE001 – one feed down must not stop the others
+        except Exception as e:  # noqa: BLE001 – one feed down must not stop the others; the attempt is in the run log
             out[name] = f"{type(e).__name__}: {e}"[:200]
     return out
 
 
-def _get(url: str, method: str = "GET", timeout: int = 20) -> bytes:
-    req = urllib.request.Request(url, method=method, headers={"User-Agent": UA, "Accept": "*/*"},
-                                 data=b"" if method == "POST" else None)
+RETRY_PAUSES = (2.0, 5.0)        # seconds before the second and third attempt
+RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
+
+def _open(req, timeout: int) -> bytes:
     with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 – fixed https URLs below
         return r.read()
 
 
+def _get(url: str, method: str = "GET", timeout: int = 20, pauses: tuple[float, ...] | None = None) -> bytes:
+    """One request with up to three attempts. A network error, a timeout, a 429 or a 5xx is tried again after a pause;
+    any other HTTP status (404: no such page) is an answer and is raised at once."""
+    import time
+    import urllib.error
+
+    pauses = RETRY_PAUSES if pauses is None else pauses
+    for attempt in range(len(pauses) + 1):
+        req = urllib.request.Request(url, method=method, headers={"User-Agent": UA, "Accept": "*/*"},
+                                     data=b"" if method == "POST" else None)
+        try:
+            return _open(req, timeout)
+        except urllib.error.HTTPError as e:
+            if e.code not in RETRY_STATUS or attempt == len(pauses):
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == len(pauses):
+                raise
+        time.sleep(pauses[attempt])
+    raise RuntimeError("unreachable")
+
+
 NEWSWEB = "https://api3.oslo.oslobors.no/v1/newsreader"
 ANN_DAYS, ANN_KEEP_DAYS = 14, 120
+
+
+def days_to_fetch(fetched_at: str | None, today, most: int = ANN_DAYS) -> int:
+    """How many calendar days back a list must go: the days since the last good fetch plus one of overlap, at most
+    ``most``. Fetched yesterday evening gives 2 (today and yesterday), not 14."""
+    try:
+        last = datetime.strptime(str(fetched_at), "%Y-%m-%dT%H:%M:%SZ").date()
+    except ValueError:
+        return most
+    return max(2, min(most, (today - last).days + 2))
+
+
+# Corporate events read off the announcement titles we fetch anyway (D60, funn D13). Bonds are not shares.
+_NOT_SHARES = r"(?i)\b(bonds?|obligasjon\w*|notes due|green bond|certificates?|sertifikat\w*|warrants?|etn|etf)\b"
+CORPORATE = (
+    ("ny på børsen", r"(?i)admission to trading|admitted to trading|opptak til handel|first day of (trading|listing)|første (handels|noterings)dag|approved for listing|listing on (euronext )?(oslo børs|expand|growth)"),
+    ("avnotering", r"(?i)delisting|strykning|removal from trading|last day of trading|siste (handels|noterings)dag|compulsory acquisition|tvangsinnløsning"),
+    ("navn eller ticker", r"(?i)change of (company )?name|name change|navneendring|endring av (selskaps)?navn|new ticker|ny ticker|change of ticker|ticker change"),
+    ("fisjon eller fusjon", r"(?i)\bdemerger\b|\bspin-?off\b|\bfisjon\w*|\bmerger\b|\bfusjon\w*"),
+    ("splitt eller spleis", r"(?i)share split|reverse (share )?split|aksjesplitt|aksjespleis|\bspleis\b|consolidation of shares"),
+    ("emisjon", r"(?i)private placement|rights issue|rettet emisjon|fortrinnsrettsemisjon|\bemisjon\b|share capital increase|kapitalforhøyelse|subsequent offering|reparasjonsemisjon"),
+)
+CORPORATE_KEEP_DAYS = 120
+
+
+def corporate_kind(title: str) -> str | None:
+    """What kind of corporate event a title announces, or None. A bond listing is not a share listing."""
+    import re
+
+    if not title or re.search(_NOT_SHARES, title):
+        return None
+    for kind, pattern in CORPORATE:
+        if re.search(pattern, title):
+            return kind
+    return None
+
+
+def corporate_events(days: int = CORPORATE_KEEP_DAYS, now: datetime | None = None) -> list[dict]:
+    """The corporate events in the announcement cache from the last ``days`` days, newest first."""
+    doc = read("announcements") or {}
+    cutoff = f"{(now or datetime.now(UTC)) - timedelta(days=days):%Y-%m-%d}"
+    return sorted((e for e in doc.get("corporate", []) if e.get("time", "")[:10] >= cutoff), key=lambda e: e["time"], reverse=True)
 
 
 def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
@@ -172,12 +245,20 @@ def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
     Stores title, time, category and the NewsWeb link – never the body. Merged with the cache, kept 120 days."""
     want = {c.upper() for c in codes}
     today = datetime.now(UTC).date()
-    items = {a["id"]: a for a in (read("announcements") or {}).get("items", [])}
+    old = read("announcements") or {}
+    items = {a["id"]: a for a in old.get("items", [])}
+    corporate = {e["id"]: e for e in old.get("corporate", [])}
+    days = days_to_fetch(old.get("fetched_at"), today, days) if items else days
     for i in range(days):
         d = f"{today - timedelta(days=i):%Y-%m-%d}"
         doc = json.loads(_get(f"{NEWSWEB}/list?fromDate={d}&toDate={d}", method="POST"))
         for m in doc.get("data", {}).get("messages", []):
             code = (m.get("issuerSign") or "").upper()
+            kind = corporate_kind(m.get("title", ""))
+            if kind and (code in want or kind == "ny på børsen"):       # a new listing matters also outside the universe
+                corporate[m["messageId"]] = {"id": m["messageId"], "code": code, "issuer": m.get("issuerName"), "title": m.get("title", ""),
+                                             "time": m.get("publishedTime", ""), "kind": kind, "in_universe": code in want,
+                                             "url": f"https://newsweb.oslobors.no/message/{m['messageId']}"}
             if want and code not in want:
                 continue
             cat = (m.get("category") or [{}])[0]
@@ -186,7 +267,9 @@ def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
                                      "url": f"https://newsweb.oslobors.no/message/{m['messageId']}"}
     cutoff = f"{today - timedelta(days=ANN_KEEP_DAYS):%Y-%m-%d}"
     kept = sorted((a for a in items.values() if a["time"][:10] >= cutoff), key=lambda a: a["time"], reverse=True)
-    return {"items": kept, "source": "Oslo Børs NewsWeb (real time; private use only)"}
+    corp = sorted((e for e in corporate.values() if e["time"][:10] >= f"{today - timedelta(days=CORPORATE_KEEP_DAYS):%Y-%m-%d}"),
+                  key=lambda e: e["time"], reverse=True)
+    return {"items": kept, "corporate": corp, "source": "Oslo Børs NewsWeb (real time; private use only)"}
 
 
 NORGES_BANK = "https://data.norges-bank.no/api/data"
@@ -210,8 +293,14 @@ def fetch_rates() -> dict:
 
 def fetch_fx() -> dict:
     rows = {r["BASE_CUR"]: r for r in _nb_last("EXR/B.USD+EUR.NOK.SP")}
-    return {"USDNOK": float(rows["USD"]["OBS_VALUE"]), "EURNOK": float(rows["EUR"]["OBS_VALUE"]),
-            "date": rows["USD"]["TIME_PERIOD"], "source": "Norges Bank (NLOD), daily fixing ~16:00 CET, not live"}
+    out = {"USDNOK": float(rows["USD"]["OBS_VALUE"]), "EURNOK": float(rows["EUR"]["OBS_VALUE"]),
+           "date": rows["USD"]["TIME_PERIOD"], "source": "Norges Bank (NLOD), daily fixing ~16:00 CET, not live"}
+    try:        # the import-weighted krone index (D63): one more series from the same open API; its failure never costs the rates above
+        i44 = _nb_last("EXR/B.I44.NOK.SP")[-1]
+        out["I44"], out["I44_date"] = float(i44["OBS_VALUE"]), i44["TIME_PERIOD"]
+    except Exception as e:  # noqa: BLE001
+        out["errors"] = [f"I44: {type(e).__name__}"]
+    return out
 
 
 SSB_SALMON = ("https://data.ssb.no/api/pxwebapi/v2/tables/03024/data?lang=en&outputFormat=csv"

@@ -1,0 +1,2 @@
+# the vendored chart library and its licence files stay byte-identical to the npm release
+src/osloquant/dashboard/static/lightweight-charts.* -text

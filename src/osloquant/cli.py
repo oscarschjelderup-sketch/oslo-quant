@@ -94,10 +94,25 @@ def record(
             for schema in (IncomeStatement, BalanceSheet, CashFlowStatement, FinanceFactor)
         ]
 
+    import time
+
+    from osloquant.dashboard import sources
+
     for schema, kwargs in steps:
-        with console.status(f"Recording {schema.__name__} ..."):
-            summary = schema.record_data(provider="yahoo", **kwargs)
+        key, t0 = sources.TABLE_KEY.get(schema.__name__), time.monotonic()
+        try:
+            with console.status(f"Recording {schema.__name__} ..."):
+                summary = schema.record_data(provider="yahoo", **kwargs)
+        except Exception as e:
+            if key:
+                sources.record_run(key, False, f"{type(e).__name__}: {e}", time.monotonic() - t0)
+            raise
+        if key:        # what happened goes in the dashboard's run log, so a failed evening shows on the front page
+            failed = ", ".join(f"{k}: {v}"[:80] for k, v in list(summary.failed.items())[:3])
+            sources.record_run(key, not summary.failed, f"{len(summary.failed)} feilet ({failed})" if summary.failed else None,
+                               time.monotonic() - t0, summary.rows)
         console.print(f"[green]ok[/green] {summary}" if not summary.failed else f"[yellow]partly[/yellow] {summary}")
+    sources.clear_cache()
 
 
 @app.command()

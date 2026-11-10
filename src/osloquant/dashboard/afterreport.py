@@ -32,6 +32,7 @@ import pandas as pd
 import yaml
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato, stempel
 
 AR_DIR = "afterreport"
 SPEC_DIR = "specs"
@@ -265,6 +266,8 @@ def _fmt(name: str, v) -> str:
         return f"{v:.1f}x"
     if name in ("implied_g", "ev_vs_no_growth"):
         return f"{v * 100:+.1f} %"
+    if name == "quarters_through":
+        return dato(v)
     return str(v)
 
 
@@ -299,14 +302,14 @@ def block_html(code: str, log: dict | None) -> str:
                   f'Forslag skrevet til {E(str(rd.get("suggested_spec") or ""))}.' if not rd.get("error") else f'Prøvekjøring feilet: {E(rd["error"])}')
     else:
         reader = ""
-    head = (f'Rapport: <a href="{E(rep["url"])}">{E(rep["title"])}</a> ({E(rep["date"])}, {E(rep["source"])}) – PDF <a href="/report/{code}/{rep["message_id"]}.pdf">{E(rep["pdf"])}</a>.'
+    head = (f'Rapport: <a href="{E(rep["url"])}">{E(rep["title"])}</a> ({dato(rep["date"])}, {E(rep["source"])}) – PDF <a href="/report/{code}/{rep["message_id"]}.pdf">{E(rep["pdf"])}</a>.'
             if rep else "Ingen rapport funnet på NewsWeb i perioden.")
     return (f'<h2>Etter rapporten</h2><div class="card"><p>{head}</p>'
             + (f'<table class="odds"><thead><tr><th>Lett case</th><th>Før</th><th>Etter</th><th>Endring</th></tr></thead><tbody>{rows}</tbody></table>' if rows else
                f'<div class="warn">{E(lc.get("error") or "lett case ikke bygget på nytt")}</div>')
             + (f'<div class="sub" style="margin-top:8px">{reader}</div>' if reader else "")
             + "".join(f'<div class="warn">{E(w)}</div>' for w in lc.get("warnings") or [])
-            + f'<div class="src">Kjørt {E(log["ran_at"])} (oq case after-report). ' + " · ".join(E(s) for s in log.get("steps", [])) + '</div></div>')
+            + f'<div class="src">Kjørt {stempel(log["ran_at"])} (oq case after-report). ' + " · ".join(E(s) for s in log.get("steps", [])) + '</div></div>')
 
 
 def queue_html(items: list[dict], today: pd.Timestamp) -> str:

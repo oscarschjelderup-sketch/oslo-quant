@@ -15,6 +15,7 @@ import shutil
 from pathlib import Path
 
 from osloquant import judgements as jg
+from osloquant.dashboard.dates import dato
 
 FNAME = re.compile(r"^(?P<code>[A-Z0-9]+)_Research_Report_(?P<date>\d{4}-\d{2}-\d{2})\.pdf$")
 SAFE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,120}\.pdf$")
@@ -142,7 +143,7 @@ def block_html(code: str, ents: list[dict], rev: dict | None, mismatch: dict | N
                 f'<div class="src">Rapportbyggeren i Equity Research Toolkit legger PDF og estimater i ~/osloquant-home/cases/reports_pdf/{E(code)}/ ved bygg '
                 '(build_report.py). Første rapport viser estimatene; den andre viser revisjonen mot den første.</div></div>')
     rows = "".join(
-        f'<tr><td><a href="{E(e["url"])}" target="_blank" rel="noopener">{E(e["date"])}</a></td><td>{E(e.get("kind") or "–")}</td>'
+        f'<tr><td><a href="{E(e["url"])}" target="_blank" rel="noopener">{dato(e["date"])}</a></td><td>{E(e.get("kind") or "–")}</td>'
         f'<td>{E(e.get("rating") or "–")}</td><td>{_g(e.get("tp"))}</td><td>{_n(e.get("dcf"), 1)}</td>'
         f'<td>{_px(e)}</td>'
         f'<td>{e["pages"] if e.get("pages") else "–"}</td><td>{"✓" if e.get("gate_ok") else ("–" if e.get("gate_ok") is None else "✗")}</td>'
@@ -151,8 +152,8 @@ def block_html(code: str, ents: list[dict], rev: dict | None, mismatch: dict | N
              f'<tbody>{rows}</tbody></table>')
     mm = ""
     if mismatch:
-        mm = (f'<div class="warn"><b>Rapporten av {E(mismatch["report_date"])} har kursmål {mismatch["report_tp"]:g} ({E(mismatch["report_rating"] or "")}) – '
-              f'vurderingen i research book sier {mismatch["view_tp"]:g} ({E(mismatch["view_rating"] or "")}, {E(mismatch["view_date"])}).</b> '
+        mm = (f'<div class="warn"><b>Rapporten av {dato(mismatch["report_date"])} har kursmål {mismatch["report_tp"]:g} ({E(mismatch["report_rating"] or "")}) – '
+              f'vurderingen i research book sier {mismatch["view_tp"]:g} ({E(mismatch["view_rating"] or "")}, {dato(mismatch["view_date"])}).</b> '
               f'Avvik {pct(mismatch["diff"])}. Rapporten endrer ikke research book: logg en ny vurdering i skjemaet under (også om du holder på {mismatch["view_tp"]:g}) '
               'og skriv hvorfor du avviker fra rapporten, eller følger den.</div>')
     rv = ""
@@ -174,9 +175,8 @@ def _g(v) -> str:
 
 
 def _px(e: dict) -> str:
-    from osloquant.dashboard.render import E
 
-    return f'{e["price"]:.2f} ({E(str(e.get("price_date") or "")[:10])})' if isinstance(e.get("price"), (int, float)) else "–"
+    return f'{e["price"]:.2f} ({dato(str(e.get("price_date") or "")[:10])})' if isinstance(e.get("price"), (int, float)) else "–"
 
 
 def _n(v, d=0) -> str:

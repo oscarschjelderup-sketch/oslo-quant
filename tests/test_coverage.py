@@ -166,7 +166,7 @@ def test_coverage_page_lists_both_views_and_agreement():
              "claude": {"rating": "SELL", "target": 40.0, "since": None, "to_tp": -0.2}, "reads": None, "next": None}]
     html = rd.coverage_page(rows, today)
     assert "2 selskaper" in html and "du har syn på 1, Claude på 2" in html and "Bare Claude har syn på 1" in html
-    assert "✗" in html and "12 Nov (10 d)" in html
+    assert "✗" in html and "12. nov. (10 d)" in html
 
 
 # ------------------------------------------------------------------------------------------------ report layout (D32)
@@ -195,10 +195,10 @@ def test_stock_page_is_laid_out_as_a_report_front_page(app, monkeypatch):  # noq
     assert all(f'data-tab="{t}"' in page for t in ("oversikt", "regnskap", "verdsettelse", "teknisk", "rapporter", "eiere", "vurdering"))
     assert '<div class="view-big">BUY</div>' in page and "TP: NOK 120" in page                  # the research-book view, large (Min vurdering)
     assert "Mitt syn <b>BUY</b>" in page and "NOK 120" in page                                     # and in short form in the bar
-    assert "Kapitalstruktur" in page and "EV/EBIT (LTM)" in page and "EURNOK 11.000" in page      # Regnskap → Oversikt
+    assert "Kapitalstruktur" in page and "EV/EBIT (LTM)" in page and "EURNOK 11,000" in page      # Regnskap → Oversikt
     assert "Neste hendelse" in page and "Q4 report" in page                                      # from the book's events (Rapporter)
     assert "Investeringscase" in page and "Nedside – kill-kriterier" in page and "margin below 10%" in page
-    assert 'class="keyfig"' in page and "<th>2024</th><th>2025</th>" in page and "Omsetningsvekst" in page and "+6.7 %" in page
+    assert 'class="keyfig"' in page and "<th>2024</th><th>2025</th>" in page and "Omsetningsvekst" in page and "+6,7 %" in page
     assert "Ingen estimater vises" in page and "EST" in page
     assert "prefers-color-scheme" not in page                                                      # one light theme (D32)
     # a company without a case keeps the layout, with the view box saying so

@@ -14,6 +14,9 @@ New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir ("weekly-output-{0}.log" -f (Get-Date -Format "yyyy"))
 
 $env:PYTHONIOENCODING = "utf-8"
+# PowerShell 5.1 decodes a program's output with the console's code page: without this, «på» is logged as «p├Ñ»
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $env:COLUMNS = "160"
 $ErrorActionPreference = "Continue"
 
@@ -22,6 +25,10 @@ if (-not (Test-Path $oq)) {
     "oq is not installed at $oq. Create the environment first: uv venv; uv pip install -e ." | Out-File -FilePath $log -Append -Encoding utf8
     exit 3
 }
+# the statements once a week (six requests per company): P/E, margins and the light cases read them
+$output = & $oq record --raw --finance 2>&1 | ForEach-Object { "$_" }
+$output | Out-File -FilePath $log -Append -Encoding utf8
+"record --finance exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
 $output = & $oq dashboard --refresh-only 2>&1 | ForEach-Object { "$_" }
 $output | Out-File -FilePath $log -Append -Encoding utf8
 $output = & $oq book weekly --open --notify 2>&1 | ForEach-Object { "$_" }
