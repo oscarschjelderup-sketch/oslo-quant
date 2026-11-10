@@ -25,14 +25,17 @@ Grenen er `forbedring-2026-11-10` (worktree `Private prosjekter/oslo-quant-forbe
 - **E16 noterte kurser** (4513a57): dagsendring og 12 m lav/høy.
 - **E17 skjemaflyt** (7e95e61): riktig fane ved feil, bekreftelse fra loggen.
 - **E18 kildekontroll og I44** (a63d48d).
+- **E19 perioder etter kalenderen og fem logikkfeil** (8fd3c07).
+- **E20–E21 multipler ved riktig kurs, «kurs ved horisonten», volumaksen i kursgrafen** (4a874d4). Tre visuelle
+  grunnlinjer for kursgrafen er tatt på nytt.
 - **Rapport:** `docs/forbedring/rapport.md` (kopi i `Pareto Equity Research/forbedring-2026-11-10/rapport.md`).
-  Etter-bilder i `forbedring-2026-11-10/etter`. Hele testsettet: 618 grønne.
+  Etter-bilder i `forbedring-2026-11-10/etter` (tatt etter E18). Hele testsettet: 627 grønne.
 
 ## Pågår
 - (ingenting)
 
 ## Neste (hvis en ny økt fortsetter)
-- De 49 åpne funnene om tall og logikk i `funn.md` (vedlegget, status «åpen»): start med #8, #14, #45, #59, #60.
+- De 40 åpne funnene om tall og logikk i `funn.md` (vedlegget, status «åpen»): start med #8, #19, #20, #32, #50, #51.
 - Ytelse: første visning etter oppstart (#84, #94, #95, N1), laste-indikator.
 - Ett Plotly-tema, hover med kilde og tid på fellessidene, norske feilmeldinger i skjemaene.
 - Typesjekk, CSRF (#119), unntak som svelges (#120).

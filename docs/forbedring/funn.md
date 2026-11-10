@@ -163,7 +163,7 @@ Tre flyter gått som bruker på testhjemmet.
 
 ## Vedlegg: funnene fra 9. nov. med status på denne grenen
 
-Status er oppdatert 10. nov. etter E1–E18: «rettet (E…)» viser til `endringer.md`. #6, #15 og #36 er rettet ved roten (kveldsoppgaven henter nå tabellene) og gjelder fra første kjøring etter sammenslåing.
+Status er oppdatert 10. nov. etter E1–E21: «rettet (E…)» viser til `endringer.md`. #6, #15 og #36 er rettet ved roten (kveldsoppgaven henter nå tabellene) og gjelder fra første kjøring etter sammenslåing.
 
 Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat av et annet funn.
 
@@ -182,7 +182,7 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #11 | Feil tall | 5Å er alltid av og «Maks» er bare 2,2 år: aksjesiden laster 800 dager, ikke fem år | dup #12 |
 | #12 | Feil tall | Kursøyeblikksbildet holder bare 800 dager: 5Å er slått av for alle aksjer med feil begrunnelse, og «Maks» betyr bare fra 2. sep. 2024 | løst av D59 |
 | #13 | Feil tall | Utbyttetabellen regner «Kurs før» og yield på justert kurs, så eldre yield blir for høy | åpen |
-| #14 | Feil tall | «P/E ved kurs X» i Nøkkeltall per år viser multippelen ved lett-casens byggekurs, ikke ved kursen som står i etiketten | åpen |
+| #14 | Feil tall | «P/E ved kurs X» i Nøkkeltall per år viser multippelen ved lett-casens byggekurs, ikke ved kursen som står i etiketten | rettet (E20) |
 | #15 | Feil tall | Regnskapet i lageret mangler 3. kvartal for 11 selskaper som har rapportert: P/E i Oversikt er regnet på tall til 30. juni uten varsel | rettet (E4) |
 | #16 | Feil tall | Kalibrering: totalavkastningen mister utbyttet når den noterte serien mangler på vurderingsdatoen | åpen |
 | #17 | Feil tall | Dagsendringen i kursbaren regnes mot utbyttejustert forrige sluttkurs, så den er feil på hver eks-dag | dup #30 |
@@ -190,14 +190,14 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #19 | Feil tall | «Prisen krever»: KOG sammenlignes med en omsetningsvekst som går over et perimeterbrudd (−0.3 %/år) og havner på kandidatlisten | åpen |
 | #20 | Feil tall | «Prisen krever» regner på lett-casens byggekurs, men siden sier ikke når den ble bygget | åpen |
 | #21 | Feil tall | Regnskap → Nøkkeltall: «P/E ved kurs 45.50» viser P/E ved lett-casens gamle kurs (15.5x), Oversikt viser 15.7x for samme kurs | dup #14 |
-| #22 | Feil tall | «kurs nå» / «Nå» på /review og /calibration er kursen ved horisonten for endelige vurderinger, ikke dagens kurs | åpen |
+| #22 | Feil tall | «kurs nå» / «Nå» på /review og /calibration er kursen ved horisonten for endelige vurderinger, ikke dagens kurs | rettet (E20) |
 | #23 | Feil tall | Klokkeslett i to tidssoner uten merking: «Generert» i bunnteksten er maskinens lokaltid, «Logget», desk og «hentet» er Oslo-tid | åpen |
 | #24 | Feil tall | «P/E ved kurs 45.50» osv. i Nøkkeltall per år er regnet på lett-casens eldre kurs | dup #14 |
 | #25 | Feil tall | PROT: LTM-kolonnen heter «LTM til 31. des. 2025» og EBIT-marginen blander to perioder | åpen |
 | #26 | Feil tall | KIT: lett case henter netto gjeld fra 31. mars 2026 og merker egenkapitalen per 30. sep. 2026 med samme dato | åpen |
 | #27 | Feil tall | Short «siste 30 dager» måles fra siste registerhendelse, ikke fra i dag | åpen |
 | #28 | Feil tall | Odds-kortet har hardkodet «64 aksjer», mens lageret nå har 65 | åpen |
-| #29 | Feil tall | RSI-raden viser «nan» når serien er flat | åpen |
+| #29 | Feil tall | RSI-raden viser «nan» når serien er flat | rettet (E19) |
 | #30 | Feil tall | På eks-dagen viser toppbaren, /sectors og forsiden totalavkastning som «endring mot forrige sluttkurs», ikke kursendringen | rettet (E16) |
 | #31 | Feil tall | «12 m lav / høy» viser justerte sluttkurser som aksjen aldri har handlet til | rettet (E16) |
 | #32 | Feil tall | Multippelhistorikken (P/E og P/S per årsslutt) bruker justert årssluttkurs og dagens valutakurs | åpen |
@@ -213,7 +213,7 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #42 | Feil tall | Bunnteksten «Generert» bruker maskinens lokale tid, resten av siden Oslo-tid | dup #23 |
 | #43 | Feil tall | ELK: «Etter rapporten» viser «Vekst prisen krever −38.6 %» mens lett case på samme side sier at ingen vekstrate gjelder | åpen |
 | #44 | Feil logikk | Utfallsodds gir dommen «klart mot kill-nivået» når det ikke finnes noen simulering (nylig notert aksje, OUTLT) | rettet (E8) |
-| #45 | Feil logikk | Oppdateringsløkka (D48) aksepterer en oppdatering etter at horisonten er ute og scorer den i etterpåklokskap | åpen |
+| #45 | Feil logikk | Oppdateringsløkka (D48) aksepterer en oppdatering etter at horisonten er ute og scorer den i etterpåklokskap | rettet (E19) |
 | #46 | Feil logikk | Oppdateringsskjemaet (D48) kaster de nye sannsynlighetene stille hvis «endret» ikke er krysset av, og skriver de gamle til den uforanderlige loggen | rettet (E7) |
 | #47 | Feil logikk | Oppdateringsspørsmålet stilles for vurderinger som har passert horisonten, og Brier for en oppdatering skrevet etter horisonten settes som «bedre» … | dup #45 |
 | #48 | Feil logikk | «nan», «inf» og «1e999» godtas som tall og skrives permanent i vurderingsloggen | rettet (E7) |
@@ -227,8 +227,8 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #56 | Feil logikk | En halvferdig dagsbar fra en kjøring i åpningstiden vises som «siste sluttkurs», mens oddsene på samme side dropper den | åpen |
 | #57 | Feil logikk | Teknisk-raden «60 dagers lav» bruker sluttkurser, mens oddsene den viser er målt på intradag-low | åpen |
 | #58 | Feil logikk | Varselet om gamle kurser på «I dag» slår ut dagen etter hver børsfridag, men ikke en ukedagskveld da dagens sluttkurs mangler | rettet (E5) |
-| #59 | Feil logikk | 6M og 5Å teller økter i stedet for kalendermåneder: 6M for SATS viser +6.0 %, der seks måneder gir +10.3 % | åpen |
-| #60 | Feil logikk | «other» (ingen driver gjenkjent) telles som delt kill-driver: forsiden og analysesjefen varsler at urelaterte syn «dør av samme driver» | åpen |
+| #59 | Feil logikk | 6M og 5Å teller økter i stedet for kalendermåneder: 6M for SATS viser +6.0 %, der seks måneder gir +10.3 % | rettet (E19) |
+| #60 | Feil logikk | «other» (ingen driver gjenkjent) telles som delt kill-driver: forsiden og analysesjefen varsler at urelaterte syn «dør av samme driver» | rettet (E19) |
 | #61 | Feil logikk | Etter en oppdatering viser syn-boksen, oddsene og Før du kjøper fortsatt de gamle sannsynlighetene | åpen |
 | #62 | Feil logikk | Ugyldig desk-POST (ukjent kode) lagrer en tom kjøring som blir «Dagens kjøring» på /desk og forsiden | åpen |
 | #63 | Feil logikk | Utfallsodds gir dommen «klart mot kill-nivået» uten data (OUTLT, 33 økter) | dup #44 |
@@ -238,12 +238,12 @@ Full tekst med reproduksjon står i `docs/feilsok/funn.md`. «dup» = duplikat a
 | #67 | Feil logikk | Lett case sier «the price needs growth at or above the cost of capital» når den løste veksten ligger under (SALM: 8,33 % mot 8,5 %) | åpen |
 | #68 | Feil logikk | value_reading gir meningsløse lesninger på kantinput: ROIC None gir «at or above WACC», og EV ≤ 0 gir et negativt avkastningskrav | åpen |
 | #69 | Feil logikk | «Før du kjøper» beskriver odds-metoden feil: universet bruker volatilitetsskalerte avstander, ikke «like nivåer» eller «samme prosentavstander» | åpen |
-| #70 | Feil logikk | Periodeknappene er én økt for strenge: med n+1 sluttkurser deaktiveres perioden n | åpen |
+| #70 | Feil logikk | Periodeknappene er én økt for strenge: med n+1 sluttkurser deaktiveres perioden n | rettet (E19) |
 | #71 | Feil logikk | Størrelseskalkulatoren i skjemaet (JS) ignorerer max_loss_per_group og tilbyr en størrelse serveren avviser | åpen |
-| #72 | Feil logikk | «bedre/ikke bedre» i oppdateringstabellen gjør Brier 0,0 om til 9 | åpen |
+| #72 | Feil logikk | «bedre/ikke bedre» i oppdateringstabellen gjør Brier 0,0 om til 9 | rettet (E19) |
 | #73 | Feil logikk | Kvartalsprognose (D52) kan besvares av feil rapport: answer() ser ikke på prognosens rapportdato | åpen |
 | #74 | Feil logikk | «Kill-kriterium handlet på» teller norske ord som «beholdt» som handling | åpen |
-| #75 | Feil logikk | Forsiden kaller en vurdering «past its horizon» 4–6 dager før horisonten (360 dager mot 12 kalendermåneder) | åpen |
+| #75 | Feil logikk | Forsiden kaller en vurdering «past its horizon» 4–6 dager før horisonten (360 dager mot 12 kalendermåneder) | rettet (E20) |
 | #76 | Feil logikk | «Utbytte siste 12 m» og direkteavkastningen dobles i dagene etter et årlig utbytte som kom tidligere enn året før | åpen |
 | #77 | Feil logikk | /sectors: gruppens «snitt … i år» tar med avkastning fra notering uten å merke det | åpen |
 | #78 | Feil logikk | Periodeknappen trenger én sluttkurs mer enn /sectors for samme periode (feil med én for nye aksjer) | åpen |
