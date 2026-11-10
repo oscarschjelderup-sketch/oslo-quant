@@ -1732,6 +1732,7 @@ def nav_chart(series: dict[str, dict], title: str, height: int = 320) -> str:
 
 
 def funds_page(b: dict | None, tracked: list[dict], today) -> str:
+    from osloquant.dashboard import fundchart as fc
     from osloquant.dashboard import funds as fn
 
     if not b:
@@ -1764,7 +1765,7 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                f'<tbody>{trs}</tbody></table>'
                + nav_chart(bt.get("nav") or {}, f"Verdi av 1 fra {bt.get('start', '?')}, bygget på nytt hver måned av foregående tre år, kostnad {b['cost']:.2%} av omsetning")
                + f'<div class="src">Walk-forward: ved hvert månedsskifte bygges porteføljen av de foregående {b["lookback_years"]:.0f} årene alene og holdes én måned. '
-               f'Sharpe mot styringsrenten ({E(b["rf_label"])}). Intervallene er måneds-blokk-bootstrap (1000 trekk) på Sharpe-differansen. '
+               f'Sharpe mot styringsrenten ({E(fc.rf_text(b["rf_label"]))}). Intervallene er måneds-blokk-bootstrap (1000 trekk) på Sharpe-differansen. '
                '<b>Universet er dagens aksjer i lageret – overlevere. Likevekt slo OSEBX med god margin i denne perioden av samme grunn; '
                'det riktige sammenligningsgrunnlaget for en oppskrift er likevekt, ikke indeksen.</b></div></div>') if rows else ''
     # 3. tracked paper funds
@@ -1792,8 +1793,7 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                    'Porteføljene som ikke bruker snitt (likevekt, minimum varians, risikoparitet) er de minst sårbare for dette.</div></div>')
     body = ['<h1>Porteføljer</h1><div class="sub">Modellporteføljer satt sammen av lagerets aksjer: hvor de ligger mot den effisiente fronten og kapitalmarkedslinjen, '
             'hvordan oppskriften gjorde det ut av prøven, og hvordan de går som papirfond fra den dagen de ble skrevet.</div>',
-            f'<div class="src">Bygget {stempel(b["built_at"])} på kurser til {dato(b["asof"])} ({len(b["stocks"])} aksjer med tre års historikk). Risikofri rente: {E(b["rf_label"])}. Alt EST der det står.</div>',
-            f'<div class="card">{frontier_chart(b)}<div class="src">Fronten og CML er regnet på de samme inndataene som fondene – de sier hva inndataene sier, ikke hva som skjer. '
-            'Diamantene er fondene slik de står i dag.</div></div>',
+            fc.stale_html(b, today),
+            f'<div class="card" id="front">{fc.html(b, today)}</div>',
             '<h2>Fondene i dag</h2><div class="grid">' + "".join(cards) + '</div>', bt_html, track_html, inputs_html]
     return page("Porteføljer", "/funds", "\n".join(body))
