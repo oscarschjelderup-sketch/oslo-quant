@@ -62,11 +62,20 @@ def _exposed(table: pd.DataFrame, d: mc.Driver, names: dict[str, str]) -> str:
     return (f'<div class="mexp"><span class="src">Mest følsomme aksjer, for {mc.step_text(d)} i driveren:</span><ul>{items}</ul></div>')
 
 
+FRED_WHY = {
+    "mangler": "Krever en gratis nøkkel fra FRED (St. Louis Fed): lagre den i <code>~/osloquant-home/keys/fred.txt</code>, så henter kveldsoppgaven serien.",
+    "feil format": "FRED-nøkkelen i <code>~/osloquant-home/keys/fred.txt</code> har feil format (den skal være 32 bokstaver og tall).",
+    "avvist": "FRED avviste nøkkelen i <code>~/osloquant-home/keys/fred.txt</code>. Sjekk den på fredaccount.stlouisfed.org.",
+}
+
+
 def driver_card(d: mc.Driver, series: dict[str, pd.Series], table: pd.DataFrame, names: dict[str, str]) -> str:
     c = mc.cell(d, series.get(d.key, pd.Series(dtype=float)))
     head = f'<h3 id="d-{_E(d.key)}">{_E(d.name)}' + (f' <span class="unit">{_E(d.unit)}</span>' if d.unit and d.unit != "%" else "") + "</h3>"
     if c.get("empty"):
-        return (f'<div class="card mcard">{head}<p class="empty">Ikke hentet ennå. Kveldsoppgaven henter serien; for hånd: <code>oq dashboard --refresh</code>.</p>'
+        state = ((fd.read(mc.FEED) or {}).get("fred") or {}).get("key") if mc.from_fred(d) else None
+        why = FRED_WHY.get(state or "", "Ikke hentet ennå. Kveldsoppgaven henter serien; for hånd: <code>oq dashboard --refresh</code>.")
+        return (f'<div class="card mcard">{head}<p class="empty">{why}</p>'
                 f'<div class="src">Kilde: {_E(d.source)}.</div></div>')
     short = len(series[d.key]) < 30
     figs = (f'<div class="mfig"><b>{mc.fmt_level(d, c["level"])}</b>'
@@ -112,13 +121,17 @@ def matrix_html(table: pd.DataFrame, groups: dict[str, str], order: list[str]) -
 
 
 def calendar_html(events: list[dict], today: pd.Timestamp, days: int = 45) -> str:
-    """What is coming: Norges Bank's rate meetings (120 days ahead) and the followed companies' dated events (45 days)."""
+    """What is coming: Norges Bank's rate meetings (120 days ahead), the followed companies' dated events and the US
+    releases from FRED's calendar (45 days)."""
     rows = []
     for e in events:
         d = pd.Timestamp(e["date"])
         if e.get("kind") == "rates":
             what = "Rentemøte i Norges Bank" + (" med pengepolitisk rapport" if "Monetary Policy Report" in str(e.get("what")) else "")
             rows.append((d, "Renter", what, "Norges Banks møteplan"))
+        elif e.get("kind") == "release":
+            if today <= d <= today + pd.Timedelta(days=days):
+                rows.append((d, "USA", f'Tallslipp: {e.get("what", "")}', e.get("source") or "FRED"))
         elif today <= d <= today + pd.Timedelta(days=days) and not e.get("duplicate_of_case_event"):
             rows.append((d, e.get("code") or "", f'{e.get("name") or e.get("code") or ""}: {e.get("what", "")}'[:110], e.get("source") or ""))
     if not rows:
@@ -139,10 +152,12 @@ def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: l
     doc = fd.read(mc.FEED) or {}
     fetched = stempel(doc["fetched_at"]) if doc.get("fetched_at") else "aldri"
     errs = doc.get("errors") or []
+    fred = mc.uses_fred(doc)
     groups = {c: snap.group(c) for c in snap.names}
     head = ('<h1>Makro</h1><div class="sub">Rentene, kronen, råvarene og børsen: hva de har gjort, og hvilke aksjer i lageret som faktisk har fulgt dem.</div>'
             f'<div class="src">Hentet {fetched}. Daglige serier, ikke sanntid; Yahoo-serier er forsinket.'
-            + (f' <span class="st-warn">Ikke hentet sist: {_E(", ".join(errs))} – de viser forrige henting.</span>' if errs else "") + "</div>")
+            + (f' <span class="st-warn">Ikke hentet sist: {_E(", ".join(errs))} – de viser forrige henting.</span>' if errs else "") + "</div>"
+            + (f'<div class="src" id="fred-notice">{mc.fred_notice_html()}</div>' if fred else ""))
     strip = mc.strip_html(series, static=False)
     periods = ('<div class="mper" id="mc-periods"><span class="src">Periode for alle grafene:</span>'
                '<button type="button" class="per" data-mp="3m">3M</button><button type="button" class="per on" data-mp="1a">1Å</button>'
@@ -156,12 +171,14 @@ def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: l
               'driveren, med OSEBX ved siden av i samme regresjon. Det som står igjen er hva aksjen har gjort utover børsen når driveren beveget seg. '
               'En aksje «følger» driveren når t-verdien er 2 eller mer i tallverdi. Dette er samvariasjon i våre egne data, ikke årsak og ikke en prognose: '
               'en oljetung børs gjør for eksempel at banker ser ut til å falle mot børsen når Brent stiger.</div></div>')
-    cal = ('<h2 id="kalender">Det som kommer</h2><div class="card">' + calendar_html(events, today)
+    us = mc.releases(doc)
+    cal = ('<h2 id="kalender">Det som kommer</h2><div class="card">' + calendar_html(list(events) + us, today)
            + '<div class="src">Rentemøter: Norges Banks publiserte møteplan. Selskapshendelser: research book og selskapenes finanskalendere på NewsWeb. '
-           'Tallslipp fra SSB og utenlandske sentralbanker er ikke med ennå – se <a href="/calendar">Kalender</a> for alt vi har.</div></div>')
+           + ('Tallslipp i USA (KPI, sysselsetting, BNP): FRED-kalenderen. ' if us else 'Tallslipp i USA kommer med FRED-nøkkelen. ')
+           + 'Tallslipp fra SSB og møtene i Fed og ESB er ikke med ennå – se <a href="/calendar">Kalender</a> for alt vi har.</div></div>')
     keys = [d.key for d in mc.DRIVERS]
     body = (head + strip + periods + "".join(sections) + matrix + cal + series_json(series, keys) + chart_scripts()
-            + f'<div class="src attrib">{pc.attribution_html()}</div>')
+            + f'<div class="src attrib">{pc.attribution_html()}' + (f" {mc.fred_notice_html()}" if fred else "") + "</div>")
     return page("Makro", "/makro", body)
 
 

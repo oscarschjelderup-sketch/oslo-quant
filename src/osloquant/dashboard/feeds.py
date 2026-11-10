@@ -166,7 +166,7 @@ def refresh(codes: list[str] | None = None) -> dict[str, str]:
             write(name, src.timed(src.FEED_KEY.get(name, name), fn))
             out[name] = "ok"
         except Exception as e:  # noqa: BLE001 – one feed down must not stop the others; the attempt is in the run log
-            out[name] = f"{type(e).__name__}: {e}"[:200]
+            out[name] = _scrub(f"{type(e).__name__}: {e}", fred_key()[0])[:200]
     return out
 
 
@@ -403,11 +403,128 @@ def _power_history(old: dict | None, today=None) -> dict:
     return {"t": days, "v": [have[d] for d in days]}
 
 
+# ------------------------------------------------------------------------------------------------ FRED (St. Louis Fed)
+FRED = "https://api.stlouisfed.org/fred"
+#: the notice the FRED API terms require wherever the data is shown
+FRED_NOTICE = "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis."
+FRED_TERMS = "https://fred.stlouisfed.org/docs/api/terms_of_use.html"
+#: driver key -> FRED series id. Only series without a copyright line: the terms leave third-party data to its owner
+#: («notes contain the word 'Copyright'»), and the fetch reads the notes every run, so a series that gains one is dropped.
+MACRO_FRED = {"us2y": "DGS2", "fed": "DFEDTARU", "esb": "ECBDFR", "dollar": "DTWEXBGS"}
+#: US releases that move rates, the krone and Oslo Børs, by FRED release id; the dates FRED publishes ahead are kept
+FRED_RELEASES = {10: "KPI i USA", 50: "Sysselsetting i USA (Employment Situation)", 53: "BNP i USA"}
+FRED_RELEASE_DAYS = 120
+
+
+def fred_key() -> tuple[str | None, str]:
+    """The owner's FRED key and its state: ``ok``, ``mangler`` or ``feil format``. Read from the environment variable
+    FRED_API_KEY or from keys/fred.txt in the private home; never from the repository, never written anywhere."""
+    import os
+    import re
+
+    key = os.environ.get("FRED_API_KEY", "").strip()
+    if not key:
+        p = jg.home() / "keys" / "fred.txt"
+        try:
+            key = p.read_text(encoding="utf-8-sig").strip() if p.exists() else ""
+        except OSError:
+            key = ""
+    if not key:
+        return None, "mangler"
+    return (key, "ok") if re.fullmatch(r"[0-9A-Za-z]{32}", key) else (None, "feil format")
+
+
+def _scrub(text: str, key: str | None) -> str:
+    """A text that may end up in a feed, a log or a page, with the key taken out."""
+    return str(text).replace(key, "<nøkkel>") if key else str(text)
+
+
+def _fred(path: str, key: str, **params) -> dict:
+    from urllib.parse import urlencode
+
+    return json.loads(_get(f"{FRED}/{path}?{urlencode({**params, 'api_key': key, 'file_type': 'json'})}"))
+
+
+def _fred_history(series_id: str, key: str, start: str) -> dict:
+    meta = (_fred("series", key, series_id=series_id).get("seriess") or [{}])[0]
+    if "copyright" in str(meta.get("notes", "")).lower():
+        raise PermissionError(series_id)
+    obs = _fred("series/observations", key, series_id=series_id, observation_start=start).get("observations") or []
+    pts = [(o["date"], float(o["value"])) for o in obs if o.get("value") not in (None, "", ".")]
+    if not pts:
+        raise ValueError(f"no observations for {series_id}")
+    return {"t": [p[0] for p in pts], "v": [p[1] for p in pts]}
+
+
+def _fred_releases(key: str, today) -> list[dict]:
+    """The coming release dates of the US numbers in FRED_RELEASES, from FRED's release calendar."""
+    end = today + timedelta(days=FRED_RELEASE_DAYS)
+    out = []
+    for rid, what in FRED_RELEASES.items():
+        doc = _fred("release/dates", key, release_id=rid, realtime_start=f"{today:%Y-%m-%d}", realtime_end="9999-12-31",
+                    include_release_dates_with_no_data="true", sort_order="asc", limit=60)
+        out += [{"date": r["date"], "release_id": rid, "what": what} for r in doc.get("release_dates") or []
+                if f"{today:%Y-%m-%d}" <= r.get("date", "") <= f"{end:%Y-%m-%d}"]
+    return sorted(out, key=lambda r: (r["date"], r["release_id"]))
+
+
+def _fred_reason(e: Exception, key: str | None) -> tuple[str, bool]:
+    """What went wrong, in words that carry no key, and whether FRED rejected the key itself."""
+    import urllib.error
+
+    if isinstance(e, PermissionError):
+        return "opphavsrett i serienotatet – ikke brukt (FRED-vilkårene)", False
+    if isinstance(e, urllib.error.HTTPError):
+        try:
+            body = e.read().decode("utf-8", "replace")
+        except Exception:  # noqa: BLE001
+            body = ""
+        if e.code in (400, 401, 403) and "api_key" in body:
+            return f"FRED avviste nøkkelen (HTTP {e.code})", True
+        return f"HTTP {e.code}", False
+    return _scrub(type(e).__name__, key), False
+
+
+def _fetch_fred(today) -> tuple[dict, list[str], list[dict] | None, dict]:
+    """FRED's part of the macro feed: the series in MACRO_FRED and the US release dates. Without a key nothing is asked
+    and nothing is an error – the page says what a key would add. A rejected key stops at the first request."""
+    key, state = fred_key()
+    info = {"key": state, "series": [], "refused": []}
+    if not key:
+        return {}, [], None, info
+    start = f"{today - timedelta(days=round(MACRO_OBS * 7 / 5) + 30):%Y-%m-%d}"
+    got, errors = {}, []
+    for k, sid in MACRO_FRED.items():
+        try:
+            got[k] = _fred_history(sid, key, start)
+        except Exception as e:  # noqa: BLE001
+            text, rejected = _fred_reason(e, key)
+            if rejected:
+                info["key"] = "avvist"
+                return {}, [f"FRED: {text}"], None, info
+            if isinstance(e, PermissionError):
+                info["refused"].append(k)
+            errors.append(f"{k}: {text}")
+    releases = None
+    try:
+        releases = _fred_releases(key, today)
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"FRED-kalender: {_fred_reason(e, key)[0]}")
+    info["series"] = sorted(got)
+    return got, [_scrub(x, key) for x in errors], releases, info
+
+
 def fetch_macro() -> dict:
     """The history of every macro driver (dashboard/macro.py). A source that fails keeps its series from the cache and is
     named in ``errors``; the feed fails only when nothing at all could be fetched."""
-    old = (read("macro") or {}).get("series") or {}
+    before = read("macro") or {}
+    old = dict(before.get("series") or {})
     series, errors = {}, []
+    fred_series, fred_errors, releases, fred_info = _fetch_fred(datetime.now(UTC).date())
+    series.update(fred_series)
+    errors += fred_errors
+    for k in fred_info["refused"]:                    # a series with a copyright line is not kept from an earlier run either
+        old.pop(k, None)
     for key, flow in MACRO_NB.items():
         try:
             series[key] = _nb_history(flow)
@@ -428,8 +545,11 @@ def fetch_macro() -> dict:
         raise RuntimeError("; ".join(errors) or "no macro series")
     for key, s in old.items():                       # what could not be fetched now is kept as it was, and said to be old
         series.setdefault(key, s)
-    return {"series": series, "errors": errors,
-            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 (CC BY 4.0), hvakosterstrommen.no (ENTSO-E)"}
+    uses_fred = any(k in series for k in MACRO_FRED)
+    return {"series": series, "errors": errors, "fred": fred_info,
+            "releases": releases if releases is not None else before.get("releases") or [],
+            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 (CC BY 4.0), hvakosterstrommen.no (ENTSO-E)"
+                      + (", FRED (St. Louis Fed)" if uses_fred else "")}
 
 
 RSS = (("E24", "https://e24.no/rss2/"), ("DN", "https://services.dn.no/api/feed/rss/"),

@@ -12,7 +12,8 @@ from osloquant.contract.storage import dispose_engines
 
 
 @pytest.fixture(autouse=True)
-def home(tmp_path):
+def home(tmp_path, monkeypatch):
+    monkeypatch.delenv("FRED_API_KEY", raising=False)           # the owner's key never reaches a test
     init_env(tmp_path)
     yield tmp_path
     dispose_engines()

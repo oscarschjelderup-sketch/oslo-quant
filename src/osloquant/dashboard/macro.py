@@ -57,9 +57,14 @@ DRIVERS: tuple[Driver, ...] = (
     Driver("stat3m", "3 mnd statskasseveksel", "Renter", "%", "rate", 2, "Norges Bank", "markedets rente tre måneder frem – beveger seg før styringsrenten", step=0.25),
     Driver("stat10y", "10 års stat", "Renter", "%", "rate", 2, "Norges Bank", step=0.25),
     Driver("us10y", "USA 10 år", "Renter", "%", "rate", 2, "Yahoo Finance (^TNX), forsinket", step=0.25),
+    Driver("us2y", "USA 2 år", "Renter", "%", "rate", 2, "FRED (DGS2, US Treasury)", "følger forventningene til Fed-renten tettest", step=0.25),
+    Driver("fed", "Fed-renten, øvre grense", "Renter", "%", "rate", 2, "FRED (DFEDTARU, Federal Reserve)", step=0.25),
+    Driver("esb", "ESBs innskuddsrente", "Renter", "%", "rate", 2, "FRED (ECBDFR, Den europeiske sentralbanken)", "styringsrenten i euroområdet", step=0.25),
     Driver("usdnok", "USD/NOK", "Valuta", "", "price", 3, "Norges Bank, fixing 14:15"),
     Driver("eurnok", "EUR/NOK", "Valuta", "", "price", 3, "Norges Bank, fixing 14:15"),
     Driver("i44", "Kronekursindeks I44", "Valuta", "", "price", 2, "Norges Bank", "importveid; høyere = svakere krone"),
+    Driver("dollar", "Dollarindeks, bred", "Valuta", "", "price", 2, "FRED (DTWEXBGS, Federal Reserve)",
+           "handelsveid dollar mot de største handelspartnerne; høyere = sterkere dollar; publiseres ukentlig"),
     Driver("brent", "Brent", "Råvarer", "USD/fat", "price", 2, "Yahoo Finance (BZ=F), forsinket"),
     Driver("gass_ttf", "Gass TTF", "Råvarer", "EUR/MWh", "price", 2, "Yahoo Finance (TTF=F), forsinket"),
     Driver("aluminium", "Aluminium", "Råvarer", "USD/t", "price", 0, "Yahoo Finance (ALI=F), forsinket"),
@@ -81,6 +86,27 @@ SECTOR_DRIVERS = {
     "Consumer, telecom & real estate": ("styringsrente", "stat10y", "i44"), "Technology & renewables": ("us10y", "stat10y", "kraft_no2"),
     "Investment companies": ("osebx", "stat10y"),
 }
+
+
+def from_fred(d: Driver) -> bool:
+    return d.source.startswith("FRED")
+
+
+def uses_fred(doc: dict | None = None) -> bool:
+    """Whether the cached feed holds anything from FRED – then the FRED notice belongs on the page that shows it."""
+    doc = fd.read(FEED) if doc is None else doc
+    series = (doc or {}).get("series") or {}
+    return any((series.get(k) or {}).get("t") for k in fd.MACRO_FRED) or bool((doc or {}).get("releases"))
+
+
+def fred_notice_html() -> str:
+    return f'<span lang="en">{fd.FRED_NOTICE}</span> <a href="{fd.FRED_TERMS}" rel="noopener">FRED API Terms of Use</a>.'
+
+
+def releases(doc: dict | None = None) -> list[dict]:
+    """The coming US release dates from FRED's calendar, as calendar events."""
+    doc = fd.read(FEED) if doc is None else doc
+    return [{"date": r["date"], "kind": "release", "what": r["what"], "source": "FRED-kalenderen (St. Louis Fed)"} for r in (doc or {}).get("releases") or []]
 
 
 # ------------------------------------------------------------------------------------------------ the series
