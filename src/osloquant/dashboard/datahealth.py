@@ -272,7 +272,31 @@ def case_health(cases, closes: pd.DataFrame | None = None, today: pd.Timestamp |
 def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> dict:
     return {"prices": price_health(closes, asof), "feeds": feed_health(), "reports": report_health(cases), "log": log_health(), "cases": case_health(cases, closes),
             "store": store_health(), "testdata": testdata_health(), "dividends": dividend_audit_cached(), "sources": _sources(),
+            "corporate": fd.corporate_events(),
             "generated": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+CORPORATE_ALERT_DAYS = 14
+
+
+def corporate_lines(events: list[dict], now: datetime | None = None) -> list[str]:
+    """One line per corporate event from the last fortnight: the universe is a fixed list and may need a look."""
+    cutoff = f"{(now or datetime.now(UTC)) - pd.Timedelta(days=CORPORATE_ALERT_DAYS):%Y-%m-%d}"
+    return [f"{e['code'] or e.get('issuer') or '?'}: {e['kind']} {dato(e['time'][:10], False)}" + ("" if e.get("in_universe") else " (ikke i universet)")
+            for e in events if e.get("time", "")[:10] >= cutoff]
+
+
+def corporate_html(events: list[dict]) -> str:
+    from osloquant.dashboard.render import E, link
+
+    rows = "".join(f'<tr><td class="l">{dato(e["time"][:10])}</td><td class="l">{link(e["code"]) if e.get("in_universe") else E(e.get("code") or "–")} '
+                   f'<span class="src">{E(e.get("issuer") or "")}</span></td><td class="l">{E(e["kind"])}</td>'
+                   f'<td class="l" style="white-space:normal"><a href="{E(e["url"])}" target="_blank" rel="noopener">{E(e["title"][:140])}</a></td></tr>' for e in events)
+    return ('<div class="card" id="selskapshendelser"><h3>Selskapshendelser (siste 120 dager)</h3><table class="odds"><thead><tr><th class="l">Dato</th><th class="l">Selskap</th>'
+            f'<th class="l">Hva</th><th class="l">Børsmelding</th></tr></thead><tbody>{rows or "<tr><td colspan=4 class=empty>ingen funnet i børsmeldingene</td></tr>"}</tbody></table>'
+            '<div class="src">Lest av titlene på børsmeldingene vi allerede henter (Oslo Børs NewsWeb): emisjon, splitt eller spleis, fisjon eller fusjon, navn- eller tickerendring, '
+            'avnotering og nye selskaper tatt opp til handel. Obligasjoner er holdt utenfor. Universet er en fast liste: en ny notering, en avnotering eller en tickerendring betyr at '
+            'listen bør oppdateres, og en splitt eller fisjon at kursene bør sjekkes mot en annen kilde. En tittel kan misforstås – åpne meldingen.</div></div>')
 
 
 def _sources() -> list[dict]:
@@ -292,6 +316,9 @@ def problems(ov: dict) -> list[str]:
     from osloquant.dashboard import sources as src
 
     out = src.problem_lines(ov.get("sources") or [])
+    corp = corporate_lines(ov.get("corporate") or [])
+    if corp:
+        out.append("selskapshendelser siste 14 dager – universet og kursene bør sjekkes: " + "; ".join(corp[:6]))
     p = ov["prices"]
     if p["stale"] and not any(s["key"] == "prices_adj" and s["state"] in ("stale", "partial") for s in ov.get("sources") or []):
         out.append(f"{len(p['stale'])} aksjer uten sluttkurs {dato(p['asof'])}: {', '.join(p['stale'][:8])}")
@@ -400,5 +427,5 @@ def page_html(ov: dict) -> str:
     from osloquant.dashboard import sources as src
 
     kilder = src.table_html(ov["sources"]) if ov.get("sources") else store + feeds
-    return page("Datahelse", "/health", head + kilder + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
+    return page("Datahelse", "/health", head + kilder + corporate_html(ov.get("corporate") or []) + cases_html + prices + reports + f'<div class="card"><h3>Utbytter: Yahoo mot NewsWeb</h3>{div}</div>' + log_card
                 + f'<div class="src">Generated {E(_fmt_dt(ov["generated"]))}.</div>')

@@ -102,3 +102,18 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
   totalavkastning. Dette må Oscar vite før sammenslåing.
 - **Test:** et utbytte på USD 1 med kurs 10 på eks-dagen og 9,5 på nedlastingsdagen gir faktorsteg 0,90 og beløp
   NOK 10; et kroneutbytte røres ikke; uten valutakurser røres ingenting; utbyttelisten får samme beløp.
+
+### E10 Selskapshendelser fanges opp, og KOG-utskillelsen tas ut av avkastningen (#7, D13)
+- **Problem:** Utskillelsen av Kongsberg Maritime 15. apr. 2026 ligger som et kursfall på −18 % i den justerte
+  serien. Yahoo har ingen hendelse den dagen. Splitter, emisjoner, tickerendringer, avnoteringer og nye noteringer
+  oppdages bare for hånd, og universet er en fast liste.
+- **Endring:**
+  - `data_exceptions.yaml`: KOG.OL 15. apr. 2026 legges i `drop_returns`, som AKSO i 2024. Hele dagsbevegelsen tas
+    ut, så avkastningen over datoen er et anslag (EST) og merkes slik i begrunnelsen.
+  - Børsmeldingene vi allerede henter, leses for selskapshendelser: emisjon, splitt eller spleis, fisjon eller
+    fusjon, navn- eller tickerendring, avnotering, og nye selskaper tatt opp til handel (også utenfor universet).
+    Obligasjoner holdes utenfor. Ingen ekstra kall.
+  - Datahelse viser kortet «Selskapshendelser». Hendelser fra de siste 14 dagene står under «Ting å vite nå» og på
+    «I dag» som «Universet bør sjekkes».
+- **Test:** titler på norsk og engelsk klassifiseres riktig, obligasjonsnoteringer gir ingen treff, en ny notering
+  utenfor universet beholdes, og Datahelse og «I dag» viser hendelsen.

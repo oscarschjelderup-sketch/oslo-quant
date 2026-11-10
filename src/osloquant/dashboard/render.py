@@ -299,6 +299,9 @@ def today_page(ctx: dict, static: bool = False) -> str:
         from osloquant.dashboard import sources as src
 
         banner = src.banner_html(ctx["sources"], static)
+        if ctx.get("corporate"):
+            banner += ('<div class="warn" id="selskapshendelser-varsel"><b>Universet bør sjekkes.</b> Selskapshendelser i børsmeldingene de siste 14 dagene: '
+                       + E("; ".join(ctx["corporate"][:6])) + ('.' if static else '. <a href="/health#selskapshendelser">Se meldingene på Datahelse</a>.') + '</div>')
     else:
         banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {dato(asof, False, weekday=True)} – eldre enn siste virkedag ({dato(expected, False)}). '
                   'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')

@@ -67,6 +67,9 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     from osloquant.dashboard import sources as src
 
     try:
+        from osloquant.dashboard import datahealth as dh
+
+        ctx["corporate"] = dh.corporate_lines(fd.corporate_events())
         ctx["sources"] = src.status()
     except Exception:  # noqa: BLE001 – the front page opens without the source list; the old price warning still shows
         import logging

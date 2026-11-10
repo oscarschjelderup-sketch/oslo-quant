@@ -206,6 +206,38 @@ def days_to_fetch(fetched_at: str | None, today, most: int = ANN_DAYS) -> int:
     return max(2, min(most, (today - last).days + 2))
 
 
+# Corporate events read off the announcement titles we fetch anyway (D60, funn D13). Bonds are not shares.
+_NOT_SHARES = r"(?i)\b(bonds?|obligasjon\w*|notes due|green bond|certificates?|sertifikat\w*|warrants?|etn|etf)\b"
+CORPORATE = (
+    ("ny på børsen", r"(?i)admission to trading|admitted to trading|opptak til handel|first day of (trading|listing)|første (handels|noterings)dag|approved for listing|listing on (euronext )?(oslo børs|expand|growth)"),
+    ("avnotering", r"(?i)delisting|strykning|removal from trading|last day of trading|siste (handels|noterings)dag|compulsory acquisition|tvangsinnløsning"),
+    ("navn eller ticker", r"(?i)change of (company )?name|name change|navneendring|endring av (selskaps)?navn|new ticker|ny ticker|change of ticker|ticker change"),
+    ("fisjon eller fusjon", r"(?i)\bdemerger\b|\bspin-?off\b|\bfisjon\w*|\bmerger\b|\bfusjon\w*"),
+    ("splitt eller spleis", r"(?i)share split|reverse (share )?split|aksjesplitt|aksjespleis|\bspleis\b|consolidation of shares"),
+    ("emisjon", r"(?i)private placement|rights issue|rettet emisjon|fortrinnsrettsemisjon|\bemisjon\b|share capital increase|kapitalforhøyelse|subsequent offering|reparasjonsemisjon"),
+)
+CORPORATE_KEEP_DAYS = 120
+
+
+def corporate_kind(title: str) -> str | None:
+    """What kind of corporate event a title announces, or None. A bond listing is not a share listing."""
+    import re
+
+    if not title or re.search(_NOT_SHARES, title):
+        return None
+    for kind, pattern in CORPORATE:
+        if re.search(pattern, title):
+            return kind
+    return None
+
+
+def corporate_events(days: int = CORPORATE_KEEP_DAYS, now: datetime | None = None) -> list[dict]:
+    """The corporate events in the announcement cache from the last ``days`` days, newest first."""
+    doc = read("announcements") or {}
+    cutoff = f"{(now or datetime.now(UTC)) - timedelta(days=days):%Y-%m-%d}"
+    return sorted((e for e in doc.get("corporate", []) if e.get("time", "")[:10] >= cutoff), key=lambda e: e["time"], reverse=True)
+
+
 def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
     """NewsWeb list, one POST per calendar day (a day is far below the ~600-message cap), filtered to the universe.
     Stores title, time, category and the NewsWeb link – never the body. Merged with the cache, kept 120 days."""
@@ -213,12 +245,18 @@ def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
     today = datetime.now(UTC).date()
     old = read("announcements") or {}
     items = {a["id"]: a for a in old.get("items", [])}
+    corporate = {e["id"]: e for e in old.get("corporate", [])}
     days = days_to_fetch(old.get("fetched_at"), today, days) if items else days
     for i in range(days):
         d = f"{today - timedelta(days=i):%Y-%m-%d}"
         doc = json.loads(_get(f"{NEWSWEB}/list?fromDate={d}&toDate={d}", method="POST"))
         for m in doc.get("data", {}).get("messages", []):
             code = (m.get("issuerSign") or "").upper()
+            kind = corporate_kind(m.get("title", ""))
+            if kind and (code in want or kind == "ny på børsen"):       # a new listing matters also outside the universe
+                corporate[m["messageId"]] = {"id": m["messageId"], "code": code, "issuer": m.get("issuerName"), "title": m.get("title", ""),
+                                             "time": m.get("publishedTime", ""), "kind": kind, "in_universe": code in want,
+                                             "url": f"https://newsweb.oslobors.no/message/{m['messageId']}"}
             if want and code not in want:
                 continue
             cat = (m.get("category") or [{}])[0]
@@ -227,7 +265,9 @@ def fetch_announcements(codes: list[str], days: int = ANN_DAYS) -> dict:
                                      "url": f"https://newsweb.oslobors.no/message/{m['messageId']}"}
     cutoff = f"{today - timedelta(days=ANN_KEEP_DAYS):%Y-%m-%d}"
     kept = sorted((a for a in items.values() if a["time"][:10] >= cutoff), key=lambda a: a["time"], reverse=True)
-    return {"items": kept, "source": "Oslo Børs NewsWeb (real time; private use only)"}
+    corp = sorted((e for e in corporate.values() if e["time"][:10] >= f"{today - timedelta(days=CORPORATE_KEEP_DAYS):%Y-%m-%d}"),
+                  key=lambda e: e["time"], reverse=True)
+    return {"items": kept, "corporate": corp, "source": "Oslo Børs NewsWeb (real time; private use only)"}
 
 
 NORGES_BANK = "https://data.norges-bank.no/api/data"

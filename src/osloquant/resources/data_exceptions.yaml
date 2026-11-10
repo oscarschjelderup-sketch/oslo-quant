@@ -8,6 +8,7 @@ drop_returns:              # the close-to-close move on this date is removed fro
   - {ticker: SOFF.OL, date: "2020-10-21", reason: "Restructuring / share consolidation mis-adjusted by Yahoo (-98% print)"}
   - {ticker: BORR.OL, date: "2021-12-13", reason: "2:1 reverse split applied one day late by Yahoo (price doubles, then reverts)"}
   - {ticker: BORR.OL, date: "2021-12-14", reason: "Second leg of the same split artefact"}
+  - {ticker: KOG.OL, date: "2026-04-15", reason: "Demerger: Kongsberg Maritime ASA admitted to trading this day (NewsWeb 670655) and distributed to KOG's shareholders; Yahoo has no event, so the -18% print is the distribution, not a loss. The whole day's move is removed, so returns across the date are an estimate (EST)"}
 
 history_start:             # earlier history belongs to a different business
   NEL.OL: {date: "2014-10-01", reason: "Listed shell was DiaGenic (diagnostics) until it bought NEL Hydrogen in Oct 2014"}
