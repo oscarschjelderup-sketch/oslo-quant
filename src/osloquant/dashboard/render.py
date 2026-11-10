@@ -270,12 +270,14 @@ def page(title: str, active: str, body: str, generated: datetime | None = None, 
     note = ('<div class="src">Statisk kopi skrevet av kveldsoppgaven. Det levende dashbordet: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
     gen = f'<div class="src">Generert {dato_tid((generated or datetime.now()), True)}. Privat: research book og vurderingsloggen leses fra ~/osloquant-home og publiseres aldri.</div>{note}'
-    return norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    from osloquant.dashboard.tall import norske_tall
+
+    return norske_tall(norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)} – Oslo Børs dashboard</title>{icon}<style>{CSS}</style>{plotly}</head><body><div class="wrap">
 <nav class="top"><span class="brand">Oslo Børs<span class="long"> · beslutninger</span></span><span class="links">{nav}</span>{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Kurser: daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret – forsinket, ikke sanntid. Signaloddsene er målt på lagerets egen historikk (oq signals score). Ingenting her handler eller gir råd.</div></div>
-</div></body></html>""")
+</div></body></html>"""))
 
 
 def link(code: str, text: str | None = None, static: bool = False) -> str:

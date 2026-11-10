@@ -59,7 +59,7 @@ def test_problem_list_and_page(home, monkeypatch):
         "missed_yield_by_code": {"AAA": 0.0354}, "failed": [], "source": "test"})
     ov = dh.overview(c, [], c.index[-1])
     assert any("1 ex-utbyttemeldinger uten Yahoo-justering" in x for x in dh.problems(ov))
-    assert "3.5%" in dh.page_html(ov)
+    assert "3,5\N{NO-BREAK SPACE}%" in dh.page_html(ov)
 
 
 def test_dividend_audit_matches_notices_to_factor_jumps(monkeypatch):

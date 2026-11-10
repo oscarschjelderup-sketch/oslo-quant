@@ -101,7 +101,7 @@ def test_run_one_rebuilds_reads_or_suggests_and_the_stock_page_shows_it(app, mon
     assert spec.startswith("# Suggested reader spec for BBB") and "revenue:" in spec and "# ebit:" in spec and "Operating profit before other items" in spec
     assert ar.load("BBB")["steps"][0] == "light case rebuilt"
     page = client.get("/stock/BBB").get_data(as_text=True)
-    assert "Etter rapporten" in page and "Beta Q3 2026 report" in page and "90.00" in page and "100.00" in page and "+11.1 %" in page
+    assert "Etter rapporten" in page and "Beta Q3 2026 report" in page and "90,00" in page and "100,00" in page and "+11,1\N{NO-BREAK SPACE}%" in page
     assert "Ingen leserspesifikasjon" in page and "a warning from the build" in page and "/report/BBB/555.pdf" in page
     # with a spec the reader runs instead of the dry run
     rp.spec_path().write_text("BBB:\n  key: {revenue: 'Revenue'}\n", encoding="utf-8")
@@ -109,7 +109,7 @@ def test_run_one_rebuilds_reads_or_suggests_and_the_stock_page_shows_it(app, mon
     monkeypatch.setattr(rp, "latest", lambda code: {"published": "2026-10-28T07:00:00", "year": 2026, "quarter": 3, "kill": [{"criterion": "margin below 10%", "status": "intact"}]})
     log = ar.run_one("BBB", None, snap, refresh=False, today=today)
     assert log["reader"] == {"mode": "spec", "new": 1, "kill": [{"criterion": "margin below 10%", "status": "intact"}]}
-    assert "Rapportleseren: margin below 10%: intact" in client.get("/stock/BBB").get_data(as_text=True)
+    assert "Rapportleseren: margin below 10 %: intact" in client.get("/stock/BBB").get_data(as_text=True)
     # a failing build is written down, not raised
     monkeypatch.setattr(lcm, "build", lambda code, snap=None, **kw: (_ for _ in ()).throw(ValueError("no statements")))
     log = ar.run_one("BBB", None, snap, refresh=False, today=today)

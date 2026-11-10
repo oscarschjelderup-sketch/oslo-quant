@@ -39,7 +39,7 @@ def test_the_answer_is_an_update_row_and_resolves_the_question(app, monkeypatch)
     r = client.post("/stock/AAA/update", data=trig)
     assert r.status_code == 400 and "why the news does not change" in r.get_data(as_text=True)
     r = client.post("/stock/AAA/update", data=trig | {"changed": "1", "p_bear": "0.3", "p_base": "0.5", "p_bull": "0.3"})
-    assert r.status_code == 400 and "sum to 1.10" in r.get_data(as_text=True)
+    assert r.status_code == 400 and "sum to 1,10" in r.get_data(as_text=True)
     r = client.post("/stock/AAA/update", data=trig | {"changed": "1", "p_bear": "0.35", "p_base": "0.45", "p_bull": "0.2"})
     assert r.status_code == 303
     row = jg.read_log()[-1]

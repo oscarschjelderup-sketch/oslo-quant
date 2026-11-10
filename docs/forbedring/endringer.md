@@ -117,3 +117,15 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
     «I dag» som «Universet bør sjekkes».
 - **Test:** titler på norsk og engelsk klassifiseres riktig, obligasjonsnoteringer gir ingen treff, en ny notering
   utenfor universet beholdes, og Datahelse og «I dag» viser hendelsen.
+
+## Fase 4: ett visuelt system
+
+### E12 Norsk tallformat på hver side (V2, #108, #117, #128)
+- **Problem:** Tall skrives på engelsk og på flere måter: «+14.5%», «45.50», «-0.00 R». Kursgrafen skriver norsk,
+  resten ikke. Formatet kommer fra seksten hjelpefunksjoner.
+- **Endring:** Ny modul `dashboard/tall.py`. `norske_tall` er ett siste pass i `page()`, som datoene i D58:
+  desimalkomma, mellomrom før prosenttegnet, ekte minustegn, og «−0,00» blir «0,00». Passet rører bare tekst mellom
+  tagger og hover-teksten i `title`. Skjemafelt, lenker, skript, kode, versjonsnumre, adresser og filnavn står urørt.
+  Plotly-grafene får desimalkomma gjennom den norske lokalen.
+- **Test:** `tests/test_tall.py`: 20 skrivemåter som skal endres, 19 som ikke skal det, skjemafelt og skript urørt,
+  og passet gir samme resultat om det kjøres to ganger på hver side.

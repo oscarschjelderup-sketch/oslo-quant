@@ -186,7 +186,7 @@ def test_screen_page_stock_page_and_coverage_show_the_grade(app, monkeypatch):  
     page = client.get("/screen").get_data(as_text=True)
     assert "Hva prisen krever" in page and "Kandidater for full dekning" in page and "Ikke testet mot avkastning" in page
     assert ">Prisen krever</a>" in page and "Alpha" in page and "snittmargin 2023–2025" in page and "1 lette caser" in page
-    assert "langsiktig EST (syklisk; omsetning +9.5% /år 2023–2025)" in page
+    assert "langsiktig EST (syklisk; omsetning +9,5\N{NO-BREAK SPACE}% /år 2023–2025)" in page
     stock = client.get("/stock/AAA").get_data(as_text=True)
     assert "Kvalitet A" in stock and "På snittmarginen" in stock and "Historikk 2023–2025" in stock
     cov = client.get("/coverage").get_data(as_text=True)

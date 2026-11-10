@@ -90,11 +90,11 @@ def today_words(d: date | datetime | None = None) -> str:
     return dato(d or datetime.now(), weekday=True)
 
 
-#: Plotly.js locale with the same names, registered once per page; numbers keep the page's own form (point decimals,
-#: space thousands) so a chart and the table beside it read alike.
+#: Plotly.js locale with the same names, registered once per page; numbers have the page's own form (decimal comma,
+#: narrow space between thousands, D61) so a chart and the table beside it read alike.
 PLOTLY_LOCALE = ("<script>if(window.Plotly){Plotly.register({moduleType:'locale',name:'no',dictionary:{},format:{"
                  f"days:{DAYS[6:] + DAYS[:6]},shortDays:{SHORT_DAYS[6:] + SHORT_DAYS[:6]},months:{MONTHS},shortMonths:{SHORT_MONTHS},"
-                 "date:'%d.%m.%Y',decimal:'.',thousands:' ',grouping:[3],currency:['NOK ','']}});"
+                 "date:'%d.%m.%Y',decimal:',',thousands:'\u202f',grouping:[3],currency:['NOK ','']}});"
                  "Plotly.setPlotConfig({locale:'no'});}</script>")
 
 #: tick labels on a date axis, from days to years: «27. sep.», «sep. 2026», «2026»
