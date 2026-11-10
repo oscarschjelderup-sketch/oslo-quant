@@ -107,9 +107,43 @@ def analyst_of(row: dict) -> str:
     return row.get("analyst") or DEFAULT_ANALYST
 
 
+def parse_number(v) -> float | None:
+    """A number as a person types it: «0,25», «13 500» and «45.5» are numbers; «nan», «inf» and «1e999» are not.
+    Empty gives None. Raises ValueError with a message for the form."""
+    if v is None or (isinstance(v, str) and not v.strip()):
+        return None
+    try:
+        x = float(str(v).replace("\u00a0", "").replace("\u202f", "").replace(" ", "").replace(",", "."))
+    except ValueError:
+        raise ValueError(f"«{v}» er ikke et tall") from None
+    if x != x or x in (float("inf"), float("-inf")):
+        raise ValueError(f"«{v}» er ikke et endelig tall")
+    return x
+
+
+def _not_finite(value, path: str = "") -> str | None:
+    """The path of the first float in a row that is NaN or infinite, or None."""
+    if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+        return path or "value"
+    if isinstance(value, dict):
+        for k, v in value.items():
+            hit = _not_finite(v, f"{path}.{k}" if path else str(k))
+            if hit:
+                return hit
+    if isinstance(value, list | tuple):
+        for i, v in enumerate(value):
+            hit = _not_finite(v, f"{path}[{i}]")
+            if hit:
+                return hit
+    return None
+
+
 def _validate(kind: str, fields: dict) -> None:
     if kind not in KINDS:
         raise ValueError(f"kind must be one of {KINDS}")
+    bad = _not_finite(fields)
+    if bad:       # the log is append-only: a NaN or an infinity written once can never be corrected
+        raise ValueError(f"{bad} is not a finite number – nothing was written")
     if fields.get("analyst") is not None and fields["analyst"] not in ANALYSTS:
         raise ValueError(f"analyst must be one of {ANALYSTS}")
     missing = [k for k in REQUIRED[kind] if fields.get(k) in (None, "")]

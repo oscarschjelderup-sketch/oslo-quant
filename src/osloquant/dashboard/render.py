@@ -157,6 +157,7 @@ th { color:var(--text); font-weight:700; border-top:0; border-bottom:1px solid v
 th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
 table.odds td, table.odds th { text-align:right; } table.odds td:first-child, table.odds th:first-child { text-align:left; }
 table.odds th.grp { text-align:center; }
+th.l, td.l, table.odds th.l, table.odds td.l { text-align:left; }      /* text reads from the left, numbers line up on the right */
 table.keyfig td:first-child { font-weight:500; } table.keyfig tr.sep td { border-top:2px solid var(--line); }
 table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
 .heat td { text-align:right; } .heat td:first-child, .heat td:nth-child(2) { text-align:left; }
@@ -737,9 +738,14 @@ def odds_block(o, view: dict) -> str:
     gap = share - be
     lean = ("nær myntkast" if abs(gap) < 0.05 else ("heller mot målet" if gap > 0 else "heller mot kill-nivået") if abs(gap) < 0.15
             else ("klart mot målet" if gap > 0 else "klart mot kill-nivået"))
-    verdict = (f'<p style="margin:8px 0"><b>Break-even:</b> målet ligger {pct(o.target / o.price - 1, 0)} unna og kill-nivået {pct(o.kill / o.price - 1, 0)} '
-               f'(R = {r:.2f}), så målet må nås først i {_p(be)} av tilfellene som når et nivå. Simuleringen over 12 mnd (EST): {_p(share)} – {lean}.'
-               + (f' «Ingen» er {_p(s12.neither)}: da avgjør kursen ved horisonten, ikke nivåene.' if s12.neither > 0.4 else '') + '</p>')
+    breakeven_text = (f'<b>Break-even:</b> målet ligger {pct(o.target / o.price - 1, 0)} unna og kill-nivået {pct(o.kill / o.price - 1, 0)} '
+                      f'(R = {r:.2f}), så målet må nås først i {_p(be)} av tilfellene som når et nivå.')
+    if decided != decided or decided <= 0:      # no decided paths (too short a history): the card takes no side (funn #44)
+        verdict = (f'<p style="margin:8px 0">{breakeven_text} <b>Ingen simulering:</b> historikken er for kort til å si hvilket nivå som nås først'
+                   + (f' ({E(s12.note)})' if getattr(s12, "note", None) else '') + '. Kortet tar ikke stilling.</p>')
+    else:
+        verdict = (f'<p style="margin:8px 0">{breakeven_text} Simuleringen over 12 mnd (EST): {_p(share)} – {lean}.'
+                   + (f' «Ingen» er {_p(s12.neither)}: da avgjør kursen ved horisonten, ikke nivåene.' if s12.neither > 0.4 else '') + '</p>')
     mine = ""
     if all(view.get(k) is not None for k in ("p_bear", "p_base", "p_bull")):
         mine = (f'<div class="src" style="margin-top:6px">Ditt syn: bear {_p(view["p_bear"])} / base {_p(view["p_base"])} / bull {_p(view["p_bull"])} – '

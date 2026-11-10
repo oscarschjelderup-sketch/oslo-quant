@@ -63,3 +63,22 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
   - Skriptene setter konsollens koding til UTF-8 før `oq` kjøres.
 - **Test:** `_get` prøver på nytt ved 503 og gir opp ved 404; børsmeldinger henter 2 dager når forrige henting var
   i går; RSS med én avis nede gir status «delvis».
+
+## Fase 2 (fortsatt): feil tall og logikk
+
+### E7 Loggen tar ikke imot «nan» og «inf», og oppdateringsskjemaet kaster ikke det du skrev (#48, #46, #64, #88, #85)
+- **Problem:** «nan», «inf» og «1e999» godtas som tall og skrives permanent i den uforanderlige loggen.
+  Oppdateringsskjemaet kaster nye sannsynligheter stille når «endret» ikke er krysset av, og gir rå Python-feil på
+  desimalkomma.
+- **Endring:**
+  - `jg.append` avviser enhver rad med et tall som ikke er endelig, uansett radtype.
+  - `server._num` avviser de samme verdiene med en norsk melding.
+  - Oppdateringsskjemaet: sannsynligheter som er fylt ut og avviker fra de gamle uten avkrysning, gir meldingen
+    «du skrev nye sannsynligheter – kryss av for endret». Desimalkomma godtas.
+- **Test:** POST med «nan» og «inf» gir 400 og ingen rad; oppdatering med nye tall uten avkrysning gir 400 og ingen
+  rad; «0,25» godtas.
+
+### E8 Utfallsodds tar ikke stilling uten simulering (#44, #63)
+- **Problem:** Med for kort historikk er andelen NaN, og kortet sier «klart mot kill-nivået».
+- **Endring:** Uten avgjorte baner viser kortet «for kort historikk – ingen simulering» og ingen dom. Samme i desk-teksten.
+- **Test:** en simulering med null avgjorte baner gir ingen av ordene «mot målet» eller «mot kill-nivået».

@@ -56,21 +56,28 @@ def pending(rows: list[dict], cases, today: pd.Timestamp, cal_doc: dict | None =
     return sorted(out, key=lambda x: -x["days"])
 
 
-def form_problems(form: dict) -> list[str]:
-    probs = [form.get(k) for k in ("p_bear", "p_base", "p_bull")]
+def form_problems(form: dict, view: dict | None = None) -> list[str]:
     changed = form.get("changed")
     out = []
+    try:
+        probs = [jg.parse_number(form.get(k)) for k in ("p_bear", "p_base", "p_bull")]
+    except ValueError as e:
+        return [f"sannsynlighetene må være tall mellom 0 og 1 ({e})"]
     if changed:
-        if any(p in (None, "") for p in probs):
+        if any(p is None for p in probs):
             out.append("give the three probabilities after the news")
-        else:
-            ps = [float(p) for p in probs]
-            if any(not 0 <= p <= 1 for p in ps):
-                out.append("probabilities are between 0 and 1")
-            elif abs(sum(ps) - 1) > 0.011:
-                out.append(f"the probabilities sum to {sum(ps):.2f}, not 1")
-    elif len((form.get("reason") or "").strip()) < REASON_MIN:
-        out.append("say in a sentence why the news does not change the probabilities (at least 10 characters)")
+        elif any(not 0 <= p <= 1 for p in probs):
+            out.append("probabilities are between 0 and 1")
+        elif abs(sum(probs) - 1) > 0.011:
+            out.append(f"the probabilities sum to {sum(probs):.2f}, not 1")
+    else:
+        old = [(view or {}).get(k) for k in ("p_bear", "p_base", "p_bull")]
+        typed = [p for p in probs if p is not None]
+        if typed and (any(p is None for p in probs) or any(o is None or abs(p - o) > 0.005 for p, o in zip(probs, old, strict=True))):
+            # the log cannot be corrected afterwards: never write the old numbers when new ones were typed
+            out.append("du skrev nye sannsynligheter – kryss av for «endret» for å logge dem, eller tøm feltene for å logge «uendret»")
+        if len((form.get("reason") or "").strip()) < REASON_MIN:
+            out.append("say in a sentence why the news does not change the probabilities (at least 10 characters)")
     return out
 
 
@@ -80,14 +87,14 @@ def write(code: str, form: dict, price: float, price_date: str, today: str, rows
     view = jg.latest_by_code(rows).get(code)
     if not view:
         raise ValueError(f"no open view on {code} to update")
-    problems = form_problems(form)
+    problems = form_problems(form, view)
     if problems:
         raise ValueError("; ".join(problems))
     trig = {"date": form.get("trigger_date"), "what": form.get("trigger_what"), "source": form.get("trigger_source")}
     if not trig["date"]:
         raise ValueError("an update needs the news it answers (trigger date)")
     changed = bool(form.get("changed"))
-    probs = [float(form[k]) for k in ("p_bear", "p_base", "p_bull")] if changed else [view.get("p_bear"), view.get("p_base"), view.get("p_bull")]
+    probs = [jg.parse_number(form[k]) for k in ("p_bear", "p_base", "p_bull")] if changed else [view.get("p_bear"), view.get("p_base"), view.get("p_bull")]
     fields = dict(code=code, date=today, ref_seq=view["seq"], trigger=trig, changed=changed,
                   p_bear=probs[0], p_base=probs[1], p_bull=probs[2],
                   prior=[view.get("p_bear"), view.get("p_base"), view.get("p_bull")],

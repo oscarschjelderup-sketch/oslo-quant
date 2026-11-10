@@ -79,8 +79,10 @@ def form_problems(form: dict, allowed: dict, report: dict | None, today: pd.Time
     if form.get("metric") not in allowed:
         out.append(f"metric must be one of {', '.join(allowed)}")
     try:
-        lo, mid, hi = (float(form[k]) for k in ("low", "mid", "high"))
-    except (TypeError, ValueError, KeyError):
+        lo, mid, hi = (jg.parse_number(form.get(k)) for k in ("low", "mid", "high"))
+    except ValueError as e:
+        return out + [f"give the low end, the middle and the high end of the 80 % interval as numbers ({e})"]
+    if lo is None or mid is None or hi is None:
         return out + ["give the low end, the middle and the high end of the 80 % interval as numbers"]
     if not lo <= mid <= hi:
         out.append("low ≤ middle ≤ high")
@@ -98,7 +100,7 @@ def write(code: str, form: dict, report: dict | None, today: pd.Timestamp, rows:
     if problems:
         raise ValueError("; ".join(problems))
     return jg.append("forecast", dict(code=code, date=f"{today:%Y-%m-%d}", report=report, metric=form["metric"], label=allowed[form["metric"]],
-                                      low=float(form["low"]), mid=float(form["mid"]), high=float(form["high"]), interval=INTERVAL,
+                                      low=jg.parse_number(form["low"]), mid=jg.parse_number(form["mid"]), high=jg.parse_number(form["high"]), interval=INTERVAL,
                                       unit="NOKm (or the report's currency), the quarter as printed", source="dashboard"))
 
 

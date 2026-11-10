@@ -30,10 +30,7 @@ PORT = 8060
 def _num(v):
     if v in (None, ""):
         return None
-    try:
-        return float(str(v).replace(",", ".").replace(" ", ""))
-    except ValueError:
-        raise ValueError(f"'{v}' is not a number") from None
+    return jg.parse_number(v)
 
 
 def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:

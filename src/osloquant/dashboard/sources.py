@@ -259,7 +259,8 @@ def _feed_status(src: Source, now: pd.Timestamp, run: dict) -> dict:
     note = last_run.get("note") if last_run.get("ok") else None
     items = doc.get("items")
     n = len(items) if isinstance(items, list | dict) else None
-    detail = (late if not fresh else (f"{n} rader" if n is not None else (str(doc.get("date")) if doc.get("date") else "")))
+    day = str(doc.get("date") or "")
+    detail = (late if not fresh else (f"{n} rader" if n is not None else (("uke" + day[4:] if day.startswith("week ") else f"siste verdi {dato(day)}") if day else "")))
     state = "ok" if fresh else "stale"
     if fresh and note:
         state, detail = "partial", note
@@ -322,7 +323,7 @@ def banner_html(sts: list[dict], static: bool = False) -> str:
     for s in bad:
         when = f"sist hentet {dato_tid(s['last_ok'], True)}" if s["last_ok"] is not None else "aldri hentet"
         why = (f"siste forsøk {dato_tid(s['last_attempt'], True)} feilet: {s['error']}" if s["state"] == "failed" and s["error"] else s["detail"])
-        items.append(f'<li><b>{E(s["name"])}</b> ({E(s["origin"])}) – {E(s["state_no"])}: {E(why)}{"" if s["kind"] == "table" else " (" + E(when) + ")"}. '
+        items.append(f'<li><b>{E(s["name"])}</b> ({E(s["origin"])}) – {E(s["state_no"])}: {E(why.rstrip("."))}{"" if s["kind"] == "table" else " (" + E(when) + ")"}. '
                      f'<span class="src">Påvirker {E(s["affects"])}.</span></li>')
     more = "" if static else ' <a href="/health">Datahelse</a> viser alle kildene.'
     return (f'<div class="warn" id="kilder-varsel"><b>{len(bad)} {"datakilde er" if len(bad) == 1 else "datakilder er"} ikke oppdatert.</b> '
