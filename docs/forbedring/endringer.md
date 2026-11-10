@@ -82,3 +82,23 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
 - **Problem:** Med for kort historikk er andelen NaN, og kortet sier «klart mot kill-nivået».
 - **Endring:** Uten avgjorte baner viser kortet «for kort historikk – ingen simulering» og ingen dom. Samme i desk-teksten.
 - **Test:** en simulering med null avgjorte baner gir ingen av ordene «mot målet» eller «mot kill-nivået».
+
+### E9 Utbytter i fremmed valuta justeres med riktig beløp i kroner (#5, #13 delvis)
+- **Problem:** For selskaper som betaler utbytte i USD eller DKK justerer Yahoo kursen med beløpet i fremmed valuta
+  mot en kurs i kroner. Justeringen blir 9,6 ganger for liten for USD og 1,4 ganger for liten for DKK. Kontroll på
+  kopien av lageret: 156 av 960 utbytter siden 2015 er rammet, hos FRO, HAFNI, OET, BWLPG, BWO, SNI, WAWI, BORR, ODL,
+  MPCC, EQNR, AKRBP og BAKKA. Beløpet i utbyttelisten er dessuten regnet om med valutakursen den dagen historikken
+  ble lastet ned, ikke kursen på eks-dagen.
+- **Endring:** Ny regel 0 i `recorders/yahoo/cleaning.py`, `fix_foreign_dividends`, som kjøres før de andre reglene
+  og også for utbyttelisten.
+  - For hvert utbytte regnes beløpet Yahoo faktisk brukte i justeringen: (1 − faktorsteg) × sluttkurs dagen før.
+  - Er det oppgitte beløpet 1,15 ganger større eller mer, og forholdet treffer dagens USD-, EUR- eller DKK-kurs
+    innen 5 %, er utbyttet i den valutaen. Beløpet i kroner blir valutabeløpet ganger kursen siste dag før eks-dagen
+    (Yahoo-valutakurser fra lageret).
+  - Justert kurs for alle dager før eks-dagen skaleres til riktig faktorsteg, og utbyttet lagres i kroner.
+  - Uten valutakurser i lageret gjør regelen ingenting.
+- **Virkning:** Regelen endrer hele den justerte historikken for de rammede aksjene første gang `oq record` kjøres
+  etter sammenslåing. Papirkontoene leser samme lager, så signalene deres på disse aksjene vil regnes på riktigere
+  totalavkastning. Dette må Oscar vite før sammenslåing.
+- **Test:** et utbytte på USD 1 med kurs 10 på eks-dagen og 9,5 på nedlastingsdagen gir faktorsteg 0,90 og beløp
+  NOK 10; et kroneutbytte røres ikke; uten valutakurser røres ingenting; utbyttelisten får samme beløp.

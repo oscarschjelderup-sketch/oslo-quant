@@ -17,7 +17,7 @@ from osloquant.domain.quotes import (
     Stock15mKdata,
 )
 from osloquant.recorders.yahoo import client
-from osloquant.recorders.yahoo.cleaning import apply_exceptions, clean_history
+from osloquant.recorders.yahoo.cleaning import apply_exceptions, clean_history, fx_rates
 
 
 def to_bars(history: pd.DataFrame, adjust_type: AdjustType) -> pd.DataFrame:
@@ -42,11 +42,15 @@ class YahooKdataRecorder(KdataRecorder):
     provider = "yahoo"
     #: repair Yahoo's known faults and apply the listed exceptions; only stocks need it
     clean = False
+    #: currency rates for rule 0 (a dividend in another currency), read once per run
+    _fx: dict | None = None
 
     def record(self, entity: EntityRef, start: pd.Timestamp, end: pd.Timestamp | None) -> pd.DataFrame:
         history = client.fetch_history(entity.symbol, start, end)
         if self.clean:
-            history, counts = clean_history(history)
+            if self._fx is None:           # one read of the currency table per run, shared by every stock
+                self._fx = fx_rates()
+            history, counts = clean_history(history, fx=self._fx)
             for rule, n in counts.items():
                 self.repairs[rule] = self.repairs.get(rule, 0) + n
             history = apply_exceptions(history, entity.symbol)

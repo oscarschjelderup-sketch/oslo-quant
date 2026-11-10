@@ -9,6 +9,7 @@ from osloquant.contract.schema import EntityRef
 from osloquant.domain.actions import StockAction
 from osloquant.domain.meta import Stock
 from osloquant.recorders.yahoo import client
+from osloquant.recorders.yahoo.cleaning import fix_foreign_dividends, fx_rates
 
 
 def to_actions(history: pd.DataFrame) -> pd.DataFrame:
@@ -34,5 +35,11 @@ class YahooStockActionRecorder(TimeSeriesRecorder):
             return pd.Timestamp(self.default_start)
         return pd.Timestamp.now().normalize() - pd.Timedelta(days=self.lookback_days)
 
+    #: currency rates for a dividend paid in another currency (cleaning rule 0), read once per run
+    _fx: dict | None = None
+
     def record(self, entity: EntityRef, start: pd.Timestamp, end: pd.Timestamp | None) -> pd.DataFrame:
-        return to_actions(client.fetch_history(entity.symbol, start, end))
+        if self._fx is None:
+            self._fx = fx_rates()
+        history, _ = fix_foreign_dividends(client.fetch_history(entity.symbol, start, end), self._fx)
+        return to_actions(history)
