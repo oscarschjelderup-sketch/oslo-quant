@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 
 import pandas as pd
 import pytest
@@ -120,6 +121,11 @@ def test_build_all_isolates_a_broken_company_and_computes_the_medians_once(home,
     assert set(again["built"]) == set() and "BBB" in again["skipped"]                     # only BBB was missing, and it still fails
 
 
+def _plain(text: str) -> str:
+    """The CLI's output without terminal colour codes: CI forces colour, and Rich puts codes inside words and numbers."""
+    return re.sub("\x1b\\[[0-9;]*[A-Za-z]", "", text)
+
+
 def test_cli_case_build_needs_codes_or_all(home, monkeypatch):
     from osloquant import cli
 
@@ -128,12 +134,13 @@ def test_cli_case_build_needs_codes_or_all(home, monkeypatch):
     monkeypatch.setattr(mk, "snapshot", lambda: snap)
     monkeypatch.setattr(cli, "_setup", lambda *a, **k: None)
     r = runner.invoke(cli.app, ["case", "build"])
-    assert r.exit_code != 0 and "--all" in r.output
+    assert r.exit_code != 0 and "--all" in _plain(r.output)
     seen = {}
     monkeypatch.setattr(lcm, "build_all", lambda s, codes: seen.setdefault("codes", codes) and {"built": {"AAA": _case(code="AAA")}, "skipped": {"CCC": "no price"}})
     r = runner.invoke(cli.app, ["case", "build", "--all"])
-    assert r.exit_code == 0, r.output
-    assert seen["codes"] == ["AAA", "BBB", "CCC"] and "AAA A" in r.output and "CCC: not built – no price" in r.output and "1 built (A 1, B 0, C 0)" in r.output
+    out = _plain(r.output)
+    assert r.exit_code == 0, out
+    assert seen["codes"] == ["AAA", "BBB", "CCC"] and "AAA A" in out and "CCC: not built – no price" in out and "1 built (A 1, B 0, C 0)" in out
 
 
 # ------------------------------------------------------------------------------------------------ the screen
