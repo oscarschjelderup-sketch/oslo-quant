@@ -103,6 +103,29 @@ ul.newsl .kind { display:inline-block; font-size:10.5px; font-weight:700; text-t
 table.stm td:first-child { font-weight:500; } table.stm th { white-space:nowrap; }
 .btnlink { display:inline-block; padding:7px 14px; border-radius:4px; background:var(--accent); color:#fff; font-weight:700; } .btnlink:hover { background:var(--accent-dark); text-decoration:none; }
 @media (max-width:900px) { .stockbar .px { font-size:22px; } .stockbar { gap:6px 14px; } }
+/* the price chart (night 10 Nov 2026, K1–K3): TradingView Lightweight Charts drawing the store's own bars */
+.pc-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px 16px; flex-wrap:wrap; border-bottom:1px solid var(--line); margin:0 0 4px; padding-bottom:3px; }
+.pc-head h3 { border:0; margin:0; padding:0; } .pc-head .unit { color:var(--muted); font-weight:600; font-size:12px; }
+.info { display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; border-radius:50%; background:var(--panel); border:1px solid var(--line); color:var(--muted); font-size:10.5px; font-weight:700; font-style:normal; cursor:help; vertical-align:1px; }
+.pc-ret { font-size:13px; cursor:help; } .pc-ret b { font-size:14.5px; } .pc-ret .src { margin-left:6px; }
+.pc-sub { color:var(--muted); font-size:12px; margin:0 0 4px; }
+.pc-sub .delayed, .pc .delayed { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; color:var(--gold); background:var(--gold-bg); border-radius:3px; padding:0 5px; }
+.pc-lines { font-size:12.5px; margin:0 0 6px; cursor:help; }
+.pc-tools { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; margin:4px 0 6px; }
+.pc-tools .grp { display:inline-flex; gap:3px; align-items:center; flex-wrap:wrap; }
+.pc-tools .lbl { color:var(--muted); font-size:11.5px; margin-right:3px; }
+.pc-tools button { font:inherit; font-size:12px; padding:2px 9px; border:1px solid var(--line); background:#fff; color:var(--text); border-radius:4px; cursor:pointer; }
+.pc-tools button.on { background:var(--accent-pale); border-color:var(--accent); color:var(--accent-dark); font-weight:600; }
+.pc-tools button:disabled { color:#a5afb6; background:var(--panel); cursor:not-allowed; }
+.pc-tools button i { font-style:normal; font-weight:700; font-size:10.5px; display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; border-radius:3px; color:#fff; margin-right:5px; background:#8a96a0; }
+.pc-tools button small { color:var(--muted); margin-left:2px; }
+.pc-tools .ev-rapport i { background:#5c6770; } .pc-tools .ev-utbytte i { background:#0f7c7c; border-radius:50%; } .pc-tools .ev-innside i { background:#0b7a4b; } .pc-tools .ev-vurdering i { background:#c98500; border-radius:50%; }
+.pc-box { position:relative; } .pc-canvas { height:420px; width:100%; }
+.pc-tip { position:absolute; z-index:5; pointer-events:none; min-width:170px; max-width:300px; background:rgba(255,255,255,0.97); border:1px solid var(--line); border-radius:6px; box-shadow:0 2px 8px rgba(26,33,38,0.12); padding:6px 9px; font-size:12px; line-height:1.4; }
+.pc-tip .d { font-weight:700; margin-bottom:2px; } .pc-tip div { display:flex; justify-content:space-between; gap:12px; } .pc-tip div span { color:var(--muted); }
+.pc-tip .ev { display:block; border-top:1px solid var(--line); margin-top:3px; padding-top:3px; } .pc-tip .ev small { display:block; color:var(--muted); font-size:10.5px; }
+.attrib { display:block; margin-top:4px; }
+@media (max-width:700px) { .pc-canvas { height:320px; } }
 .src { color:var(--muted); font-size:11px; line-height:1.4; margin-top:6px; }
 .foot { color:var(--muted); font-size:11.5px; margin-top:30px; padding-top:10px; border-top:1px solid var(--line); line-height:1.5; }
 .empty { color:var(--muted); font-style:italic; }

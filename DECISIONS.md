@@ -926,3 +926,49 @@ English weekdays («Monday 09 Nov») and UTC stamps («2026-11-09T17:47:07Z»).
 - With it: a stock listed less than a year ago opens its chart on «Maks» instead of a disabled «1Å», and a period
   button that reaches back before the first close shows no return – before, OUTLT showed +9.2 % under 6M, 1Å and 5Å
   for six weeks of history.
+
+## D59. The price chart on TradingView Lightweight Charts
+
+Oscar (10 Nov 2026): «vil ha tradingview hvis det gjør det bedre», and yes to downloading the library. Night brief,
+part 1. The old Plotly chart read the 800-day snapshot, so 5Å was always off and Maks was about two years (funn #12).
+It had gaps for weekends on the date axis, and its unified hover box sat on the line it described.
+
+- **Library:** TradingView Lightweight Charts™ 5.2.1 (Apache-2.0, 198 kB). It sits in `dashboard/static` next to its
+  LICENSE and NOTICE, is served locally and is carried by the static copy (D44).
+- **Attribution:** the licence asks for credit. The chart keeps TradingView's attribution logo, and the NOTICE text
+  with a link to tradingview.com stands under the chart. This is the one TradingView mark on the dashboard. The D57
+  rule «no logos from TradingView» still holds for everything else.
+- **Data:** the library only draws. The data are the store's own adjusted daily bars for the whole history, one query
+  per stock and cached per snapshot bar. Nothing is fetched from TradingView. The paid TradingView MCP connector was
+  not added; that is Oscar's call.
+- **Our own code:** `pricechart.py` builds one JSON payload and `static/pricechart.js` draws it.
+  - Area chart by default, with candles as an option. Volume sits in its own pane, so the price axis never runs below
+    zero.
+  - No time gaps: every series shares the stock's sessions.
+  - The period buttons set the window, the colour (green up, red down) and the return in the header in one step.
+    Zooming or dragging does the same for the visible window.
+  - Log scale only for 5Å and Maks, and never while comparing.
+  - The last price is on the axis. The previous close, the view's target and the kill level are dashed lines, the
+    target and kill level with their distance from today's price. The axis stretches so both stay on screen.
+- **Comparison:** OSEBX (a total-return index, like the adjusted prices) and the rest of the stock's group, equal
+  weighted. Both are rebased to the first session in the window where every line has a close. The header then shows
+  each line's return from that session. The sector line is marked as our own calculation, and the button says it
+  uses today's universe.
+- **Event markers**, each with its own toggle:
+  - Reports (calendar and downloads; older report dates are not in the store, and the button says so).
+  - Ex-dividends and splits.
+  - Insider trades. Off by default, because a long history makes them crowd.
+  - Oscar's judgements: his rows in the log plus the book's view. Claude's rows are not shown.
+- **SMA 50 and 200** are off by default.
+- **Hover box:** it always sits beside the point, in both panes. A browser test checks this against the real mouse
+  position.
+- **Fallback:** if the new chart fails on the server, the old Plotly chart is drawn, so the page always opens. The
+  period buttons' `data-r` now carries only dates, so a missing volume can no longer put NaN into it (funn #4).
+- **Tests:**
+  - Unit tests of the payload, events, lines and comparisons.
+  - Browser tests (`tests/browser.py`, DevTools protocol) of the state after every button, panes after rebuilds, the
+    hover box, a chart opened in a hidden tab, and console errors on every tab.
+  - Visual baselines (`tests/visual/win32`) of three chart views and, for every tab, the bar (fine cells, so the
+    active tab counts) and the panel with its text hidden.
+  - Baselines exist per platform. On a platform without them, such as CI on Linux, the visual comparison skips and
+    the state tests still run.

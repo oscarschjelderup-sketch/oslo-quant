@@ -81,7 +81,7 @@ def stock_context(code: str) -> dict:
     ret = mk.returns(snap)
     alerts, _ = td.signals_since(snap, None, max_sessions=10)
     from osloquant.dashboard.casefile import reverse_dcf
-    from osloquant.dashboard.charts import long_chart, price_chart
+    from osloquant.dashboard.charts import price_chart
 
     lp = mk.last_price(snap, code)
     case_odds = None
@@ -103,10 +103,13 @@ def stock_context(code: str) -> dict:
     from osloquant.dashboard import afterreport as ar
     from osloquant.dashboard import desk
 
-    overview, periods = long_chart(snap, code)
+    tab = _tab_data(snap, code, c, today)
+    insider_items = _insider_items(code)
+    insiders = _insiders(code, insider_items)
+    overview, periods = _price_chart(snap, code, c, tab, insider_items)
     return dict(status=st, case=c, name=snap.names.get(code, c.name if c else code), group=snap.group(code), lightcase=lcm.load(code),
                 next_event=nxt, today=today, reports_html=reports_html, afterreport_html=ar.block_html(code, ar.load(code)),
-                long_chart=overview, periods=periods, **_tab_data(snap, code, c, today),
+                long_chart=overview, periods=periods, **tab,
                 update_html=_update_html(code, c, today),
                 inversion_html=_inversion_html(code, c, lp[0] if lp else None),
                 baserate_html=_baserate_html(code),
@@ -115,8 +118,40 @@ def stock_context(code: str) -> dict:
                 price_label=mk.price_label(lp[1]) if lp else "", alerts=[a for a in alerts if a.code == code],
                 ytd=ret.loc[code, "ytd"] if code in ret.index else None, chart=price_chart(snap, code, c, sessions=500),
                 rdcf=reverse_dcf(c.model) if c else None, news=fd.company_news(code, snap.names.get(code, code), snap.names),
-                odds=case_odds, report=_report(code) if c else None, insiders=_insiders(code), sizing=_sizing(code),
+                odds=case_odds, report=_report(code) if c else None, insiders=insiders, sizing=_sizing(code),
                 desk_runs=desk.runs_for(code))
+
+
+def _insider_items(code: str) -> list[dict]:
+    """The company's insider notifications in the cache, newest first (read once per page)."""
+    from osloquant.dashboard import insiders as ins
+
+    try:
+        return ins.for_code(code, limit=500)
+    except Exception:  # noqa: BLE001 – no insider cache
+        return []
+
+
+def _price_chart(snap, code: str, c, tab: dict, insider_items: list[dict] | None = None) -> tuple[str, list[dict]]:
+    """The overview's price chart (night 10 Nov 2026, K1–K3): Lightweight Charts over the whole history with the
+    events the dashboard knows. Falls back to the old Plotly chart if anything in it fails, so the page always opens."""
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import pricechart as pc
+    from osloquant.dashboard.charts import long_chart
+
+    try:
+        try:
+            log_rows = jg.read_log()
+        except Exception:  # noqa: BLE001 – no log yet
+            log_rows = []
+        extra = {"dividends": tab.get("dividends"), "insiders": insider_items if insider_items is not None else _insider_items(code), "newsweb_reports": tab.get("newsweb_reports"),
+                 "cal_doc": fd.read(cal.CAL_FEED), "log_rows": log_rows}
+        html, periods = pc.build(snap, code, c, extra)
+        if periods:
+            return html, periods
+    except Exception:  # noqa: BLE001 – the old chart is better than no page
+        pass
+    return long_chart(snap, code)
 
 
 def _tab_data(snap, code: str, c, today: pd.Timestamp) -> dict:
@@ -270,12 +305,12 @@ def _sizing(code: str) -> dict | None:
             "open_loss": sum(float(r.get("loss_at_kill") or 0) for r in opened.values())}
 
 
-def _insiders(code: str) -> dict:
+def _insiders(code: str, items: list[dict] | None = None) -> dict:
     from osloquant.dashboard import insiders as ins
     from osloquant.dashboard.charts import short_chart
 
     year_ago = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=365)).strftime("%Y-%m-%d")
-    items = [i for i in ins.for_code(code, limit=200) if i["time"][:10] >= year_ago][:20]
+    items = [i for i in (items if items is not None else ins.for_code(code, limit=200)) if i["time"][:10] >= year_ago][:20]
     s = ins.shorts(code)
     return {"items": items, "shorts": s, "short_change_30": ins.short_change(s, 30) if s else None,
             "short_chart": short_chart(s["series"], code) if s else ""}

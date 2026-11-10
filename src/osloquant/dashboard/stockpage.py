@@ -112,7 +112,7 @@ def _period_buttons(periods: list[dict], with_returns: bool, active: str | None 
         title = (f'{p["label"]}: {p["sessions"]} økter fra {dato(p["x0"])} til {dato(p["x1"])} – avkastning {pct(p["ret"])} på sluttkurser (Yahoo via lageret, forsinket)'
                  + (" – aksjen er notert senere enn periodestart, så dette er fra første kurs i lageret" if p.get("from_listing") else "")
                  if p.get("enough") else f'for kort historikk i lageret for {p["label"]} (første kurs {dato(p["x0"])})')
-        out.append(f'<button type="button" class="per{" on" if p["key"] == active else ""}" data-p="{p["key"]}" data-r=\'{json.dumps({k: p[k] for k in ("x0", "x1", "y0", "y1", "v1")})}\''
+        out.append(f'<button type="button" class="per{" on" if p["key"] == active else ""}" data-p="{p["key"]}" data-r=\'{json.dumps({k: p[k] for k in ("x0", "x1")})}\''
                    f' title="{E(title)}"{dis}>{E(p["label"])}{ret}</button>')
     out.append("</div>")
     return "".join(out)
@@ -261,8 +261,15 @@ def key_table(ctx: dict) -> str:
 def overview_panel(code: str, ctx: dict) -> str:
     chart = ctx.get("long_chart") or ctx.get("chart", "")
     per = _period_buttons(ctx.get("periods") or [], with_returns=True)
-    chart_card = (f'<div class="card">{chart}{per}<div class="src">Periodeknappene flytter aksene i grafen over (5 års sluttkurser er lastet); avkastningen under hver knapp er '
-                  'sluttkurs mot sluttkurs, justert for utbytte og splitt. 1D er slått av: lageret har bare dagskurser.</div></div>')
+    if 'id="pc-data"' in chart:
+        from osloquant.dashboard import pricechart as pc
+
+        note = ('Periodeknappene, zoom (hjul eller dra) og verktøylinjen virker på grafen. Avkastningen under hver knapp er sluttkurs mot sluttkurs, '
+                'justert for utbytte og splitt; grafen er grønn når perioden er opp og rød når den er ned. 1D er slått av: lageret har bare dagskurser.' + pc.attribution_html())
+    else:
+        note = ('Periodeknappene flytter aksene i grafen over; avkastningen under hver knapp er '
+                'sluttkurs mot sluttkurs, justert for utbytte og splitt. 1D er slått av: lageret har bare dagskurser.')
+    chart_card = f'<div class="card">{chart}{per}<div class="src">{note}</div></div>'
     return chart_card + key_grid(ctx) + f'<div class="grid2">{news_card(ctx)}{key_table(ctx)}</div>'
 
 
@@ -551,7 +558,8 @@ SCRIPT = r"""<script>
   });
   document.querySelectorAll('button.per[data-r]').forEach(function(b){ b.addEventListener('click', function(){
     var r = JSON.parse(b.dataset.r); var g = document.getElementById('chart-price');
-    if(g && window.Plotly){ var u = {'xaxis.range': [r.x0, r.x1], 'yaxis.range': [r.y0, r.y1]}; if(r.v1) u['yaxis2.range'] = [0, r.v1]; Plotly.relayout(g, u); }
+    if(window.PriceChart){ PriceChart.period(b.dataset.p); }
+    else if(g && window.Plotly && g.classList.contains('js-plotly-plot')){ Plotly.relayout(g, {'xaxis.range': [r.x0, r.x1], 'yaxis.autorange': true}); }
     document.querySelectorAll('button.per').forEach(function(x){ x.classList.toggle('on', x.dataset.p === b.dataset.p); });
     var ov = document.querySelector('.panel[data-tab="oversikt"]'); if(ov && ov.hidden) showTab('oversikt', true);
   }); });
