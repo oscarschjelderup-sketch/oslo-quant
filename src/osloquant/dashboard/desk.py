@@ -67,7 +67,14 @@ DEFAULTS = {
     "veto_horizon_sessions": 60,       # veto statistics: window after the run
     "insider_days": 90,                # Bear: window for insider sells
     "short_min_pct": 0.5,              # Bear: a public short at or above this is a reason
+    "min_trigger": 5,                  # Filter (D69): a flagged stock whose triggers weigh less than this is killed as noise
+    "ready_trigger": 8,                # D69: a trigger this heavy is «klar for vurdering» with the debate attached
+    "max_ready": 5,                    # D69: at most this many «klar» a day – the heaviest triggers; the rest are parked
+    "macro_week_z": 2.0,               # Scout (D69): a followed driver's five-session move, in its own usual five-session moves
 }
+#: what each kind of scout finding weighs as a trigger (D69). An announcement weighs what news.py gives it (0–8).
+TRIGGER_WEIGHT = {"vol": 2, "vol_big": 3, "move": 2, "move_big": 4, "signal": 2, "insider": 3, "short": 2, "macro": 2, "macro_big": 3, "report_soon": 3}
+FOLLOW_WEIGHT = {"book": 2, "watch": 1}
 PRICE_SRC = mk.PRICE_SOURCE
 SIGNAL_SRC = "signalskanner (oq signals); odds målt 2010–2026 på dagens 64 aksjer (signal_odds.yaml)"
 
@@ -81,6 +88,14 @@ CLAIMS = {
     "insider": "Innsidehandel meldt",
     "short": "Endring i shortregisteret (7 d)",
     "quiet": "Ingenting uvanlig i dag",
+    "macro": "En driver aksjen følger har beveget seg uvanlig mye (5 økter)",
+    "report_soon": "Rapport innen fem dager",
+    "trigger": "Utløsernes samlede vekt",
+    "weak_trigger": "For svak utløser",
+    "macro_exposure": "Makro aksjen har fulgt (3 år, ukentlig, utover OSEBX)",
+    "macro_against": "En driver aksjen følger har gått mot den siste måned",
+    "trigger_route": "Tung utløser: til vurdering med bjørnens punkter vedlagt",
+    "ready_cap": "Under dagens tyngste utløsere",
     # filter
     "no_case": "Ingen case og ikke på overvåkning",
     "liquidity": "Omsetning under grensen",
@@ -143,8 +158,9 @@ REPLIES = {
     "claude": "Claudes syn mot siste rapport",
     "odds": "Kursmål-først-andel mot break-even",
     "multiple": "DCF-verdi i casemodellen mot kursen",
+    "macro_against": "Aksjens egen bevegelse siste måned mot det driveren tilsvarer",
 }
-BEAR_RANK = {"kill_nearer": 0, "metric_down": 1, "claude": 2, "implied": 3, "multiple": 3, "odds": 4, "risk_signal": 5, "short_pos": 5,
+BEAR_RANK = {"kill_nearer": 0, "metric_down": 1, "claude": 2, "implied": 3, "multiple": 3, "odds": 4, "macro_against": 4, "risk_signal": 5, "short_pos": 5,
              "insider_sell": 5, "sector": 6, "pattern": 6, "bear_value": 8}
 _DIGIT = re.compile(r"\d")
 
@@ -166,6 +182,7 @@ class Finding:
     est: bool = False
     delayed: bool = False
     detail: str = ""
+    w: int = 0                         # scout: what the finding weighs as a trigger (D69)
 
     def __post_init__(self):
         if self.role not in ROLES:
@@ -199,6 +216,8 @@ class StockRun:
     stage: str = "scout"
     veto: int | None = None            # index of the standing bear finding
     prefill: dict | None = None        # the judgement form's fields when ready
+    trigger: int = 0                   # the weight of what flagged the stock (D69)
+    route: str = ""                    # how it became ready: "clean" (every reason rebutted) or "trigger" (D69)
 
     def by_role(self, role: str) -> list[Finding]:
         return [f for f in self.findings if f.role == role]
@@ -341,6 +360,16 @@ class Inputs:
         self.group_median = {g: float(np.nanmedian([self._d1[c] for c in C.columns if self.groups.get(c) == g and c in self._d1.index and np.isfinite(self._d1[c])] or [np.nan]))
                              for g in set(self.groups.values())}
         self._patterns: dict | None = None
+        self.book = set(self.by_code)
+        self.followed = self.book | self.watched
+        self.macro_series, self.macro_table = {}, None
+        try:                                             # D69: the drivers and what each stock has done with them
+            from osloquant.dashboard import macro as mc
+
+            self.macro_series = mc.load()
+            self.macro_table = mc.sensitivities()
+        except Exception:  # noqa: BLE001 – no macro feed yet: the desk runs without it and the quality list says so
+            pass
         self.data_quality = self._quality()
 
     def _quality(self) -> list[dict]:
@@ -355,12 +384,21 @@ class Inputs:
         missing = int(C.iloc[-1].isna().sum()) if len(C) else 0
         out.append({"what": "kurser (lageret, Yahoo, forsinket)", "asof": self.session, "ok": not stale,
                     "note": ("eldre enn siste virkedag – kjør oq record" if stale else "") + (f"; {missing} aksjer uten sluttkurs på {self.session}" if missing else "")})
-        for name, label in (("announcements", "børsmeldinger (NewsWeb)"), ("insiders", "innsidehandler (NewsWeb 1102)"),
-                            ("shorts", "shortregisteret (Finanstilsynet)"), ("calendar", "finanskalendere (NewsWeb)")):
-            doc = fd.read(name)
-            age = fd._age(doc) if doc else "ikke hentet"
-            ok = bool(doc and doc.get("fetched_at") and (self.now - datetime.fromisoformat(doc["fetched_at"].replace("Z", "+00:00"))).days <= 3)
-            out.append({"what": label, "asof": (doc or {}).get("fetched_at", "–"), "ok": ok, "note": age})
+        try:        # the dashboard's one list of sources (D60): the desk says the same as the front page and data health
+            from osloquant.dashboard import sources as src
+
+            wanted = ("prices_raw", "finance", "announcements", "insiders", "shorts", "calendar", "macro")
+            for s in src.status():
+                if s["key"] in wanted:
+                    out.append({"what": f'{s["name"]} ({s["origin"]})', "asof": f'{s["last_ok"]:%Y-%m-%dT%H:%M}' if s["last_ok"] is not None else "–",
+                                "ok": s["state"] in ("ok", "partial"), "note": s["state_no"] + (f': {s["error"] or s["detail"]}' if s["state"] != "ok" and (s["error"] or s["detail"]) else "")})
+        except Exception:  # noqa: BLE001 – the old per-feed check, when the source list cannot be read
+            for name, label in (("announcements", "børsmeldinger (NewsWeb)"), ("insiders", "innsidehandler (NewsWeb 1102)"),
+                                ("shorts", "shortregisteret (Finanstilsynet)"), ("calendar", "finanskalendere (NewsWeb)")):
+                doc = fd.read(name)
+                age = fd._age(doc) if doc else "ikke hentet"
+                ok = bool(doc and doc.get("fetched_at") and (self.now - datetime.fromisoformat(doc["fetched_at"].replace("Z", "+00:00"))).days <= 3)
+                out.append({"what": label, "asof": (doc or {}).get("fetched_at", "–"), "ok": ok, "note": age})
         out.append({"what": "grenser (dashboard.yaml: sizing + desk)", "asof": "–", "ok": bool(self.sizing),
                     "note": "ingen sizing-grenser: Risk kan ikke sette størrelse" if not self.sizing else f"maks tap NOK {float(self.sizing['max_loss']):,.0f}".replace(",", " ")})
         return out
@@ -423,41 +461,119 @@ def scout(inp: Inputs, code: str, forced: bool = False) -> list[Finding]:
     d1 = float(c.iloc[-1] / c.iloc[-2] - 1) if len(c) > 1 else None
     med = inp.group_median.get(inp.groups.get(code, "Other"))
     excess = d1 - med if d1 is not None and med is not None and np.isfinite(med) else None
+    W = TRIGGER_WEIGHT
     if vol_ratio is not None and vol_ratio >= cfg["volume_ratio"]:
-        out.append(Finding("scout", "vol", f"{vol_ratio:.1f}x (i dag {_nok(v.iloc[-1])}, snitt 60 økter {_nok(v.iloc[-61:-1].mean())})", PRICE_SRC, inp.session, t, delayed=True))
+        out.append(Finding("scout", "vol", f"{vol_ratio:.1f}x (i dag {_nok(v.iloc[-1])}, snitt 60 økter {_nok(v.iloc[-61:-1].mean())})", PRICE_SRC, inp.session, t, delayed=True,
+                           w=W["vol_big"] if vol_ratio >= 2 * cfg["volume_ratio"] else W["vol"]))
     if excess is not None and abs(excess) >= cfg["move_vs_sector"]:
-        out.append(Finding("scout", "move", f"{_pct(d1)} mot {inp.groups.get(code, 'Other')} median {_pct(med)} ({excess * 100:+.1f} pp)", PRICE_SRC, inp.session, t, delayed=True))
+        out.append(Finding("scout", "move", f"{_pct(d1)} mot {inp.groups.get(code, 'Other')} median {_pct(med)} ({excess * 100:+.1f} pp)", PRICE_SRC, inp.session, t, delayed=True,
+                           w=W["move_big"] if abs(excess) >= 2 * cfg["move_vs_sector"] else W["move"]))
     for a in inp.alerts_today:
         if a.code == code:
             o = inp.odds_file.get(a.signal, {})
             odds = (f"meravkastning {_pct(o['exc20'])} / {_pct(o['exc60'])} (20/60 d), treff {o['hit20'] * 100:.0f} %, n {int(o.get('events') or 0)}"
                     if o.get("exc20") is not None else "0 målte odds")
-            out.append(Finding("scout", "signal", f"{a.signal} ({a.kind}): {a.detail}; {odds}", SIGNAL_SRC, a.session, t, delayed=True, detail=a.signal))
+            out.append(Finding("scout", "signal", f"{a.signal} ({a.kind}): {a.detail}; {odds}", SIGNAL_SRC, a.session, t, delayed=True, detail=a.signal, w=W["signal"]))
     prev = c.index[-2] if len(c) > 1 else c.index[-1]
     ann = inp.announcements
     if ann:
         items = [x for x in ann["items"] if x["code"] == code and x["time"][:10] > f"{prev:%Y-%m-%d}"]
         if items:
-            a0 = items[0]
-            out.append(Finding("scout", "announcement", f"{len(items)} melding(er) siden {dato(prev, False)}; siste «{a0['title'][:90]}» ({a0.get('category') or 'ukjent kategori'})",
-                               f"NewsWeb (buffer; {ann['source']})", a0["time"], t, delayed=True, detail=a0["title"]))
+            from osloquant.dashboard import news as nw
+
+            # D69: an announcement weighs what it is – a routine buy-back notice 1, inside information or a report 5,
+            # more when the price moved unusually that session. The heaviest one speaks for the day.
+            a0 = max((nw.weigh(x, c) for x in items), key=lambda x: (x["weight"], x.get("time", "")))
+            out.append(Finding("scout", "announcement", f"{len(items)} melding(er) siden {dato(prev, False)}; tyngst (vekt {a0['weight']}, {a0['kind_no']}): «{a0['title'][:90]}»",
+                               f"NewsWeb (buffer; {ann['source']})", a0["time"], t, delayed=True, detail=a0["title"], w=int(a0["weight"])))
     cutoff = f"{inp.snap.asof - pd.Timedelta(days=3):%Y-%m-%d}"
     mine = sorted((i for i in _insider_items(inp, code) if i["time"][:10] >= cutoff and i.get("side") in ("buy", "sell", "subscription")),
                   key=lambda i: i["time"], reverse=True)
     if mine:
         i0 = mine[0]
         out.append(Finding("scout", "insider", f"{len(mine)} melding(er) siste 3 d; siste {i0['side']} ({i0.get('why', '?')}): «{str(i0.get('title', ''))[:80]}»",
-                           f"NewsWeb kategori 1102 (buffer, {inp.insider_doc_age})", i0["time"], t, delayed=True, detail=str(i0.get("title", ""))))
+                           f"NewsWeb kategori 1102 (buffer, {inp.insider_doc_age})", i0["time"], t, delayed=True, detail=str(i0.get("title", "")), w=W["insider"]))
     s = ins.shorts(code, inp.shorts_doc)
     if s:
         ch = ins.short_change(s, 7)
         if ch is not None and abs(ch) >= 0.25:
             out.append(Finding("scout", "short", f"{ch:+.2f} pp til {s['now']:.2f} % av aksjene ({s['date']})",
-                               f"Finanstilsynets shortregister (buffer hentet {str(s.get('fetched_at'))[:10]})", s["date"] or inp.session, t, delayed=True))
+                               f"Finanstilsynets shortregister (buffer hentet {str(s.get('fetched_at'))[:10]})", s["date"] or inp.session, t, delayed=True, w=W["short"]))
+    m = macro_move(inp, code)
+    if m:
+        out.append(Finding("scout", "macro", m["text"], m["source"], inp.session, t, delayed=True, est=True, detail=m["driver"], w=W["macro_big"] if m["z"] >= 3 else W["macro"]))
+    nxt = _next_report(inp, code)
+    if nxt and code in inp.followed and 0 <= (nxt["date"] - inp.today).days <= int(cfg["report_within_days"]):
+        out.append(Finding("scout", "report_soon", f"{dato(nxt['date'], False)} om {(nxt['date'] - inp.today).days} d", str(nxt.get("source") or "kalenderen"), f"{nxt['date']:%Y-%m-%d}", t,
+                           detail=str(nxt.get("what", "")), w=W["report_soon"]))
+    signals = [f for f in out if f.kind == "signal"]
+    for f in signals[1:]:                                # several signals the same day are one event seen from several sides:
+        f.w = 1 if f is signals[1] else 0                # the first weighs 2, the second 1, the rest nothing
+    if out:
+        follow = FOLLOW_WEIGHT["book"] if code in inp.book else FOLLOW_WEIGHT["watch"] if code in inp.watched else 0
+        total = sum(f.w for f in out) + follow
+        parts = [f"{CLAIMS[f.kind].split(' (')[0].lower()} {f.w}" for f in out] + ([f"{'i research book' if code in inp.book else 'på overvåkning'} {follow}"] if follow else [])
+        out.append(Finding("scout", "trigger", f"vekt {total} = " + " + ".join(parts), "desk-reglene (D69): vekt per type utløser", inp.session, t, w=total))
     if not out and forced:
         out.append(Finding("scout", "quiet", f"volum {vol_ratio:.1f}x 60-dagers snitt; dag {_pct(d1) if d1 is not None else '–'} mot sektor {_pct(med) if med is not None and np.isfinite(med) else '–'}"
                            if vol_ratio is not None else f"{len(c)} økter; dag {_pct(d1) if d1 is not None else '0 %'}", PRICE_SRC, inp.session, t, delayed=True))
     return out
+
+
+def macro_rows(inp: Inputs, code: str) -> list[dict]:
+    """The drivers this stock has followed (dashboard/macro.py), strongest first; empty without a macro feed."""
+    if inp.macro_table is None or not len(inp.macro_table):
+        return []
+    from osloquant.dashboard import macro as mc
+
+    return mc.for_stock(code, inp.macro_table, inp.macro_series, limit=3)
+
+
+def macro_move(inp: Inputs, code: str) -> dict | None:
+    """The followed driver that moved most unusually over the last five sessions, measured in its own usual
+    five-session moves over three years. None when no followed driver moved ``macro_week_z`` or more."""
+    from osloquant.dashboard import macro as mc
+
+    best = None
+    for r in macro_rows(inp, code):
+        d = mc.BY_KEY[r["driver"]]
+        s = inp.macro_series.get(d.key)
+        if s is None or len(s) < 260:
+            continue
+        s = s[s.index <= inp.snap.asof + pd.Timedelta(days=1)]
+        ch = (s.diff(5) if d.kind == "rate" else s.pct_change(5)).dropna()
+        if len(ch) < 200 or not ch.iloc[-756:].std() > 0:
+            continue
+        z = abs(float(ch.iloc[-1])) / float(ch.iloc[-756:].std())
+        if z >= float(inp.cfg["macro_week_z"]) and (best is None or z > best["z"]):
+            implied = r["beta"] * (float(ch.iloc[-1]) / d.step if d.kind == "rate" else float(ch.iloc[-1]) * 100 / d.step)
+            best = {"driver": d.key, "z": z, "implied": implied,
+                    "text": (f"{d.name} {mc.fmt_change(d, float(ch.iloc[-1]))} siste 5 økter ({z:.1f} ganger et vanlig femdagersutslag); aksjen har fulgt driveren: "
+                             f"{mc.beta_text(r['beta'])} for {mc.step_text(d)} (t {r['t']:+.1f}, {r['n']} uker) – tilsvarer {mc.beta_text(implied)}"),
+                    "source": f"{d.source}; følsomhet målt på lagerets kurser, 3 år ukentlig med OSEBX i regresjonen (EST)"}
+    return best
+
+
+def macro_findings(inp: Inputs, code: str) -> tuple[list[Finding], Finding | None]:
+    """The analyst's macro inputs (every followed driver, what it did the last month and what that corresponds to for
+    the stock), and the bear's reason when the heaviest of them corresponds to −2 % or worse."""
+    from osloquant.dashboard import macro as mc
+
+    t, out, against = inp.stamp(), [], None
+    for r in macro_rows(inp, code):
+        d, c = mc.BY_KEY[r["driver"]], r["cell"]
+        m1 = c.get("m1")
+        if c.get("empty") or m1 is None:
+            continue
+        implied = r["beta"] * (m1 / d.step if d.kind == "rate" else m1 * 100 / d.step)
+        src = f"{d.source} ({dato(c['date'])}); følsomhet: lagerets kurser, 3 år ukentlig med OSEBX i regresjonen (EST)"
+        val = (f"{d.name} {mc.fmt_level(d, c['level'])} ({mc.fmt_change(d, m1)} siste måned); aksjen {mc.beta_text(r['beta'])} for {mc.step_text(d)} "
+               f"(t {r['t']:+.1f}, {r['n']} uker) – tilsvarer {mc.beta_text(implied)}")
+        out.append(Finding("analyst", "macro_exposure", val, src, f"{c['date']:%Y-%m-%d}", t, est=True, delayed=True, detail=d.key))
+        if implied <= -2.0 and (against is None or implied < against[0]):
+            against = (implied, Finding("bear", "macro_against", f"{d.name} {mc.fmt_change(d, m1)} siste måned; tilsvarer {mc.beta_text(implied)} for aksjen "
+                                        f"({mc.beta_text(r['beta'])} for {mc.step_text(d)}, t {r['t']:+.1f})", src, f"{c['date']:%Y-%m-%d}", t, est=True, delayed=True, detail=f"{implied:.4f}"))
+    return out, (against[1] if against else None)
 
 
 # ------------------------------------------------------------------------------------------------ 2. filter
@@ -519,6 +635,8 @@ def filter_role(inp: Inputs, code: str) -> list[Finding]:
 # ------------------------------------------------------------------------------------------------ 3. analyst
 class Ctx:
     """What the analyst found, kept for the bear, the reply and risk."""
+
+    macro_against = None               # the bear's macro reason, found by the analyst's macro pass (D69)
 
     def __init__(self):
         self.rdcf = None
@@ -683,7 +801,7 @@ def bear(inp: Inputs, code: str, ctx: Ctx) -> list[Finding]:
         roic, wacc, g, vs = rv.get("roic"), rv.get("wacc_est"), rv.get("implied_g"), rv.get("ev_vs_no_growth")
         built = str(lc.get("built_at", ""))[:10]
         if roic is not None and wacc and roic < wacc:
-            out.append(Finding("bear", "implied", f"ROIC {_pct(roic, 0, False)} < WACC EST {_pct(wacc, 1, False)}; EV {_pct(vs, 0) if vs is not None else '–'} mot null-vekst", f"lett case bygget {built} (WACC EST)", built, t, est=True, detail=str(rv.get("reads") or "")))
+            out.append(Finding("bear", "implied", f"ROIC {_pct(roic, 0, False)} < WACC EST {_pct(wacc, 1, False)}; EV {('over +999 % (taket i regnestykket)' if vs >= 9.99 else _pct(vs, 0)) if vs is not None else '–'} mot null-vekst", f"lett case bygget {built} (WACC EST)", built, t, est=True, detail=str(rv.get("reads") or "")))
         elif g is not None and g > 0.02:
             out.append(Finding("bear", "implied", f"kursen krever {_pct(g)}/år vekst for alltid (langsiktig EST {_pct(0.02, 0, False)}); ROIC {_pct(roic or 0, 0, False)}", f"lett case bygget {built} (WACC EST)", built, t, est=True, detail=str(rv.get("reads") or "")))
         m, pe = lc.get("multiples") or {}, lc.get("peers") or {}
@@ -746,6 +864,8 @@ def bear(inp: Inputs, code: str, ctx: Ctx) -> list[Finding]:
         pb = v.get("p_bear")
         out.append(Finding("bear", "bear_value", f"bear {b:g} ({_pct(b / px - 1)}) med sannsynlighet {pb * 100:.0f} %" if pb is not None else f"bear {b:g} ({_pct(b / px - 1)}); sannsynlighet ikke satt (0 av 3)",
                            f"egen vurdering {v.get('date')}", str(v.get("date")), t, est=True))
+    if ctx.macro_against is not None:                # D69: a driver the stock follows went against it the last month
+        out.append(ctx.macro_against)
     out.sort(key=lambda f: BEAR_RANK.get(f.kind, 9))
     out = out[:MAX_BEAR_REASONS]
     if len(out) < MIN_BEAR_REASONS:
@@ -893,6 +1013,22 @@ def reply(inp: Inputs, code: str, ctx: Ctx, reasons: list[Finding], offset: int)
                 src = f"casemodellen {rd.get('file')} (Toolkit, privat; EST)"
             else:
                 val = "0 full casemodell med DCF-verdi"
+        elif k == "macro_against":
+            # the reply is the stock's own month: has the price already taken what the driver corresponds to?
+            C = inp.snap.panel["close"]
+            cs = C[code].dropna() if code in C.columns else pd.Series(dtype=float)
+            before = cs[cs.index <= cs.index[-1] - pd.DateOffset(months=1)] if len(cs) else cs
+            try:
+                implied = float(r.detail)
+            except ValueError:
+                implied = None
+            if len(before) and implied is not None:
+                own = float(cs.iloc[-1] / before.iloc[-1] - 1) * 100
+                ok = own <= implied
+                val = (f"aksjen {own:+.1f} % siste måned mot tilsvarende {implied:+.1f} %: " + ("kursen har tatt det" if ok else "kursen har ikke tatt det"))
+                src = f"{PRICE_SRC}; {r.source}"
+            else:
+                val = "0 kurser en måned tilbake – kan ikke regnes"
         else:
             val = f"0 regel for {k}"
         out.append(Finding("reply", k, val, src, r.asof, t, status="rebuts" if ok else "stands", ref=ref, est=r.est))
@@ -980,11 +1116,21 @@ def run_stock(inp: Inputs, code: str, forced: bool = False) -> StockRun | None:
     fl = filter_role(inp, code)
     sr.findings += fl
     kills = [f for f in fl if f.status == "killed"]
+    sr.trigger = next((f.w for f in found if f.kind == "trigger"), 0)
+    if not kills and not forced and sr.trigger < int(inp.cfg["min_trigger"]):
+        # D69: what flagged the stock weighs too little – a routine notice, a move a little above the sector's. Noise is
+        # the filter's to take away, with the number that took it.
+        weak = Finding("filter", "weak_trigger", f"utløservekt {sr.trigger} < grense {int(inp.cfg['min_trigger'])}", "desk-reglene (D69): dashboard.yaml, desk: min_trigger",
+                       inp.session, inp.stamp(), status="killed")
+        sr.findings.append(weak)
+        kills = [weak]
     if kills:
         return _end(sr, "killed", kills[0])
     sr.stage = "analyst"
     ctx = Ctx()
     sr.findings += analyst(inp, code, ctx)
+    macro, ctx.macro_against = macro_findings(inp, code)
+    sr.findings += macro
     sr.target = float(ctx.view["target"]) if ctx.view.get("target") else None
     sr.kill, sr.kill_source = ctx.kill, ctx.kill_source
     sr.stage = "bear"
@@ -997,13 +1143,13 @@ def run_stock(inp: Inputs, code: str, forced: bool = False) -> StockRun | None:
         if not any(r.kind == "too_few" for r in reasons):
             sr.findings.append(Finding("bear", "too_few", f"{len(real)} grunner med tall (krav {MIN_BEAR_REASONS})", "desk-kjeden", inp.session, inp.stamp(), status="stands"))
         sr.veto = next(i for i, f in enumerate(sr.findings) if f.kind == "too_few")
-        return _end(sr, "parked", sr.findings[sr.veto])
+        return _trigger_route(inp, sr, code) or _end(sr, "parked", sr.findings[sr.veto])
     sr.stage = "reply"
     sr.findings += reply(inp, code, ctx, real, offset)
     standing = [i for i, f in enumerate(sr.findings) if f.role == "bear" and f.status == "stands"]
     if standing:
         sr.veto = standing[0]
-        return _end(sr, "parked", sr.findings[sr.veto])
+        return _trigger_route(inp, sr, code) or _end(sr, "parked", sr.findings[sr.veto])
     sr.stage = "risk"
     rf, pre = risk(inp, code, ctx)
     sr.findings += rf
@@ -1011,7 +1157,24 @@ def run_stock(inp: Inputs, code: str, forced: bool = False) -> StockRun | None:
     if blocked:
         return _end(sr, "parked", blocked[0])
     sr.prefill = pre
+    sr.route = "clean"
     return _end(sr, "ready", None)
+
+
+def _trigger_route(inp: Inputs, sr: StockRun, code: str) -> StockRun | None:
+    """D69: something heavy happened. The veto still stands – the bear's points are not rebutted – but the question is no
+    longer «is this a buy» but «what does this change», and that is yours to answer today. The stock is «klar for
+    vurdering» with the standing points attached and no rating filled in. A stock in the research book or on the
+    watchlist gets there sooner, because following it is already in the weight."""
+    if sr.trigger < int(inp.cfg["ready_trigger"]):
+        return None
+    standing = sum(1 for f in sr.findings if f.role == "bear" and f.status == "stands")
+    why = Finding("desk", "trigger_route", f"utløservekt {sr.trigger} ≥ {int(inp.cfg['ready_trigger'])}; bjørnen står på {standing} punkt(er)",
+                  "desk-reglene (D69): dashboard.yaml, desk: ready_trigger", inp.session, inp.stamp())
+    sr.findings.append(why)
+    sr.route = "trigger"
+    sr.prefill = {}                                  # no rating, no target: the form opens empty with the debate attached
+    return _end(sr, "ready", why)
 
 
 def _end(sr: StockRun, outcome: str, why: Finding | None) -> StockRun:
@@ -1052,6 +1215,14 @@ def run(codes: list[str] | None = None, trigger: str = "daily", snap: mk.Snapsho
             continue
         if sr:
             out.stocks.append(sr)
+    cap = int(inp.cfg["max_ready"])
+    ready = sorted((s for s in out.stocks if s.outcome == "ready"), key=lambda s: -s.trigger)
+    for s in ready[cap:] if not forced else []:          # D69: five a day at most – the heaviest; the rest wait
+        s.findings.pop()                                 # the desk's own closing line, written again below
+        s.prefill, s.route = None, ""
+        s.stage = "desk"
+        _end(s, "parked", Finding("desk", "ready_cap", f"utløservekt {s.trigger}; dagens {cap} tyngste har {ready[cap - 1].trigger} eller mer", "desk-reglene (D69): dashboard.yaml, desk: max_ready",
+                                  inp.session, inp.stamp()))
     out.scanned = len(universe)
     out.flagged = sum(1 for s in out.stocks if any(f.role == "scout" and f.kind != "quiet" for f in s.findings))
     out.killed = sum(s.outcome == "killed" for s in out.stocks)
@@ -1063,6 +1234,37 @@ def run(codes: list[str] | None = None, trigger: str = "daily", snap: mk.Snapsho
     assert all(s.outcome in OUTCOMES for s in out.stocks)
     if write:
         save(out)
+    return out
+
+
+def replay(sessions: int = 10, cfg: dict | None = None) -> list[dict]:
+    """The desk as it would have run on each of the last ``sessions`` sessions, with today's rules: the price panel is
+    cut at the session, the announcements and the macro series are read as of it. Nothing is written. Used to set the
+    thresholds on what they would have given (D69) – not a backtest of returns. The short register and the light
+    cases are today's, so the bear's side is approximate; the scout and the filter are exact."""
+    snap = mk.snapshot()
+    days = snap.panel["close"].index[-sessions:]
+    out = []
+    for day in days:
+        panel = {k: v.loc[:day] for k, v in snap.panel.items()}
+        cut = mk.Snapshot(panel, snap.names, snap.sectors, day)
+        inp_now = datetime(day.year, day.month, day.day, 17, 0, tzinfo=UTC)
+        if cfg:
+            old = config
+
+            def patched(_old=old, _cfg=cfg):
+                return {**_old(), **_cfg}
+
+            globals()["config"] = patched
+        try:
+            r = run(trigger="daily", snap=cut, today=day, now=inp_now, write=False)
+        finally:
+            if cfg:
+                globals()["config"] = old
+        out.append({"session": f"{day:%Y-%m-%d}", "scanned": r.scanned, "flagged": r.flagged, "killed": r.killed, "parked": r.parked, "ready": r.ready,
+                    "ready_codes": [f"{s.code}({s.trigger})" for s in r.stocks if s.outcome == "ready"],
+                    "weak": sum(1 for s in r.stocks if s.outcome == "killed" and "svak" in s.reason),
+                    "weights": sorted((s.trigger for s in r.stocks), reverse=True)})
     return out
 
 
