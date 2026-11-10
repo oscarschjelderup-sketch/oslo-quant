@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from osloquant.dashboard.tall import MINUS, NBSP, THIN, heltall, norske_tall, prosent, tall
+from osloquant.dashboard.tall import MINUS, NBSP, THIN, gruppe, heltall, norske_grupper, norske_tall, prosent, tall
 
 from .test_dashboard import app  # noqa: F401  the synthetic store, book and home
 
@@ -90,3 +90,16 @@ def test_every_page_runs_the_pass(app):  # noqa: F811
         assert body == html, f"{url} still has numbers in the English form"       # the pass is idempotent and already applied
     front = client.get("/sectors").get_data(as_text=True)
     assert f"{NBSP}%" in front
+
+
+def test_sector_groups_are_shown_in_norwegian_and_a_headline_is_left_alone():
+    page = ('<td class="src">Finance</td><h3><span>Energy <span class="code">16 aksjer</span></span></h3>'
+            '<p>Sektorgruppe <b>Consumer, telecom &amp; real estate</b>: 2 syn</p><td>Technology &amp; renewables</td>'
+            '<a href="/x">Aker ASA: Finance update and Energy outlook</a><input value="Finance"><option value="Energy">Energy</option>')
+    out = norske_grupper(page)
+    assert '<td class="src">Finans</td>' in out and "<span>Energi <span" in out
+    assert "<b>Konsum, telekom og eiendom</b>" in out and "<td>Teknologi og fornybar</td>" in out
+    assert "Aker ASA: Finance update and Energy outlook" in out          # a headline keeps its words
+    assert '<input value="Finance">' in out
+    assert gruppe("Industrials & materials") == "Industri og materialer" and gruppe("Seafood") == "Sjømat" and gruppe("Shipping") == "Shipping"
+    assert norske_grupper(out) == out

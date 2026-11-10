@@ -39,6 +39,15 @@ LAST_MOVE = {"OUTLT": 0.96, "ELK": 0.965, "AAA": 1.05}
 VOLUME = {"SATS": 50_000.0, "OUTLT": 50_000.0, "ELK": 150_000.0, "AAA": 50_000.0, "DDD": 50_000.0}      # the rest trade 1 000 shares a day
 
 
+
+@pytest.fixture(autouse=True)
+def _chain_without_trigger_rules(monkeypatch):
+    """These tests are about the chain of D41: scout, filter, analyst, bear, reply, risk. The trigger rules of D69
+    (a weak trigger is killed, a heavy one is ready) have their own tests in test_desk_d69.py and are switched off here."""
+    monkeypatch.setitem(dk.DEFAULTS, "min_trigger", 0)
+    monkeypatch.setitem(dk.DEFAULTS, "ready_trigger", 10**6)
+
+
 def _snapshot() -> mk.Snapshot:
     rng = np.random.default_rng(7)
     n = 400

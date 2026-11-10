@@ -196,6 +196,19 @@ def news_card(ctx: dict) -> str:
     items = _news_items(ctx)
     filt = ('<div class="filt"><button type="button" class="on" data-k="alle">Alle</button><button type="button" data-k="borsmelding">Børsmeldinger</button>'
             '<button type="button" data-k="innsidehandel">Innsidehandel</button><button type="button" data-k="short">Short</button><button type="button" data-k="nyheter">Nyheter</button></div>')
+    days = ctx.get("news_days")
+    if days is not None:        # D67: one block per session with what the price did, heaviest item first
+        from osloquant.dashboard import news as nw
+
+        extra = [it for it in items if it["kind"] in ("innsidehandel", "short")]
+        flat = "".join(f'<li data-k="{it["kind"]}"><span class="nwhen">{when(it["time"])}</span><span>'
+                       + (f'<a href="{E(it["url"])}" target="_blank" rel="noopener">{E(it["title"])}</a>' if it["url"] else E(it["title"]))
+                       + f'<div class="nmeta"><span class="nkind k1">{E(it["label"])}</span></div></span></li>' for it in extra[:12])
+        body = (nw.day_html(days, "Ingen børsmelding de siste 120 dagene og ingen overskrift som nevner selskapet de siste 14.")
+                + (f'<div class="nday">Innsidehandler og shortendringer</div><ul class="nlist">{flat}</ul>' if flat else ""))
+        return (f'<div class="card" id="nyheter-aksje"><h3>Meldinger og nyheter, dag for dag</h3>{filt.replace("ul.newsl", "ul.nlist")}{body}'
+                f'<div class="src">{nw.source_line()} Innsidehandler: NewsWeb-bufferen (meldepliktige). Short: Finanstilsynets register, endringer på 0,25 prosentpoeng eller mer. '
+                'Meldinger merket M står også på kursgrafen.</div></div>')
     if items:
         li = "".join(f'<li data-k="{it["kind"]}"><span class="src">{when(it["time"])}</span><span>'
                      + (f'<a href="{E(it["url"])}" target="_blank" rel="noopener">{E(it["title"])}</a>' if it["url"] else E(it["title"]))
@@ -274,7 +287,12 @@ def overview_panel(code: str, ctx: dict) -> str:
         note = ('Periodeknappene flytter aksene i grafen over; avkastningen under hver knapp er '
                 'sluttkurs mot sluttkurs, justert for utbytte og splitt. 1D er slått av: lageret har bare dagskurser.')
     chart_card = f'<div class="card">{chart}{per}<div class="src">{note}</div></div>'
-    return chart_card + key_grid(ctx) + f'<div class="grid2">{news_card(ctx)}{key_table(ctx)}</div>'
+    macro_card = ""
+    if ctx.get("macro") is not None:
+        from osloquant.dashboard import macropage as mp
+
+        macro_card = mp.stock_card(code, ctx.get("name") or code, ctx["macro"])
+    return chart_card + key_grid(ctx) + f'<div class="grid2">{news_card(ctx)}{key_table(ctx)}</div>' + macro_card
 
 
 # ------------------------------------------------------------------------------------------------ 2 Regnskap
@@ -569,7 +587,7 @@ SCRIPT = r"""<script>
   }); });
   document.querySelectorAll('.filt button').forEach(function(b){ b.addEventListener('click', function(){
     var k = b.dataset.k; document.querySelectorAll('.filt button').forEach(function(x){ x.classList.toggle('on', x === b); });
-    document.querySelectorAll('ul.newsl li').forEach(function(li){ li.hidden = (k !== 'alle' && li.dataset.k !== k); });
+    document.querySelectorAll('ul.newsl li, ul.nlist li').forEach(function(li){ li.hidden = (k !== 'alle' && li.dataset.k !== k); });
   }); });
   document.querySelectorAll('.pertog button').forEach(function(b){ b.addEventListener('click', function(){
     var p = b.dataset.per; document.querySelectorAll('.pertog button').forEach(function(x){ x.classList.toggle('on', x.dataset.per === p); });

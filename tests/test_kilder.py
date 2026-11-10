@@ -36,7 +36,7 @@ def _seed_feeds(stamp: str = OLD) -> None:
     docs = {"announcements": {"items": []}, "rates": {"policy_rate": 4.0, "policy_date": "2026-11-06", "gov10y": 3.9, "gov10y_date": "2026-11-06"},
             "fx": {"USDNOK": 10.0, "EURNOK": 11.5, "date": "2026-11-06"}, "salmon": {"value": 70.0, "date": "week 44 2026"},
             "brent": {"value": 80.0, "date": "2026-11-06"}, "news": {"items": []}, "shorts": {"instruments": []},
-            "insiders": {"items": {}, "fetched_years": {}}, "calendar": {"companies": {}}}
+            "insiders": {"items": {}, "fetched_years": {}}, "calendar": {"companies": {}}, "macro": {"series": {}}}
     for name, doc in docs.items():
         (fd.cache_dir() / f"{name}.json").write_text(json.dumps(doc | {"fetched_at": stamp, "source": "test"}), encoding="utf-8")
 
@@ -45,7 +45,7 @@ def _all_feeds_down(monkeypatch) -> None:
     def down(*a, **k):
         raise ConnectionError("kilden svarer ikke")
 
-    for mod, names in ((fd, ("fetch_announcements", "fetch_rates", "fetch_fx", "fetch_salmon", "fetch_brent", "fetch_news")),
+    for mod, names in ((fd, ("fetch_announcements", "fetch_rates", "fetch_fx", "fetch_salmon", "fetch_brent", "fetch_news", "fetch_macro")),
                        (ins, ("fetch_shorts", "fetch")), (cal, ("fetch_financial_calendars",))):
         for n in names:
             monkeypatch.setattr(mod, n, down)
@@ -67,11 +67,11 @@ def test_e5_every_source_down_is_shown_as_failed_with_the_old_time_and_never_as_
     _seed_feeds()
     _all_feeds_down(monkeypatch)
     out = fd.refresh([])
-    assert len(out) == 9 and all(v.startswith("ConnectionError") for v in out.values())
+    assert len(out) == 10 and all(v.startswith("ConnectionError") for v in out.values())
     assert fd.read("rates")["fetched_at"] == OLD                              # the old cache is kept, with its old time
     sts = _by_key()
     feeds = [s for s in sts.values() if s["kind"] == "feed"]
-    assert len(feeds) == 9
+    assert len(feeds) == 10
     for s in feeds:
         assert s["state"] == "failed" and "kilden svarer ikke" in s["error"], s["key"]
         assert f"{s['last_ok']:%Y-%m-%d %H:%M}" == "2026-11-06 18:50" and s["last_attempt"] > s["last_ok"]     # Oslo time
@@ -90,9 +90,10 @@ def test_e5_every_source_down_is_shown_as_failed_with_the_old_time_and_never_as_
 def test_e5_each_source_alone_down_is_the_only_one_named(home, monkeypatch):
     fetchers = {"announcements": (fd, "fetch_announcements"), "rates": (fd, "fetch_rates"), "fx": (fd, "fetch_fx"), "salmon": (fd, "fetch_salmon"),
                 "brent": (fd, "fetch_brent"), "news": (fd, "fetch_news"), "shorts": (ins, "fetch_shorts"), "insiders": (ins, "fetch"),
-                "calendar": (cal, "fetch_financial_calendars")}
+                "calendar": (cal, "fetch_financial_calendars"), "macro": (fd, "fetch_macro")}
     good = {"announcements": {"items": []}, "rates": {"policy_rate": 4.0}, "fx": {"USDNOK": 10.0}, "salmon": {"value": 70.0}, "brent": {"value": 80.0},
-            "news": {"items": []}, "shorts": {"instruments": []}, "insiders": {"items": {}, "fetched_years": {}}, "calendar": {"companies": {}}}
+            "news": {"items": []}, "shorts": {"instruments": []}, "insiders": {"items": {}, "fetched_years": {}}, "calendar": {"companies": {}},
+            "macro": {"series": {}}}
     now = pd.Timestamp.now(tz="Europe/Oslo").tz_localize(None)
     for victim in fetchers:
         for name, (mod, fn) in fetchers.items():

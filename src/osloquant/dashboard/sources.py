@@ -55,6 +55,8 @@ SOURCES: tuple[Source, ...] = (
     Source("salmon", "Laksepris", "SSB tabell 03024", "feed", "weekly", "sektordriveren for sjømat", "salmon"),
     Source("shorts", "Shortposisjoner", "Finanstilsynet", "feed", "daily", "Eiere-fanen og shortendringene på «I dag»", "shorts"),
     Source("news", "Nyhetsoverskrifter", "RSS: E24, DN, Finansavisen, NRK", "feed", "daily", "nyhetslisten på aksjesiden", "news"),
+    Source("macro", "Makroserier", "Norges Bank, Yahoo Finance, SSB, hvakosterstrommen.no, FRED", "feed", "daily",
+           "makrostripen, makrosiden og følsomheten per aksje", "macro"),
     Source("consensus", "Konsensus før rapport", "MFN (Modular Finance)", "event", "event", "konsensus-kolonnen i rapportanalysen (bare der den er registrert)", "consensus"),
 )
 BY_KEY = {s.key: s for s in SOURCES}

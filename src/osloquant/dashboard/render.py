@@ -11,8 +11,6 @@ import pandas as pd
 
 from osloquant import signals as sg
 from osloquant.dashboard.dates import (
-    DATE_HOVER,
-    DATE_TICKS,
     PLOTLY_LOCALE,
     dato,
     dato_tid,
@@ -39,10 +37,25 @@ nav.top .links a { display:flex; align-items:center; padding:0 11px; min-height:
 nav.top .links a:hover { background:rgba(255,255,255,0.08); }
 nav.top .links a.on { background:#fff; color:var(--accent-dark); }
 nav.top .sep { width:1px; background:rgba(255,255,255,0.22); margin:11px 5px; flex:0 0 auto; }
+nav.top .links { flex-wrap:nowrap; }
+nav.top details.more { position:relative; align-self:stretch; }
+nav.top details.more > summary { display:flex; align-items:center; gap:5px; padding:0 12px; height:100%; min-height:40px; box-sizing:border-box; color:#e8f3f2; font-weight:600; font-size:13px; white-space:nowrap;
+  cursor:pointer; list-style:none; user-select:none; }
+nav.top details.more > summary::-webkit-details-marker { display:none; }
+nav.top details.more > summary::after { content:""; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid currentColor; opacity:0.8; }
+nav.top details.more > summary:hover, nav.top details.more[open] > summary { background:rgba(255,255,255,0.08); }
+nav.top details.more.on > summary { background:#fff; color:var(--accent-dark); }
+nav.top details.more .menu { position:absolute; top:100%; right:0; z-index:40; min-width:190px; background:#fff; border:1px solid var(--line); border-radius:0 0 8px 8px;
+  box-shadow:0 8px 22px rgba(20,40,50,0.16); padding:6px 0; display:flex; flex-direction:column; }
+nav.top details.more .menu a { color:var(--text); min-height:0; padding:8px 16px; font-weight:500; border-bottom:0; }
+nav.top details.more .menu a:hover { background:var(--accent-pale); text-decoration:none; }
+nav.top details.more .menu a.on { background:var(--panel); color:var(--accent-dark); font-weight:700; }
+nav.top details.more .menu a.narrow { display:none; }
+@media (max-width:1040px) { nav.top .links a.wide { display:none; } nav.top details.more .menu a.narrow { display:flex; } }
 nav.top form { margin-left:12px; display:flex; gap:6px; flex:0 0 auto; }
 nav.top input { padding:5px 9px; border:1px solid var(--accent-pale); border-radius:3px; background:#fff; color:var(--text); width:150px; font:inherit; }
 @media (max-width:1320px) { nav.top .links a { padding:0 8px; font-size:12.5px; } nav.top .brand .long { display:none; } nav.top input { width:120px; } nav.top .sep { margin:11px 3px; } }
-@media (max-width:760px) { nav.top { flex-wrap:wrap; padding-bottom:6px; } nav.top form { margin:6px 0 0 auto; } }
+@media (max-width:640px) { nav.top .brand { display:none; } nav.top input { width:92px; } nav.top .links a, nav.top details.more > summary { padding:0 8px; } }
 a { color:var(--info); text-decoration:none; } a:hover { text-decoration:underline; }
 h1 { font-size:30px; font-weight:400; color:var(--accent); margin:6px 0 2px; letter-spacing:-0.2px; }
 h1 .code { font-size:15px; color:var(--muted); font-weight:400; margin-left:8px; }
@@ -106,7 +119,7 @@ table.stm td:first-child { font-weight:500; } table.stm th { white-space:nowrap;
 /* the price chart (night 10 Nov 2026, K1–K3): TradingView Lightweight Charts drawing the store's own bars */
 .pc-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px 16px; flex-wrap:wrap; border-bottom:1px solid var(--line); margin:0 0 4px; padding-bottom:3px; }
 .pc-head h3 { border:0; margin:0; padding:0; } .pc-head .unit { color:var(--muted); font-weight:600; font-size:12px; }
-.info { display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; border-radius:50%; background:var(--panel); border:1px solid var(--line); color:var(--muted); font-size:10.5px; font-weight:700; font-style:normal; cursor:help; vertical-align:1px; }
+.pc-info { display:inline-block; width:15px; height:15px; line-height:15px; text-align:center; border-radius:50%; background:var(--panel); border:1px solid var(--line); color:var(--muted); font-size:10.5px; font-weight:700; font-style:normal; cursor:help; vertical-align:1px; }
 .pc-ret { font-size:13px; cursor:help; } .pc-ret b { font-size:14.5px; } .pc-ret .src { margin-left:6px; }
 .pc-sub { color:var(--muted); font-size:12px; margin:0 0 4px; }
 .pc-sub .delayed, .pc .delayed { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; color:var(--gold); background:var(--gold-bg); border-radius:3px; padding:0 5px; }
@@ -157,6 +170,11 @@ th { color:var(--text); font-weight:700; border-top:0; border-bottom:1px solid v
 th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align:left; }
 table.odds td, table.odds th { text-align:right; } table.odds td:first-child, table.odds th:first-child { text-align:left; }
 table.odds th.grp { text-align:center; }
+/* a table with stated column shares never grows past its card, and two such tables line up under each other */
+table.colfix { table-layout:fixed; } table.colfix td, table.colfix th { white-space:normal; overflow-wrap:break-word; }
+table.colfix td .chip { white-space:nowrap; }
+table.fit, table.fit td, table.fit th { white-space:normal; } table.fit .chip, table.fit .tag { white-space:nowrap; }
+.tscroll { overflow-x:auto; max-width:100%; }
 th.l, td.l, table.odds th.l, table.odds td.l { text-align:left; }      /* text reads from the left, numbers line up on the right */
 table.keyfig td:first-child { font-weight:500; } table.keyfig tr.sep td { border-top:2px solid var(--line); }
 table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
@@ -170,6 +188,45 @@ table.keyfig td.ltm, table.keyfig th.ltm { background:var(--accent-pale); }
 .tag.u0 { background:var(--accent-dark); color:#fff; } .tag.u1 { background:var(--accent-pale); color:var(--accent-dark); } .tag.u2 { background:var(--panel); color:var(--muted); }
 /* a status is not a price move: ok is quiet, a problem is amber and bold. Green and red are for up and down only. */
 .st-ok { color:var(--muted); } .st-warn { color:var(--gold); font-weight:600; } .st-bad { color:var(--gold); font-weight:700; }
+/* the macro strip: one cell shape for every driver – name, level, change, trend line, date */
+.mstrip { display:grid; grid-template-columns:repeat(auto-fit,minmax(138px,1fr)); gap:8px; margin:10px 0 14px; }
+.mcell { display:grid; grid-template-columns:1fr auto; grid-template-areas:"name name" "level chg" "spark spark" "date date"; align-items:baseline; column-gap:6px; row-gap:1px;
+  background:#fff; border:1px solid var(--line); border-radius:8px; padding:7px 10px 6px; color:var(--text); text-decoration:none; min-width:0; }
+a.mcell:hover { border-color:var(--accent); text-decoration:none; }
+.mcell .mname { grid-area:name; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mcell .mlevel { grid-area:level; font-size:17px; font-weight:600; line-height:1.2; white-space:nowrap; }
+.mcell .mchg { grid-area:chg; font-size:12px; font-weight:600; white-space:nowrap; text-align:right; }
+.mcell .spark { grid-area:spark; width:100%; height:26px; display:block; margin:2px 0 1px; }
+.mcell .mdate { grid-area:date; font-size:10.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mcell.empty .mlevel, .mcell.empty .mchg { color:var(--muted); font-weight:400; }
+.spark { vertical-align:middle; }
+.mgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px; margin-bottom:6px; }
+.mgrid > .card { margin-bottom:0; min-width:0; }
+.mcard h3 .unit { font-weight:400; color:var(--muted); font-size:11.5px; }
+.mfig { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:2px 0 4px; }
+.mfig b { font-size:24px; font-weight:500; }
+.mc { position:relative; height:150px; margin:2px 0 6px; }
+.mc-tip { display:none; position:absolute; left:6px; top:2px; z-index:3; font-size:11px; background:rgba(255,255,255,0.92); border:1px solid var(--line); border-radius:4px; padding:1px 6px; pointer-events:none; }
+.mexp { font-size:12px; margin:2px 0 6px; } .mexp ul { list-style:none; margin:3px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px 12px; } .mexp li { white-space:nowrap; }
+.mper { display:flex; align-items:center; gap:6px; margin:4px 0 2px; }
+/* the sector matrix: blue = the stocks beat the market when the driver rose, orange = they lagged. Not green and red: co-movement is not up or down. */
+table.mxt td.mx { text-align:center; white-space:nowrap; }
+td.mx.pos1 { background:#eef4fb; } td.mx.pos2 { background:#d6e6f7; } td.mx.pos3 { background:#b4d1f0; }
+td.mx.neg1 { background:#fdf3e6; } td.mx.neg2 { background:#fae0bd; } td.mx.neg3 { background:#f5c98f; }
+.sbar { display:inline-block; width:54px; height:6px; background:var(--panel); border-radius:3px; vertical-align:middle; margin-right:5px; overflow:hidden; }
+.sbar i { display:block; height:100%; background:var(--accent); }
+.sector .driver .mstrip { margin:6px 0 10px; grid-template-columns:repeat(auto-fill,minmax(138px,170px)); }
+.sgrid.two { display:grid; grid-template-columns:minmax(0,3fr) minmax(260px,2fr); gap:18px; align-items:start; }
+.sgrid > div { min-width:0; } .snews h4 { margin:2px 0 4px; font-size:12px; font-weight:700; color:var(--accent-dark); }
+@media (max-width:1000px) { .sgrid.two { grid-template-columns:1fr; } }
+/* ranked news */
+.nlist { list-style:none; margin:0; padding:0; } .nlist li { display:grid; grid-template-columns:86px 1fr; gap:2px 10px; padding:7px 0; border-top:1px solid var(--line); }
+.nlist li:first-child { border-top:0; } .nlist .nwhen { font-size:11.5px; color:var(--muted); white-space:nowrap; }
+.nlist .nmeta { font-size:11.5px; color:var(--muted); } .nlist .nmeta .why { margin-left:6px; }
+.nkind { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase; padding:0 6px; border-radius:2px; background:var(--panel); color:var(--muted); margin-right:6px; }
+.nkind.k3 { background:var(--accent-dark); color:#fff; } .nkind.k2 { background:var(--accent-pale); color:var(--accent-dark); }
+.nday { font-size:12px; font-weight:700; color:var(--accent-dark); margin:12px 0 2px; padding-top:8px; border-top:1px solid var(--line); }
+.nday:first-child { border-top:0; padding-top:0; margin-top:0; } .nday .move { font-weight:600; margin-left:8px; }
 /* chips, alerts, lists */
 .chips { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 0; }
 .chip { display:inline-block; padding:2px 9px; border-radius:2px; font-size:11.5px; font-weight:700; }
@@ -203,13 +260,25 @@ button.go:hover { background:var(--accent-dark); }
 """
 
 #: the nav in four groups, a thin rule between them: the day, the universe, yourself, the machinery
-NAV_GROUPS = [
-    [("/", "I dag"), ("/desk", "Desk"), ("/calendar", "Kalender")],
-    [("/coverage", "Dekning"), ("/screen", "Prisen krever"), ("/sectors", "Sektorer"), ("/funds", "Porteføljer")],
-    [("/calibration", "Kalibrering"), ("/review", "Feil"), ("/chief", "Analysesjef")],
-    [("/watchlist", "Overvåkning"), ("/health", "Datahelse")],
-]
+#: The top line holds what is looked at every day; everything else is one click away under «Mer» (D66). Nothing is
+#: removed and every old address still works. ``NAV_NARROW`` leaves the bar in a narrow window and shows up in «Mer».
+NAV_TOP = [("/", "I dag"), ("/makro", "Makro"), ("/sectors", "Sektorer"), ("/coverage", "Dekning"), ("/desk", "Desk"), ("/calendar", "Kalender"),
+           ("/screen", "Prisen krever")]
+NAV_MORE = [("/funds", "Porteføljer"), ("/calibration", "Kalibrering"), ("/review", "Feil"), ("/chief", "Analysesjef"), ("/watchlist", "Overvåkning"),
+            ("/health", "Datahelse")]
+NAV_NARROW = ("/coverage", "/calendar", "/screen")
+NAV_GROUPS = [NAV_TOP, NAV_MORE]
 NAV = [item for group in NAV_GROUPS for item in group]
+
+
+def nav_html(active: str) -> str:
+    """The top line: the daily pages, then «Mer» with the rest. The open page is marked also when it lives under «Mer»."""
+    top = "".join(f'<a href="{href}" class="{"on" if href == active else ""}{" wide" if href in NAV_NARROW else ""}">{E(label)}</a>' for href, label in NAV_TOP)
+    in_more = next((label for href, label in NAV_MORE if href == active), None)
+    narrow = "".join(f'<a href="{href}" class="narrow{" on" if href == active else ""}">{E(label)}</a>' for href, label in NAV_TOP if href in NAV_NARROW)
+    more = "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in NAV_MORE)
+    label = f'Mer · {E(in_more)}' if in_more else "Mer"
+    return (f'{top}<details class="more{" on" if in_more else ""}"><summary>{label}</summary><div class="menu">{narrow}{more}</div></details>')
 
 
 def pct(v, d=1, sign=True):
@@ -264,22 +333,21 @@ def heat(v):
 
 
 def page(title: str, active: str, body: str, generated: datetime | None = None, static: bool = False) -> str:
-    nav = '<span class="sep"></span>'.join(
-        "".join(f'<a href="{href}" class="{"on" if href == active else ""}">{E(label)}</a>' for href, label in group) for group in NAV_GROUPS)
+    nav = nav_html(active)
     search = '' if static else '<form action="/go" method="get"><input name="code" placeholder="Ticker (MOWI)"></form>'
     plotly = '' if static else '<script src="/static/plotly.min.js"></script>' + PLOTLY_LOCALE
     icon = '' if static else '<link rel="icon" href="/favicon.ico">'
     note = ('<div class="src">Statisk kopi skrevet av kveldsoppgaven. Det levende dashbordet: <code>oq dashboard</code> → '
             '<a href="http://127.0.0.1:8060/">http://127.0.0.1:8060/</a></div>') if static else ''
     gen = f'<div class="src">Generert {dato_tid((generated or datetime.now()), True)}. Privat: research book og vurderingsloggen leses fra ~/osloquant-home og publiseres aldri.</div>{note}'
-    from osloquant.dashboard.tall import norske_tall
+    from osloquant.dashboard.tall import norske_grupper, norske_tall
 
-    return norske_tall(norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    return norske_grupper(norske_tall(norske_datoer(f"""<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{E(title)} – Oslo Børs dashboard</title>{icon}<style>{CSS}</style>{plotly}</head><body><div class="wrap">
 <nav class="top"><span class="brand">Oslo Børs<span class="long"> · beslutninger</span></span><span class="links">{nav}</span>{search}</nav>
 {body}
 <div class="foot">{gen}<div class="src">Kurser: daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret – forsinket, ikke sanntid. Signaloddsene er målt på lagerets egen historikk (oq signals score). Ingenting her handler eller gir råd.</div></div>
-</div>{ALIGN_SCRIPT}</body></html>"""))
+</div>{ALIGN_SCRIPT}{FIT_SCRIPT}</body></html>""")))
 
 
 #: Every table on every page: a column where most cells are text is left-aligned, a column of numbers stays right-aligned.
@@ -290,6 +358,20 @@ Array.prototype.push.apply(rows,b.rows)});if(!rows.length)return;var n=0;rows.fo
 for(var c=0;c<n;c++){var num=0,tot=0;rows.forEach(function(r){if(r.cells.length!==n)return;var x=(r.cells[c].textContent||'').trim();if(!x||x==='\u2013'||x==='-')return;tot++;
 if(NUM.test(x))num++});if(!tot||num/tot>=0.5)continue;rows.forEach(function(r){if(r.cells.length===n&&!r.cells[c].style.textAlign)r.cells[c].classList.add('l')});
 if(t.tHead)Array.prototype.forEach.call(t.tHead.rows,function(r){if(r.cells.length===n)r.cells[c].classList.add('l')})}})})();</script>"""
+
+
+#: No table leaves its card. A table wider than the card first lets its text wrap (class ``fit``); if it is still too
+#: wide it gets a frame that scrolls inside the card (class ``tscroll``), so the page itself never scrolls sideways.
+#: Runs after the alignment script, again when the window changes size, and when a hidden tab is opened.
+FIT_SCRIPT = """<script>(function(){function room(t){var c=t.closest('.tscroll')?t.closest('.tscroll').parentElement:t.parentElement;if(!c)return 1e9;var s=getComputedStyle(c);
+return c.clientWidth-parseFloat(s.paddingLeft||0)-parseFloat(s.paddingRight||0)}
+function fit(){document.querySelectorAll('.card table').forEach(function(t){if(t.offsetParent===null)return;var w=t.closest('.tscroll');
+t.classList.remove('fit');if(w){w.parentNode.insertBefore(t,w);w.remove()}
+if(t.scrollWidth<=room(t)+1)return;t.classList.add('fit');if(t.scrollWidth<=room(t)+1)return;
+var d=document.createElement('div');d.className='tscroll';t.parentNode.insertBefore(d,t);d.appendChild(t)})}
+var timer;window.addEventListener('resize',function(){clearTimeout(timer);timer=setTimeout(fit,120)});
+document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('nav.tabs a,[data-tab],details>summary'))setTimeout(fit,60)});
+fit();window.addEventListener('load',fit);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fit);window.fitTables=fit})();</script>"""
 
 
 def link(code: str, text: str | None = None, static: bool = False) -> str:
@@ -311,6 +393,15 @@ def today_page(ctx: dict, static: bool = False) -> str:
     while expected.weekday() >= 5:
         expected -= pd.Timedelta(days=1)
     stale = asof.normalize() < expected if asof is not None and asof == asof else True
+    strip = ""
+    try:
+        from osloquant.dashboard import macro as mc
+
+        strip = mc.strip_html(static=static)
+    except Exception:  # noqa: BLE001 – the front page opens without the strip
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("macro strip failed")
     if ctx.get("sources") is not None:          # D60: every source that is not ok, with the numbers it affects
         from osloquant.dashboard import sources as src
 
@@ -349,7 +440,9 @@ def today_page(ctx: dict, static: bool = False) -> str:
                     + (f'<div class="src">Neste dato: {dato(nxt["date"], False)} – {L(nxt["code"], nxt["name"])}, {E(nxt["what"])}.</div>' if nxt else ''))
     body = [f'<h1>I dag <span class="code">{dato(today, weekday=True)}</span></h1>',
             f'<div class="sub">Siste sluttkurs: {dato(asof, weekday=True)} (Yahoo, forsinket). Signaler dekker {E(", ".join(ctx["sessions"]) or "–")}.</div>',
+            strip,
             banner,
+            ctx.get("news_html", ""),
             f'<div class="card decide"><h2>Dette krever en vurdering fra deg ({len(dec)})</h2>{dec_html}</div>']
     # cases vs target
     rows = "".join(
@@ -384,10 +477,14 @@ def today_page(ctx: dict, static: bool = False) -> str:
     ann_html = ("".join(f'<li><b>{E(a["code"])}</b> {when(a["time"])} – <a href="{E(a["url"])}" target="_blank" rel="noopener">{E(a["title"])}</a></li>' for a in ann["items"])
                 or '<li class="empty">ingen børsmeldinger i vinduet</li>') + f'</ul><div class="src">{E(ann["source"])}</div>' if ann else \
         '<li class="empty">børsmeldinger ikke hentet (oq dashboard --refresh)</li></ul>'
-    body.append('<div class="grid2"><div><h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
+    upcoming = ('<h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
                 + (up or '<li class="empty">ingen hendelser de neste 30 dagene</li>') + '</ul><div class="src">Research book, selskapenes finanskalendere på NewsWeb og Norges Bank; '
-                + ('<a href="/calendar">hele kalenderen</a>' if not static else 'full calendar on the dashboard') + '.</div></div></div>'
-                '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
+                + ('<a href="/calendar">hele kalenderen</a>' if not static else 'hele kalenderen står på dashbordet') + '.</div></div>')
+    if ctx.get("news_html"):          # D67: the announcements are in «Nyheter som betyr noe» at the top, sorted by weight
+        body.append(upcoming)
+    else:
+        body.append(f'<div class="grid2"><div>{upcoming}</div>'
+                    '<div><h2>Børsmeldinger – research book og overvåkning</h2><div class="card"><ul class="news">' + ann_html + '</div></div></div>')
     if "insiders" in ctx:
         body.append(insider_front(ctx["insiders"], ctx.get("shorts_moved", []), static))
     # signals since last visit
@@ -410,7 +507,8 @@ def today_page(ctx: dict, static: bool = False) -> str:
 
 
 # ------------------------------------------------------------------------------------------------ Sektorer
-def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> str:
+def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof, macro: dict | None = None, news: dict | None = None) -> str:
+    """``macro``: group -> strip html of the group's drivers (D65). ``news``: group -> html of the group's heaviest news (D67)."""
     body = [f'<h1>Sektorer</h1><div class="sub">Alle {len(ret)} aksjene etter sektor. Avkastning til sluttkursen {dato(asof)} (Yahoo Finance, forsinket). '
             'Farge: grønt opp, rødt ned, full farge ved ±10 %.</div>']
     for g in groups:
@@ -423,11 +521,18 @@ def sectors_page(ret: pd.DataFrame, drivers: dict, groups: list[str], asof) -> s
             + "".join(f'<td{heat(r[k])}>{pct(r[k])}{"*" if k == "ytd" and r["ytd_from_listing"] else ""}</td>' for k in ("d1", "w1", "m1", "ytd"))
             + (f'<td class="src">{dato(r["date"], False)}</td>' if r["stale"] else '<td></td>') + '</tr>' for code, r in sub.iterrows())
         d = drivers.get(g, [])
-        dhtml = " · ".join(f'{E(x["label"])}: <b>{E(x["value"])}</b> <span class="src">({E(x["source"])})</span>' for x in d) or "–"
+        if macro and macro.get(g):
+            missing = "".join(f' <span class="src">{E(x["label"])}: ikke gratis ({E(x["source"])}).</span>' for x in d if x.get("value") == "not free")
+            dblock = (f'<div class="driver"><span class="src">Driverne for sektoren, og hva de har gjort – <a href="/makro#folsomhet">hvem som faktisk følger dem</a>:</span>'
+                      f'{macro[g]}{missing}</div>')
+        else:
+            dhtml = " · ".join(f'{E(x["label"])}: <b>{E(x["value"])}</b> <span class="src">({E(x["source"])})</span>' for x in d) or "–"
+            dblock = f'<div class="driver">Drivere: {dhtml}</div>'
+        nblock = (f'<div class="snews"><h4>Nyheter i sektoren</h4>{news[g]}</div>' if news and news.get(g) else "")
+        table = ('<table class="heat"><thead><tr><th>Kode</th><th>Navn</th><th>Kurs</th><th>Dag</th><th>Uke</th><th>Måned</th><th>I år</th><th></th></tr></thead>'
+                 f'<tbody>{rows}</tbody></table>')
         body.append(f'<div class="card sector"><h3><span>{E(g)} <span class="code">{len(sub)} aksjer · snitt {pct(avg["d1"])} dag / {pct(avg["m1"])} mnd / {pct(avg["ytd"])} i år</span></span></h3>'
-                    f'<div class="driver">Drivere: {dhtml}</div>'
-                    '<table class="heat"><thead><tr><th>Kode</th><th>Navn</th><th>Kurs</th><th>Dag</th><th>Uke</th><th>Måned</th><th>I år</th><th></th></tr></thead>'
-                    f'<tbody>{rows}</tbody></table></div>')
+                    f'{dblock}<div class="sgrid{" two" if nblock else ""}"><div>{table}</div>{nblock}</div></div>')
     body.append('<div class="src">* I år fra første sluttkurs i lageret (notert i år). En dato etter en rad = aksjen mangler sluttkurs for siste økt.</div>')
     return page("Sektorer", "/sectors", "\n".join(body))
 
@@ -1362,7 +1467,7 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
             return "–"
         return f'{pct(r["hist"], 1, r["measure"] != "ROE")}{" ROE snitt" if r["measure"] == "ROE" else " /år"} <span class="src">({h.get("from")}–{h.get("to")})</span>'
 
-    def line(r, with_group=False):
+    def line(r, with_group=False, with_reading=True):
         verdict_cls = "" if r["verdict"] in ("more", "less", "fall", "above_wacc") else "src"     # no colour: a gap is not good or bad
         gap = "–" if r["gap"] is None else f'{r["gap"] * 100:+.1f} pp'
         roic = ("–" if r["financial"] else f'{pct(r.get("now"), 0, False)} / {pct(r.get("roic_avg"), 0, False)} <span class="src">mot {pct(r.get("wacc"), 1, False)} EST</span>')
@@ -1370,13 +1475,19 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
                 + f'<td>{_level_chip(r["level"]) if r["level"] else "–"}</td><td>{grade_chip(r["quality"])}</td>'
                 f'<td><b>{req(r)}</b> <span class="src">{E(r["basis"])}</span></td><td style="white-space:normal">{hist(r)}</td>'
                 f'<td>{gap}</td>'
-                f'<td>{roic}</td><td class="{verdict_cls}" style="white-space:normal">{E(r["label"])}</td></tr>')
+                f'<td>{roic}</td>' + (f'<td class="{verdict_cls}">{E(r["label"])}</td>' if with_reading else "") + '</tr>')
     head = ('<thead><tr><th>Selskap</th>{grp}<th>Nivå</th><th>Kvalitet</th><th>Prisen krever</th><th>Sammenlignet med (omsetning; bank: ROE; syklisk: 2 % EST)</th>'
-            '<th>Spenn</th><th>ROIC nå / snitt</th><th>Lesning</th></tr></thead>')
+            '<th>Spenn</th><th>ROIC nå / snitt</th>{reading}</tr></thead>')
+    # column shares in per cent. The candidate tables say their reading in the heading above them, so they have no
+    # «Lesning» column; the per-group tables have no group column. Both sets add up to 100.
+    shares = {(True, False): (16, 15, 8, 7, 17, 21, 7, 9), (False, True): (14, 8, 7, 17, 21, 7, 11, 15), (True, True): (13, 12, 7, 6, 15, 19, 7, 9, 12)}
 
-    def table(items, with_group=False, empty="ingen"):
-        body = "".join(line(r, with_group) for r in items) or f'<tr><td colspan="9" class="empty">{empty}</td></tr>'
-        return f'<table class="odds">{head.format(grp="<th>Gruppe</th>" if with_group else "")}<tbody>{body}</tbody></table>'
+    def table(items, with_group=False, empty="ingen", with_reading=True):
+        cols = "".join(f'<col style="width:{w}%">' for w in shares[(with_group, with_reading)])
+        n = 7 + with_group + with_reading
+        body = "".join(line(r, with_group, with_reading) for r in items) or f'<tr><td colspan="{n}" class="empty">{empty}</td></tr>'
+        return (f'<table class="odds colfix"><colgroup>{cols}</colgroup>'
+                f'{head.format(grp="<th>Gruppe</th>" if with_group else "", reading="<th>Lesning</th>" if with_reading else "")}<tbody>{body}</tbody></table>')
 
     groups, body = [], []
     for g in [x for x in mk_group_order() if any(r["group"] == x for r in rs)]:
@@ -1394,8 +1505,9 @@ def screen_page(rs: list[dict], cand: dict, cnt: dict, today) -> str:
              'Kapitalkostnad og langsiktig vekst er EST. Kvalitet A/B/C: se D42 (C = lesningen kan ikke brukes).</div></div>')
     cands = ('<h2>Kandidater for full dekning</h2><div class="card"><p>Der prisen og historikken spriker mest, blant caser som kan brukes og ikke alt har full case. '
              'En full case avgjør hvem som har rett – listen sier ikke hvem, og den er ikke et kjøps- eller salgsråd.</p>'
-             '<h3>Prisen krever mer enn selskapet har levert (syklisk: mer enn 2 % for alltid)</h3>' + table(cand["more"], True)
-             + '<h3 style="margin-top:14px">Prisen krever mindre enn selskapet har levert (syklisk: mindre enn 2 % for alltid)</h3>' + table(cand["less"], True)
+             '<h3>Prisen krever mer enn selskapet har levert (syklisk: mer enn 2 % for alltid)</h3>' + table(cand["more"], True, with_reading=False)
+             + '<h3 style="margin-top:14px">Prisen krever mindre enn selskapet har levert (syklisk: mindre enn 2 % for alltid)</h3>'
+             + table(cand["less"], True, with_reading=False)
              + '<div class="src">Planen endres med <code>oq coverage set KODE --target full</code>; en full case starter med <code>oq case export KODE</code> og '
              'Toolkitens <code>new_case.py</code>.</div></div>')
     caveat = ('<div class="card"><div class="src"><b>Ikke testet mot avkastning.</b> Lageret har regnskapene slik de ser ut i dag, ikke slik de så ut på hver dato, '
@@ -1567,57 +1679,9 @@ def _sh(v):
     return "–" if v is None else f"{v:.2f}"
 
 
-def frontier_chart(b: dict) -> str:
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-    fr = b.get("frontier") or []
-    if fr:
-        fig.add_trace(go.Scatter(x=[r["vol"] for r in fr], y=[r["ret"] for r in fr], mode="lines", name="Effisient front (lang, tak 15 %)", line=dict(color="#0f7c7c", width=2)))
-    rf, t = b["rf"], b.get("tangency")
-    if t and t.get("vol"):
-        slope = (t["ret"] - rf) / t["vol"]
-        xmax = max(max(r["vol"] for r in fr) if fr else t["vol"], t["vol"]) * 1.15
-        fig.add_trace(go.Scatter(x=[0, xmax], y=[rf, rf + slope * xmax], mode="lines", name="Kapitalmarkedslinjen (CML)", line=dict(color="#9a6700", width=1.5, dash="dash")))
-    xs = [v["vol"] for v in b["inputs"].values()]
-    ys = [v["mu"] for v in b["inputs"].values()]
-    fig.add_trace(go.Scatter(x=xs, y=ys, mode="markers", name="Enkeltaksjer (3 år, krympet snitt)", marker=dict(size=5, color="#b7c1c9"),
-                             text=list(b["inputs"].keys()), hovertemplate="%{text}: vol %{x:.1%}, E[r] %{y:.1%}<extra></extra>"))
-    cols = ["#1a2126", "#1f5f99", "#0b7a4b", "#0f7c7c", "#9a6700", "#b3261e", "#6a1b9a"]
-    for i, f in enumerate(b["funds"]):
-        e = f["est"]
-        if e.get("vol") is None:
-            continue
-        fig.add_trace(go.Scatter(x=[e["vol"]], y=[e["ret"]], mode="markers", name=f["name"], marker=dict(size=11, color=cols[i % len(cols)], symbol="diamond"),
-                                 hovertemplate=f'{f["name"]}: vol %{{x:.1%}}, E[r] %{{y:.1%}}<extra></extra>'))
-    fig.update_layout(height=430, margin=dict(l=50, r=20, t=40, b=40), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="closest",
-                      font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), legend=dict(orientation="h", y=-0.18, x=0, font=dict(size=11)),
-                      title=dict(text=f"Forventet avkastning mot volatilitet, {b['lookback_years']:.0f} års historikk til {b['asof']} (EST – se teksten)", font=dict(size=12.5)))
-    fig.update_xaxes(title="Volatilitet (årlig)", tickformat=".0%", gridcolor="#e6ebee", rangemode="tozero")
-    fig.update_yaxes(title="Forventet avkastning (årlig, EST)", tickformat=".0%", gridcolor="#e6ebee")
-    return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
-
-
-def nav_chart(series: dict[str, dict], title: str, height: int = 320) -> str:
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-    cols = ["#1a2126", "#1f5f99", "#0b7a4b", "#0f7c7c", "#9a6700", "#b3261e", "#6a1b9a", "#555"]
-    for i, (name, s) in enumerate(series.items()):
-        if not s:
-            continue
-        xs = list(s.keys())
-        fig.add_trace(go.Scatter(x=xs, y=list(s.values()), mode="lines", name=name, line=dict(color=cols[i % len(cols)], width=2.2 if name in ("OSEBX", "Likevektet") else 1.5,
-                                                                                               dash="dot" if name == "OSEBX" else "solid")))
-    fig.update_layout(height=height, margin=dict(l=44, r=16, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="x unified",
-                      font=dict(color="#4a5560", family="Segoe UI, Arial, sans-serif"), legend=dict(orientation="h", y=-0.14, x=0, font=dict(size=11)),
-                      title=dict(text=title, font=dict(size=12.5)))
-    fig.update_xaxes(gridcolor="#e6ebee", tickformatstops=DATE_TICKS, hoverformat=DATE_HOVER)
-    fig.update_yaxes(gridcolor="#e6ebee")
-    return fig.to_html(include_plotlyjs=False, full_html=False, config={"displaylogo": False})
-
 
 def funds_page(b: dict | None, tracked: list[dict], today) -> str:
+    from osloquant.dashboard import fundchart as fc
     from osloquant.dashboard import funds as fn
 
     if not b:
@@ -1639,7 +1703,7 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                      f'<details><summary>Vekter{more}</summary><table class="odds">{w}{cash}</table></details>'
                      + (f'<div class="src" style="margin-top:6px"><b>Ut av prøven, {bt.get("rebalances", 0)} mnd:</b> {E(fn.verdict(bt_row, f["name"]))}.</div>' if bt_row else
                         ('<div class="src" style="margin-top:6px">Ingen backtest: synene er nye, så oppskriften kan bare måles fremover.</div>' if not f.get("backtest", True) or f["name"].startswith("Synene") else ''))
-                     + f'<div class="src">{E(f["note"])}</div></div>')
+                     + f'<div class="src">{E(fc.note_text(f["note"]))}</div></div>')
     # 2. backtest table
     order = [f["name"] for f in b["funds"] if f["name"] in rows] + (["OSEBX"] if "OSEBX" in rows else [])
     trs = "".join(
@@ -1648,9 +1712,10 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
     bt_html = ('<h2>Ut av prøven: oppskriftene bygget på nytt hver måned, fem år</h2><div class="card">'
                '<table class="odds"><thead><tr><th>Portefølje</th><th>Avkastning p.a.</th><th>Volatilitet</th><th>Sharpe</th><th>Største fall</th><th>Omsetning/mnd</th><th>Mot likevekt</th></tr></thead>'
                f'<tbody>{trs}</tbody></table>'
-               + nav_chart(bt.get("nav") or {}, f"Verdi av 1 fra {bt.get('start', '?')}, bygget på nytt hver måned av foregående tre år, kostnad {b['cost']:.2%} av omsetning")
+               + fc.nav_html(bt.get("nav") or {}, f"Verdi av 1 fra {bt.get('start', '?')}, bygget på nytt hver måned av foregående tre år, kostnad {b['cost']:.2%} av omsetning",
+                             fc.fund_colours(b))
                + f'<div class="src">Walk-forward: ved hvert månedsskifte bygges porteføljen av de foregående {b["lookback_years"]:.0f} årene alene og holdes én måned. '
-               f'Sharpe mot styringsrenten ({E(b["rf_label"])}). Intervallene er måneds-blokk-bootstrap (1000 trekk) på Sharpe-differansen. '
+               f'Sharpe mot styringsrenten ({E(fc.rf_text(b["rf_label"]))}). Intervallene er måneds-blokk-bootstrap (1000 trekk) på Sharpe-differansen. '
                '<b>Universet er dagens aksjer i lageret – overlevere. Likevekt slo OSEBX med god margin i denne perioden av samme grunn; '
                'det riktige sammenligningsgrunnlaget for en oppskrift er likevekt, ikke indeksen.</b></div></div>') if rows else ''
     # 3. tracked paper funds
@@ -1663,7 +1728,8 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                         f'<td class="{cls(t["ew"])}">{pct(t["ew"])}</td><td class="{cls(t["osebx"])}">{pct(t["osebx"])}</td><td>{_pc(t["max_dd"])}</td></tr>' for t in tracked)
         track_html = ('<h2>Papirfondene siden de ble skrevet</h2><div class="card"><table class="odds"><thead><tr><th>Fond</th><th>Fra</th><th>Rebalanseringer</th><th>NAV</th>'
                       f'<th>Avkastning</th><th>Likevekt samme dager</th><th>OSEBX</th><th>Største fall</th></tr></thead><tbody>{trows}</tbody></table>'
-                      + nav_chart({t["name"]: t["series"] for t in tracked if t["series"]}, "NAV fra 100 ved første skriving (daglig, kostnad på hver rebalansering)", 300)
+                      + fc.nav_html({t["name"]: t["series"] for t in tracked if t["series"]}, "NAV fra 100 ved første skriving (daglig, kostnad på hver rebalansering)",
+                                    fc.fund_colours(b), 300)
                       + '<div class="src">Vektene er skrevet til ~/osloquant-home/funds/ og endres ikke; en ny måned er en ny rad. Papirpenger. '
                       'Et fond som har levd kortere enn et år sier lite – det står her for å kunne dømmes om et år, ikke nå.</div></div>')
     else:
@@ -1678,8 +1744,7 @@ def funds_page(b: dict | None, tracked: list[dict], today) -> str:
                    'Porteføljene som ikke bruker snitt (likevekt, minimum varians, risikoparitet) er de minst sårbare for dette.</div></div>')
     body = ['<h1>Porteføljer</h1><div class="sub">Modellporteføljer satt sammen av lagerets aksjer: hvor de ligger mot den effisiente fronten og kapitalmarkedslinjen, '
             'hvordan oppskriften gjorde det ut av prøven, og hvordan de går som papirfond fra den dagen de ble skrevet.</div>',
-            f'<div class="src">Bygget {stempel(b["built_at"])} på kurser til {dato(b["asof"])} ({len(b["stocks"])} aksjer med tre års historikk). Risikofri rente: {E(b["rf_label"])}. Alt EST der det står.</div>',
-            f'<div class="card">{frontier_chart(b)}<div class="src">Fronten og CML er regnet på de samme inndataene som fondene – de sier hva inndataene sier, ikke hva som skjer. '
-            'Diamantene er fondene slik de står i dag.</div></div>',
+            fc.stale_html(b, today),
+            f'<div class="card" id="front">{fc.html(b, today)}</div>',
             '<h2>Fondene i dag</h2><div class="grid">' + "".join(cards) + '</div>', bt_html, track_html, inputs_html]
     return page("Porteføljer", "/funds", "\n".join(body))

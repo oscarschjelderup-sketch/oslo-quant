@@ -41,8 +41,8 @@ def risk_free() -> tuple[float, str]:
 
     r = fd.read("rates") or {}
     if r.get("policy_rate") is not None:
-        return float(r["policy_rate"]) / 100, f"Norges Bank policy rate {r['policy_rate']} % ({r.get('policy_date', '?')}, rates feed)"
-    return RF_FALLBACK, f"fallback {RF_FALLBACK:.1%} – rates feed not fetched (oq dashboard --refresh)"
+        return float(r["policy_rate"]) / 100, f"Norges Banks styringsrente {r['policy_rate']} % ({r.get('policy_date', '?')})"
+    return RF_FALLBACK, f"reserveverdi {RF_FALLBACK:.1%} – rentene er ikke hentet (oq dashboard --refresh)"
 
 
 def slug(name: str) -> str:

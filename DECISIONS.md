@@ -1082,3 +1082,149 @@ store.
   whole close-to-close move is taken as the distribution, so returns across the date are an estimate.
 - **Quoted prices for the day's change and the 12-month range (E16)** read the quoted table and fall back to the
   adjusted one, labelled, while the quoted table lags.
+
+## D65. The macro picture: drivers, a strip, a page, and sensitivity measured on our own data
+
+Oscar's brief (10 Nov 2026): news and macro should be visible wherever they matter, on the level of the price chart.
+Research first (`docs/loft/research.md`): what the best tools do that can be read in ten seconds, and which free
+sources may be used.
+
+- **Fifteen drivers in one feed (`macro`).** Rates (policy rate, 3-month bill, 10-year, US 10-year), currencies
+  (USD/NOK, EUR/NOK, the I44 krone index), commodities (Brent, TTF gas, aluminium, copper, the salmon export price,
+  the NO2 power price) and the market (OSEBX from the store, VIX). Three years of daily history each, because the
+  sensitivity needs it. A source that fails keeps its series from the cache and is named.
+- **Sources and terms.** Norges Bank's open API (NLOD 2.0), SSB table 03024 (CC BY 4.0), Yahoo Finance for the
+  futures and indices we already used it for, and hvakosterstrommen.no for the power price («fritt tilgjengelig for
+  hvem som helst, til hva som helst»). The power price is asked for one day per request, at most fourteen a run, so
+  the history is built without leaning on a free service. Nord Pool's own site forbids automatic extraction and is
+  not used.
+- **One cell shape (`macro.cell_html`).** Name, level, change, a trend line, date. A rate changes in percentage
+  points, a price in per cent. Identical cells are what makes a row of numbers readable at a glance; the trend line
+  is inline SVG, so it needs no library and prints sharp.
+- **Sensitivity (`macro.sensitivity`).** For each stock and driver: the stock's weekly return regressed on the
+  driver's weekly change over three years, with OSEBX in the same regression. What is left is what the stock did
+  beyond the market when the driver moved. A stock «follows» a driver at |t| ≥ 2.
+  - The alternative, a plain correlation, makes every stock look sensitive to everything that moves with risk
+    appetite. With the market in the regression the number answers the question a stock picker asks.
+  - It is co-movement in our own data, not cause and not a forecast, and every place it is shown says so. An
+    oil-heavy index makes banks look as if they fall against the market when Brent rises; the method note says that
+    too.
+  - A driver that hardly moves is not measured: the policy rate changed in a handful of weeks in three years, so a
+    regression on it measures two or three events. The 3-month bill carries the rate story instead.
+  - The market and its mood (OSEBX, VIX) are shown in the strip but never listed as «a driver the stock follows».
+- **The macro page (`/makro`).** A card per driver with a Lightweight Charts line (`static/minichart.js`), the stocks
+  most sensitive to it, a matrix of sector groups against drivers, and what is coming. Blue and orange in the
+  matrix, not green and red: co-movement is not up or down.
+- **One attribution per page.** The mini charts do not each carry the TradingView logo; the page has the notice and
+  the link once, under the charts, which the licence allows. The price chart keeps its logo (D59).
+- **Not built:** release dates for CPI, GDP and foreign central banks. SSB's calendar is embedded JSON on a web page
+  (fragile), and the foreign ones need a source whose terms have been read. The calendar says so.
+
+## D66. The menu: what is looked at every day, and «Mer»
+
+- The top line holds «I dag», «Makro», «Sektorer», «Dekning», «Desk», «Kalender» and «Prisen krever». The six pages
+  Oscar named as less important – Porteføljer, Kalibrering, Feil, Analysesjef, Overvåkning, Datahelse – are under
+  «Mer». Nothing is removed and every old address works.
+- «Mer» is a `<details>` element: it opens without script and works with the keyboard. When the open page lives
+  under it, the label says which («Mer · Datahelse») and is marked like any other open page.
+- In a window under 1040 px «Dekning», «Kalender» and «Prisen krever» leave the bar and appear in «Mer», so the bar
+  never wraps or squeezes a word.
+- «Dekning» stays in the bar as the list of all stocks. Oscar suggested «aksjer» as a daily page; whether the page
+  should be renamed is his call and is in the open questions.
+
+## D67. News that matters first
+
+- **A weight per item (`news.py`).** The kind of item (inside information, a report or a corporate event weigh 5, a
+  flagging or an insider trade 3, a routine buy-back notice 1), the price reaction that session measured in the
+  stock's own usual daily moves over sixty sessions, and whether the company is followed. Each reason is shown
+  beside the headline.
+- **Why a weight and not the clock:** a list by the clock puts a buy-back notice above yesterday's report. Every tool
+  in the research that can be read quickly puts a few ranked items first and the stream below.
+- **A weight is a sorting key.** It says what to read first, never what to do. The page says so.
+- **The session an item belongs to** is the day it was published, or the next session when it came after 16:30 Oslo
+  time or on a day without trading. That is the session whose price move is its reaction.
+- **Where it shows:** «Nyheter som betyr noe» under the macro strip on the front page (replacing the clock-ordered
+  list), day by day on the stock page with that session's price move, as «M» markers on the price chart for the
+  weighty ones, and per sector beside the sector's drivers.
+- **Only titles and links**, as before. One item per company and minute when an issuer publishes in two languages.
+
+## D68. The frontier chart on the portfolio page
+
+- It opens on the portfolios and the frontier (0–18 % volatility); the single stocks, which stretch the axis to
+  70 %, are behind a button.
+- Every diamond has its name beside it, placed by a small greedy routine so labels do not overlap. The tangency
+  portfolio and the capital market line carry their Sharpe ratio.
+- No green and no red: a portfolio is not up or down.
+- Still Plotly: volatility against return is not a time series, and Lightweight Charts draws time series. The font,
+  grid and number format are the price chart's; the toolbar and the in-plot title are gone.
+- A build older than 31 days is marked above the chart with the command that rebuilds it.
+- D33 stands and is said under the chart: no recipe beat equal weight out of sample.
+- The two NAV charts below it (the walk-forward test and the paper funds) follow: a fund has the same colour in all three
+  charts, the index is grey and dotted, the title is text above the plot, and the old chart functions in `render.py` are
+  gone. They had a green and a red line, which on this dashboard mean up and down.
+- The one-line note under each fund is read in Norwegian (`fundchart.note_text`). The build stores it in English, so the
+  page translates it rather than waiting for the next build; a test fails if the allocation code writes a note the
+  list does not know.
+
+## D69. The desk reads news, events and macro
+
+The desk of D41 flagged 40 of 65 stocks a day, killed one, and never ended in «klar». Three causes: any new
+announcement flagged a stock (a buy-back notice as much as a report), the filter had no rule for a weak trigger, and
+«klar» required every bear reason rebutted, which in practice needs a full case.
+
+- **What flags a stock has a weight.** An announcement weighs what `news.py` gives it; volume, a move against the
+  sector, a measured signal, an insider trade, a short change, an unusual five-session move in a driver the stock
+  follows, and a report within five days each have a fixed weight; a stock in the research book adds 2, one on the
+  watchlist 1. The sum is a finding with the arithmetic written out. Several signals the same day are one event:
+  the first weighs 2, the second 1, the rest nothing.
+- **The filter kills a trigger under 5.** That is noise, and it is the filter's to take away, with the number.
+- **Macro is an input, not a seventh role** (Oscar's starting point, kept). The analyst lists every driver the stock
+  has followed, what it did the last month and what that corresponds to for the stock. When that is −2 % or worse
+  it is also a reason for the bear. The reply answers with the stock's own month: if the price has already fallen
+  at least as much, the reason is rebutted («kursen har tatt det»), otherwise it stands.
+- **A heavy trigger is «klar for vurdering».** At 8 or more the stock goes to judgement even when the bear's
+  reasons stand. The veto is not weakened: the standing points are listed first, the page says «dette er ikke en
+  kjøpskandidat», and the form opens with no rating and no target. The question has changed from «is this a buy»
+  to «what does this change». The old route, every reason rebutted and no limit broken, still exists and still
+  prefills the form.
+- **At most five a day**, the heaviest. The rest are parked with the weight that was not enough.
+- **The thresholds were set on a replay** (`desk.replay`): the rules run on each of the last ten sessions with the
+  price panel cut at the session and the announcements read as of it. The table is in `docs/loft/desk-replay.md`.
+  The scout and the filter are exact in the replay; the bear's side uses today's short register and light cases
+  and is approximate.
+- **Whether a trigger is worth anything is not known yet.** The measure Oscar proposed is the right one: did
+  triggered judgements change his view more often, and did the price move more afterwards, than for stocks with no
+  trigger. Every run stores the weight per stock, so the comparison can be made when there are judgements to
+  compare. It is not built, because there is nothing to measure it on yet.
+- **Data quality** comes from the dashboard's one list of sources (D60), so the desk no longer says «6 av 6 i
+  orden» while the front page says the quoted prices are stale.
+- **Unchanged:** no role writes free text, every finding has a number, a source and a time, the desk writes only its
+  own log, and the chain never ends in a buy.
+
+## D70. FRED: US rates, the dollar and the US release calendar, with the owner's own key
+
+Oscar asked for FRED on 10 Nov 2026, the first item on the research list's «worth building later» (`docs/loft/research.md`,
+B3). FRED's keyless CSV works but the site discourages automated extraction; the API with a free key is the allowed way.
+
+- **What it adds.** Three drivers: the US 2-year yield (DGS2), the Fed funds target's upper bound (DFEDTARU) and the
+  broad dollar index (DTWEXBGS). And the coming release dates for US CPI, the jobs report
+  and GDP from FRED's release calendar, in «Det som kommer» on /makro. The US 10-year stays on Yahoo: it is current
+  where FRED's is a day behind, and one source per driver keeps the cell's source line true.
+- **The key is the owner's.** It is read from `FRED_API_KEY` or from `keys/fred.txt` in the private home, never from
+  the repository. It is taken out of every text that can reach a feed, the run log or a page (`feeds._scrub`), and the
+  test fixture removes the variable so no test ever sees it. Without a key nothing is asked and nothing is an alarm:
+  the three cards say what a key would add. A key FRED rejects stops at the first request.
+- **The terms** (read 10 Nov 2026, https://fred.stlouisfed.org/docs/api/terms_of_use.html):
+  - The required notice («This product uses the FRED® API but is not endorsed or certified by the Federal Reserve
+    Bank of St. Louis.») is shown at the top and the foot of /makro whenever the page shows FRED data, with a link to
+    the terms. Without FRED data the page does not claim to use it.
+  - Third-party data needs its owner's permission, and such series are marked by «Copyright» in their notes. The fetch
+    reads each series' notes on every run and refuses a series that carries the word; a copy from an earlier run is
+    dropped too. Checked on the real API on 10 Nov 2026: the ECB deposit rate (ECBDFR) carries «Copyright» and was
+    taken out; DGS2, DFEDTARU and DTWEXBGS do not. VIX (CBOE) and the ICE bond indices are not taken from FRED either.
+  - No fixed rate limit is stated. The feed asks nine times a day (three series with their notes, three calendars).
+- **The Fed rate is shown, not measured.** Like Norges Bank's policy rate it moves in a handful of weeks in three
+  years, so the sensitivity (D65, `MIN_MOVES`) leaves it out. The 2-year yield and the dollar index are measured.
+- **Not built:** the FOMC and ECB meeting dates. FRED's «FOMC Press Release» (101) and «Key ECB Interest Rates» (484)
+  list every day the data is updated, not the meetings. The ECB rate itself can come from the ECB's own data portal
+  once its terms are read. SSB's release calendar is not built either.

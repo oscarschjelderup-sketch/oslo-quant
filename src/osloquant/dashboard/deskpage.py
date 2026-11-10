@@ -60,6 +60,11 @@ def stock_section(sr: dk.StockRun, run: dk.DeskRun, static: bool = False, full: 
     head = (f'<h2 id="{E(sr.code)}">{L} · {E(sr.group)} <span class="chip {OUTCOME_CLASS.get(sr.outcome, "plain")}">{E(dk.OUTCOME_LABEL.get(sr.outcome, sr.outcome))}</span></h2>'
             f'<div class="sub">{price}' + (f' · kursmål {sr.target:g}' if sr.target else '') + (f' · kill-nivå {sr.kill:g} ({E(sr.kill_source or "")})' if sr.kill else '') + '.</div>')
     why = f'<div class="{"err" if sr.outcome != "ready" else "ok"}"><b>{E(dk.OUTCOME_LABEL.get(sr.outcome, ""))}:</b> {E(sr.reason) if sr.reason else "alle grunner tilbakevist med tall, ingen grense brutt – skjemaet åpnes forhåndsutfylt."}</div>'
+    if sr.outcome == "ready" and getattr(sr, "route", "") == "trigger":
+        standing = [f for f in sr.findings if f.role == "bear" and f.status == "stands"]
+        why += ('<div class="warn"><b>Dette er ikke en kjøpskandidat.</b> Noe tungt har skjedd, så aksjen er sendt til vurdering – men bjørnen står på '
+                f'{len(standing)} punkt(er) som ikke er tilbakevist med tall: ' + "; ".join(E(f"{f.claim}: {f.value}"[:160]) for f in standing[:4])
+                + '. Skjemaet åpnes uten syn og kursmål; debatten følger med.</div>')
     act = ""
     if not static:
         if sr.outcome == "ready":
@@ -85,23 +90,33 @@ def quality_html(run: dk.DeskRun) -> str:
 
 def run_header(run: dk.DeskRun, static: bool = False) -> str:
     share = run.killed / run.flagged if run.flagged else None
+    sifted = (run.flagged - run.ready) / run.flagged if run.flagged else None
+    weak = sum(1 for s in run.stocks if s.outcome == "killed" and s.reason.startswith(dk.CLAIMS["weak_trigger"]))
     tiles = [("Skannet", run.scanned), ("Flagget", run.flagged), ("Drept", run.killed), ("Debattert", run.debated), ("Parkert", run.parked), ("Klar", run.ready)]
     t = "".join(f'<div class="tile"><div class="v">{v}</div><div class="l">{E(k)}</div></div>' for k, v in tiles)
     when = stempel(run.finished_at)
     def row(s: dk.StockRun) -> str:
         log = "" if static else f'<a href="/desk/run/{E(run.run_id)}/{E(s.code)}">logg</a>'
+        trig = next((f.value for f in s.findings if f.kind == "trigger"), "")
+        weight = f'<td title="{E(trig)}">{s.trigger}</td>' if getattr(s, "trigger", 0) else '<td title="Kjøringen er fra før utløservekten fantes">–</td>'
         return (f'<tr><td>{link(s.code, s.code, static)}</td><td>{E(s.name)}</td><td>{E(s.group)}</td><td><span class="chip {OUTCOME_CLASS.get(s.outcome, "plain")}">{E(dk.OUTCOME_LABEL.get(s.outcome, ""))}</span></td>'
-                f'<td style="white-space:normal;text-align:left">{E(short_reason(s.reason)) or "–"}</td><td>{log}</td></tr>')
+                f'{weight}<td style="white-space:normal;text-align:left">{E(short_reason(s.reason)) or "–"}</td><td>{log}</td></tr>')
 
-    rows = "".join(row(s) for s in sorted(run.stocks, key=lambda s: (dk.OUTCOMES.index(s.outcome) if s.outcome in dk.OUTCOMES else 9, s.code)))
+    order = {"ready": 0, "parked": 1, "killed": 2}      # what to look at first; within each, the heaviest trigger first
+    rows = "".join(row(s) for s in sorted(run.stocks, key=lambda s: (order.get(s.outcome, 9), -getattr(s, "trigger", 0), s.code)))
     turnover = f"{float(run.config.get('min_turnover_nok', 0)):,.0f}".replace(",", " ")
     return (f'<div class="tiles">{t}</div>'
             f'<div class="sub">Kjørt {E(when)} ({E(run.trigger)}) på sluttkursene fra {E(run.session)}. '
-            + (f'Filteret drepte {share * 100:.0f} % av det speideren flagget (målet er 90 %). ' if share is not None else '')
+            + (f'Av {run.flagged} flaggede ble {run.ready} klar: {sifted * 100:.0f} % silt bort. Filteret drepte {share * 100:.0f} %'
+               + (f', {weak} av dem fordi utløseren veide under {run.config.get("min_trigger")}' if weak else '') + '. ' if share is not None else '')
             + f'Grenser: volum ≥ {run.config.get("volume_ratio")}x · bevegelse mot sektor ≥ {float(run.config.get("move_vs_sector", 0)) * 100:.0f} pp · omsetning ≥ NOK {turnover} · '
-              f'rapport innen {run.config.get("report_within_days")} d · sektorandel ≤ {float(run.config.get("max_group_share", 0)) * 100:.0f} % (dashboard.yaml, desk:).</div>'
+              f'rapport innen {run.config.get("report_within_days")} d · sektorandel ≤ {float(run.config.get("max_group_share", 0)) * 100:.0f} %'
+              + (f' · utløservekt under {run.config.get("min_trigger")} drepes, {run.config.get("ready_trigger")} eller mer er klar, høyst {run.config.get("max_ready")} klar per dag'
+                 if run.config.get("min_trigger") is not None else '') + ' (dashboard.yaml, desk:).</div>'
             + quality_html(run)
-            + ('<table><thead><tr><th>Aksje</th><th>Navn</th><th>Sektorgruppe</th><th>Utfall</th><th>Avgjørende funn</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>'
+            + ('<table><thead><tr><th>Aksje</th><th>Navn</th><th>Sektorgruppe</th><th>Utfall</th><th title="Vekten av det som flagget aksjen: melding, kursbevegelse, volum, signal, '
+               'innsidehandel, short, makro, rapport nær, og om du følger den. Hold over tallet for regnestykket.">Utløser</th><th>Avgjørende funn</th><th></th></tr></thead><tbody>'
+               + rows + '</tbody></table>'
                if run.stocks else '<p class="empty">Speideren flagget ingenting i dag: ingen volum, bevegelse, signal, melding, innsidehandel eller shortendring over grensene.</p>'))
 
 

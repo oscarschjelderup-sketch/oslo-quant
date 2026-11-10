@@ -27,6 +27,14 @@ ODD = {"NEW": ("Ny Notering Fiktiv", "Technology & renewables"), "BANK": ("Bank 
        "NOVOL": ("Uten Volum Fiktiv", "Seafood"), "FLAT": ("Flat Fiktiv", "Other shipping")}
 
 
+@pytest.fixture(autouse=True)
+def _chain_without_trigger_rules(monkeypatch):
+    """These tests are about the chain of D41: scout, filter, analyst, bear, reply, risk. The trigger rules of D69
+    (a weak trigger is killed, a heavy one is ready) have their own tests in test_desk_d69.py and are switched off here."""
+    monkeypatch.setitem(dk.DEFAULTS, "min_trigger", 0)
+    monkeypatch.setitem(dk.DEFAULTS, "ready_trigger", 10**6)
+
+
 def _odd_snapshot(base: mk.Snapshot) -> mk.Snapshot:
     """The fixture's snapshot plus four odd stocks: 30 sessions of history, a bank, NaN volume, a flat price."""
     rng = np.random.default_rng(11)
@@ -132,7 +140,9 @@ def test_missing_feeds_and_missing_limits_are_named_in_data_quality(odd_home):
     (home / "dashboard.yaml").unlink()
     run = dk.run(["SATS", "ELK"], trigger="manual", snap=snap, today=TODAY, now=datetime(2026, 11, 4, 17, 2, tzinfo=UTC))
     notes = {q["what"]: q for q in run.data_quality}
-    assert not notes["børsmeldinger (NewsWeb)"]["ok"] and notes["børsmeldinger (NewsWeb)"]["note"] == "ikke hentet"
+    ann = notes["Børsmeldinger (Oslo Børs NewsWeb)"]                    # the dashboard's one list of sources (D60, D69)
+    assert not ann["ok"] and ann["note"].startswith("aldri hentet")
+    assert {"Noterte kurser (Yahoo Finance)", "Regnskap (Yahoo Finance)", "Innsidehandler (Oslo Børs NewsWeb)"} <= set(notes)
     assert not notes["grenser (dashboard.yaml: sizing + desk)"]["ok"]
     assert {s.outcome for s in run.stocks} <= set(dk.OUTCOMES) and run.ready == 0        # without limits nothing is ready
     sats = run.stock("SATS")

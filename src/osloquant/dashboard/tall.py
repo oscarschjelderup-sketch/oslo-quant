@@ -41,8 +41,43 @@ def _text(s: str) -> str:
     return _NEGATIVE_ZERO.sub(r"\1", s)                  # «−0,00» is zero
 
 
+#: The sector groups as a person reads them. The keys are the names the code uses everywhere (market.GROUPS); only what
+#: is shown is translated. A group of several words is unmistakable and is replaced wherever it stands; a group of one
+#: word («Finance», «Energy») is replaced only when it is the whole text of its element, because a headline may use it.
+GROUPS_NO = {"Industrials &amp; materials": "Industri og materialer", "Consumer, telecom &amp; real estate": "Konsum, telekom og eiendom",
+             "Technology &amp; renewables": "Teknologi og fornybar", "Investment companies": "Investeringsselskaper"}
+GROUPS_NO_WHOLE = {"Energy": "Energi", "Seafood": "Sjømat", "Finance": "Finans", "Other": "Annet"}
+
+
+def _groups(s: str) -> str:
+    for eng, nor in GROUPS_NO.items():
+        if eng in s:
+            s = s.replace(eng, nor)
+        plain = eng.replace("&amp;", "&")
+        if plain in s:
+            s = s.replace(plain, nor)
+    core = s.strip()
+    if core in GROUPS_NO_WHOLE:
+        s = s.replace(core, GROUPS_NO_WHOLE[core])
+    return s
+
+
+def gruppe(name: str) -> str:
+    """One group name in Norwegian, for code that builds text directly (a chart label, a sentence)."""
+    return GROUPS_NO.get(name.replace("&", "&amp;"), GROUPS_NO_WHOLE.get(name, name))
+
+
+def norske_grupper(page_html: str) -> str:
+    """The sector groups in Norwegian in the text a person reads. Tags, scripts and form fields are left alone."""
+    return _pass(page_html, _groups)
+
+
 def norske_tall(page_html: str) -> str:
     """Every number a person reads on the page in the Norwegian form. See the module text for what is left alone."""
+    return _pass(page_html, _text)
+
+
+def _pass(page_html: str, fn) -> str:
     out, skip = [], []
     for part in _TAG.split(page_html):
         if part.startswith("<") and part.endswith(">"):
@@ -56,12 +91,12 @@ def norske_tall(page_html: str) -> str:
                     else:
                         skip.append(tag)
             if 'title="' in part and not skip:
-                part = _TITLE.sub(lambda m: m.group(1) + _text(m.group(2)) + m.group(3), part)
+                part = _TITLE.sub(lambda m: m.group(1) + fn(m.group(2)) + m.group(3), part)
             out.append(part)
         elif skip or not part:
             out.append(part)
         else:
-            out.append(_text(part))
+            out.append(fn(part))
     return "".join(out)
 
 

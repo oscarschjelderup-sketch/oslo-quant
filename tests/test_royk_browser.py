@@ -21,7 +21,7 @@ from .test_pricechart_browser import (  # noqa: F401  the browser, and the dashb
 
 pytestmark = pytest.mark.skipif(not browser.find(), reason="no Chromium browser (Edge, Chrome or Chromium) on this machine")
 
-PAGES = ("/", "/sectors", "/calendar", "/health", "/calibration", "/funds", "/coverage", "/screen", "/watchlist", "/chief", "/review", "/desk")
+PAGES = ("/", "/makro", "/sectors", "/calendar", "/health", "/calibration", "/funds", "/coverage", "/screen", "/watchlist", "/chief", "/review", "/desk")
 SUBS = ("resultat", "balanse", "kontantstrom", "segmenter", "utbytte")
 BROKEN = re.compile(r"(?<![\w.])(undefined|NaN|nan|None|\[object Object\]|Traceback|Internal Server Error)(?!\w)")
 # what the page looks like to a person: its main text, the tables and cards that are empty, and whether it scrolls sideways
@@ -30,7 +30,11 @@ var foot=document.querySelector('.foot');var t=w.innerText||'';
 return {text:t, body:t.length-(nav?nav.innerText.length:0)-(foot?foot.innerText.length:0), h1:(document.querySelector('h1,.stockbar')||{}).innerText||'',
 emptyState:!!document.querySelector('.wrap p.empty, .wrap td.empty'),
 emptyCards:Array.from(document.querySelectorAll('.card')).filter(function(c){return c.offsetParent!==null&&c.innerText.trim().length<3&&!c.querySelector('canvas,svg,img,.js-plotly-plot')}).length,
-sideways:document.documentElement.scrollWidth>document.documentElement.clientWidth+2, status:(document.title||'')};})()"""
+sideways:document.documentElement.scrollWidth>document.documentElement.clientWidth+2, status:(document.title||''),
+clipped:Array.from(document.querySelectorAll('.chip,.tag')).filter(function(c){return c.offsetParent!==null&&c.scrollWidth>c.clientWidth+1}).map(function(c){return c.innerText.trim().slice(0,24)}).slice(0,5),
+wide:Array.from(document.querySelectorAll('.card table')).filter(function(t){if(t.offsetParent===null||t.closest('.tscroll'))return false;var c=t.parentElement;var s=getComputedStyle(c);
+return t.getBoundingClientRect().width>c.clientWidth-parseFloat(s.paddingLeft)-parseFloat(s.paddingRight)+1.5}).length,
+scrolled:document.querySelectorAll('.tscroll').length};})()"""
 
 
 def _urls() -> list[str]:
@@ -61,6 +65,10 @@ def test_every_page_opens_with_content_and_without_a_console_error(chrome, live)
                 problems.append(f"{url}: {got['emptyCards']} empty card(s)")
             if got["sideways"]:
                 problems.append(f"{url}: the page scrolls sideways at 1280 px")
+            if got["clipped"]:
+                problems.append(f"{url}: clipped label(s) {got['clipped']}")
+            if got["wide"]:
+                problems.append(f"{url}: {got['wide']} table(s) wider than their card")
             bad = sorted({m.group(1) for m in BROKEN.finditer(got["text"])})
             if bad:
                 problems.append(f"{url}: {', '.join(bad)} in the visible text")
@@ -108,5 +116,40 @@ def test_numbers_and_words_on_the_front_page_are_norwegian(chrome, live):  # noq
         p.goto(base + "/sectors")
         text = p.eval("document.querySelector('.wrap').innerText")
         assert re.search(r"\d,\d\s%", text) and not re.search(r"\d\.\d+\s?%", text)
+    finally:
+        p.close()
+
+
+@pytest.mark.parametrize("width", [1100, 1900])
+def test_no_label_is_clipped_and_no_table_leaves_its_card_at_any_width(chrome, live, width):  # noqa: F811
+    """The crash of 10 Nov on «Prisen krever»: a class collision squeezed every blue chip to 15 px, and a table grew past
+    its card. Checked on the pages with the widest tables, narrow and wide."""
+    base, _ = live
+    problems = []
+    for url in ("/screen", "/coverage", "/desk", "/health", "/sectors", "/", "/aksje/AAA/verdsettelse", "/aksje/AAA/vurdering"):
+        p = chrome.page()
+        try:
+            p.goto(base + url, width=width, height=900)
+            got = p.eval(PROBE)
+            if got["clipped"]:
+                problems.append(f"{url} at {width}: clipped label(s) {got['clipped']}")
+            if got["wide"]:
+                problems.append(f"{url} at {width}: {got['wide']} table(s) wider than their card")
+            if got["sideways"]:
+                problems.append(f"{url} at {width}: the page scrolls sideways")
+        finally:
+            p.close()
+    assert not problems, "\n" + "\n".join(problems)
+
+
+def test_a_chip_shows_its_whole_text(chrome, live):  # noqa: F811
+    base, _ = live
+    p = chrome.page()
+    try:
+        p.goto(base + "/coverage", width=1280, height=900)
+        chips = p.eval("Array.from(document.querySelectorAll('.chip')).filter(function(c){return c.offsetParent!==null}).map(function(c){return [c.innerText.trim(), c.scrollWidth, c.clientWidth]})")
+        assert chips, "no chips on the coverage page"
+        assert all(sw <= cw + 1 for _, sw, cw in chips), [c for c in chips if c[1] > c[2] + 1][:5]
+        assert any(len(text) > 3 and cw > 30 for text, _, cw in chips)          # a worded chip is as wide as its words
     finally:
         p.close()

@@ -56,6 +56,7 @@
     rapport: { position: 'aboveBar', shape: 'square', color: '#5c6770', text: 'R' },
     utbytte: { position: 'belowBar', shape: 'circle', color: '#0f7c7c', text: 'U' },
     vurdering: { position: 'aboveBar', shape: 'circle', color: '#c98500', text: 'V' },
+    melding: { position: 'aboveBar', shape: 'circle', color: '#1f5f99', text: 'M' },
     innside_buy: { position: 'belowBar', shape: 'arrowUp', color: UP, text: 'I' },
     innside_sell: { position: 'aboveBar', shape: 'arrowDown', color: DOWN, text: 'I' },
     innside: { position: 'inBar', shape: 'circle', color: MUTED, text: 'I' }
@@ -64,7 +65,7 @@
   // ------------------------------------------------------------------------------------------ state
   var S = {
     type: 'area', period: D.default, log: false, cmp: { osebx: false, sector: false }, sma: { 50: false, 200: false },
-    ev: { rapport: true, utbytte: true, innside: false, vurdering: true }, base: 0, color: UP, ret: null, i0: 0, i1: n - 1
+    ev: { rapport: true, utbytte: true, innside: false, vurdering: true, melding: true }, base: 0, color: UP, ret: null, i0: 0, i1: n - 1
   };
   var index = {}; D.t.forEach(function (t, i) { index[t] = i; });
   var byDay = {}; (D.events || []).forEach(function (e) { (byDay[e.t] = byDay[e.t] || []).push(e); });

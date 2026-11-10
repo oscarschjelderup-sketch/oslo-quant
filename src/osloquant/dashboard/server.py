@@ -66,6 +66,14 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     ctx["desk"] = desk.front_summary(f"{snap.asof:%Y-%m-%d}")
     from osloquant.dashboard import sources as src
 
+    try:        # D67: the news for the followed stocks, heaviest first
+        from osloquant.dashboard import news as nw
+
+        ctx["news_html"] = nw.front_html(snap, {c.code for c in cases}, {w["code"] for w in watch if not w.get("moved_to_book")})
+    except Exception:  # noqa: BLE001 – the front page opens with the old announcement list instead
+        import logging
+
+        logging.getLogger("osloquant.dashboard").exception("ranked news failed")
     try:
         from osloquant.dashboard import datahealth as dh
 
@@ -114,6 +122,18 @@ def stock_context(code: str) -> dict:
     tab = _tab_data(snap, code, c, today)
     quoted = mk.quoted_view(snap, code)
     tab["quoted"] = quoted
+    try:        # D65: the drivers this stock has followed
+        from osloquant.dashboard import macro as mc
+
+        tab["macro"] = mc.for_stock(code)
+    except Exception:  # noqa: BLE001 – the page opens without the macro card
+        tab["macro"] = None
+    try:
+        from osloquant.dashboard import news as nw
+
+        tab["news_days"] = nw.by_day(snap, code)
+    except Exception:  # noqa: BLE001 – the old flat list is shown instead
+        tab["news_days"] = None
     if quoted["fresh"]:                  # the bar's «endring mot forrige sluttkurs» is the quoted change (funn #30)
         st["chg_1d"] = quoted["chg_1d"]
     insider_items = _insider_items(code)
@@ -156,8 +176,14 @@ def _price_chart(snap, code: str, c, tab: dict, insider_items: list[dict] | None
             log_rows = jg.read_log()
         except Exception:  # noqa: BLE001 – no log yet
             log_rows = []
+        try:
+            from osloquant.dashboard import news as nw
+
+            news_events = nw.chart_events(snap, code)
+        except Exception:  # noqa: BLE001 – the chart is drawn without the announcement markers
+            news_events = []
         extra = {"dividends": tab.get("dividends"), "insiders": insider_items if insider_items is not None else _insider_items(code), "newsweb_reports": tab.get("newsweb_reports"),
-                 "cal_doc": fd.read(cal.CAL_FEED), "log_rows": log_rows}
+                 "cal_doc": fd.read(cal.CAL_FEED), "log_rows": log_rows, "news": news_events}
         html, periods = pc.build(snap, code, c, extra)
         if periods:
             return html, periods
@@ -463,7 +489,24 @@ def create_app() -> Flask:
         snap = mk.snapshot()
         if snap.panel["close"].empty:
             return rd.empty_store_page("Sektorer", "/sectors")
-        return rd.sectors_page(mk.returns(snap), fd.sector_drivers(), mk.GROUP_ORDER + ["Other"], snap.asof)
+        macro, news = {}, {}
+        try:        # D65 and D67: each sector's drivers as strip cells, and its heaviest news of the last three days
+            from osloquant.dashboard import macro as mc
+            from osloquant.dashboard import news as nw
+
+            series = mc.load()
+            book = {c.code for c in bk.cases()}
+            for g in mk.GROUP_ORDER:
+                keys = tuple(k for k in mc.SECTOR_DRIVERS.get(g, ()) if k in mc.BY_KEY)
+                if keys:
+                    macro[g] = mc.strip_html(series, keys).replace(' id="makrostripe"', "")
+                items = nw.ranked(snap, {c for c in snap.names if snap.group(c) == g}, book, days=3, limit=5)
+                news[g] = nw.list_html(items, "Ingen børsmelding eller overskrift om sektorens aksjer de siste tre dagene.")
+        except Exception:  # noqa: BLE001 – the page opens with the plain driver line
+            import logging
+
+            logging.getLogger("osloquant.dashboard").exception("sector macro/news failed")
+        return rd.sectors_page(mk.returns(snap), fd.sector_drivers(), mk.GROUP_ORDER + ["Other"], snap.asof, macro, news)
 
     @app.get("/go")
     def go():
@@ -724,6 +767,15 @@ def create_app() -> Flask:
 
         today = pd.Timestamp.now().normalize()
         return cal.page_html(cal.events(bk.cases(), bk.watchlist(), today), today, fd.read(cal.CAL_FEED), cal.norges_bank_meetings())
+
+    @app.get("/makro")
+    def makro():
+        from osloquant.dashboard import calendar as cal
+        from osloquant.dashboard import macro as mc
+        from osloquant.dashboard import macropage as mp
+
+        today = pd.Timestamp.now().normalize()
+        return mp.page_html(mc.load(), mc.sensitivities(), mk.snapshot(), cal.events(bk.cases(), bk.watchlist(), today, days=120), today)
 
     @app.get("/health")
     def health():
