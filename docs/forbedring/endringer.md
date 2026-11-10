@@ -217,3 +217,20 @@ Hver endring står her før den gjøres: hvilket funn den løser (`funn.md`), hv
     oppdateringer, og kalibreringen scorer bare oppdateringer datert innenfor horisonten.
   - En flat serie viser «–» for RSI med forklaring.
 - **Test:** `tests/test_forbedring_e19.py`.
+
+### E20 Hvilken kurs hver multippel gjelder, «kurs ved horisonten», og utløpt syn etter kalenderen (#14, #21, #24, #22, #40, #75)
+- **Problem:** «P/E ved kurs 45,50» i Nøkkeltall per år viste multippelen ved kursen lett-casen ble bygget på.
+  «Nå» på kalibreringen og feilgjennomgangen er kursen ved horisonten for endelige vurderinger. Forsiden kalte et
+  syn utløpt etter 360 dager, fire til seks dager før kalibreringen gjør det.
+- **Endring:** P/E og P/B regnes på dagens kurs. EV/EBIT og FCF-yield bruker lett-casens EV og sier hvilken kurs
+  den er bygget på. ROE og ROIC har ingen kurs i navnet. Kolonnen heter «Kurs ved slutt» med forklaring, og
+  feilgjennomgangen skriver «kurs ved horisonten» for endelige vurderinger. Et syn er utløpt når dagens dato er
+  etter startdato pluss horisonten i kalendermåneder.
+- **Test:** `tests/test_forbedring_e20.py`.
+
+### E21 Kursgrafen: volumaksen viser antall også i sammenligningsmodus
+- **Problem:** Funnet i et testbilde under E19: med OSEBX eller sektor slått på viste volumaksen «+80 000,0 %».
+  Prosentformatet var satt for hele grafen.
+- **Endring:** Hver serie formaterer sin egen akse. Tre visuelle grunnlinjer er tatt på nytt: de endret seg også
+  fordi 1Å og 5Å nå starter på kalenderdato (E19).
+- **Test:** de visuelle grunnlinjene for kursgrafen, kjørt to ganger uten avvik.

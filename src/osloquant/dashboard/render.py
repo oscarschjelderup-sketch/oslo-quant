@@ -542,16 +542,25 @@ def key_figures(lc: dict | None, px: float) -> str:
                     for i, a in enumerate(years))
         rows.append(f'<tr><td>Omsetningsvekst</td>{g}<td class="ltm"></td></tr>')
     blank = "<td></td>" * len(years)
-    val = [("P/E", f'{m["pe"]:.1f}x' if m.get("pe") else "–"), ("P/B", f'{m["pb"]:.2f}x' if m.get("pb") else "–")]
+    # Each multiple says which price it is at (funn #14). P/E and P/B are recomputed at today's price from the light
+    # case's share count; EV/EBIT and the FCF yield need the enterprise value, which the light case fixed at the price it
+    # was built on, so they keep that price in the label. ROE and ROIC do not depend on the price at all.
+    from osloquant.dashboard.stockpage import live_multiples
+
+    live = live_multiples(lc, px)
+    built_px = (lc.get("price") or {}).get("value")
+    now, then = f" ved kurs {px:.2f}", (f" ved kurs {built_px:.2f} (lett case)" if built_px else " (lett case)")
+    pe, pb = (live.get("pe"), now) if live.get("pe") else (m.get("pe"), then), (live.get("pb"), now) if live.get("pb") else (m.get("pb"), then)
+    val = [("P/E" + pe[1], f"{pe[0]:.1f}x" if pe[0] else "–"), ("P/B" + pb[1], f"{pb[0]:.2f}x" if pb[0] else "–")]
     if not lc["financial"]:
-        val.insert(1, ("EV/EBIT", f'{m["ev_ebit"]:.1f}x' if m.get("ev_ebit") else "–"))
-        val.append(("FCF-yield", pct(m.get("fcf_yield"), 1, False) if m.get("fcf_yield") is not None else "–"))
+        val.insert(1, ("EV/EBIT" + then, f'{m["ev_ebit"]:.1f}x' if m.get("ev_ebit") else "–"))
+        val.append(("FCF-yield" + then, pct(m.get("fcf_yield"), 1, False) if m.get("fcf_yield") is not None else "–"))
     val.append(("ROE", pct(r.get("roe"), 0, False) if r.get("roe") is not None else "–"))
     if r.get("roic") is not None:
         val.append(("ROIC", pct(r.get("roic"), 0, False)))
     first = True
     for label, x in val:
-        rows.append(f'<tr{" class=sep" if first else ""}><td>{label} ved kurs {px:.2f}</td>{blank}<td class="ltm">{x}</td></tr>')
+        rows.append(f'<tr{" class=sep" if first else ""}><td>{label}</td>{blank}<td class="ltm">{x}</td></tr>')
         first = False
     pe = lc.get("peers") or {}
     peer = (f' Sektormedian: P/E {pe["pe"]:.1f}x' if pe.get("pe") else "") + (f', EV/EBIT {pe["ev_ebit"]:.1f}x' if pe.get("ev_ebit") else "") + (f', P/B {pe["pb"]:.2f}x' if pe.get("pb") else "")
@@ -1140,7 +1149,7 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
             f'<td>{pct(r.get("vs_target"))}</td><td>{"" if pd.isna(r.get("in_band")) else ("ja" if r.get("in_band") else "nei")}</td>'
             f'<td>{"✓" if r.get("direction_hit") is True else "✗" if r.get("direction_hit") is False else ""}</td><td>{E(r["status"])} ({r["days"]} d)</td></tr>'
             for _, r in table.iterrows())
-        body.append('<h2>Per vurdering</h2><div class="card"><table><thead><tr><th>#</th><th>Hvem</th><th>Selskap</th><th>Dato</th><th>Syn</th><th>Kurs</th><th>Kursmål</th><th>Nå</th>'
+        body.append('<h2>Per vurdering</h2><div class="card"><table><thead><tr><th>#</th><th>Hvem</th><th>Selskap</th><th>Dato</th><th>Syn</th><th>Kurs</th><th>Kursmål</th><th title="Sluttkursen ved horisonten for en endelig vurdering, siste sluttkurs for en foreløpig">Kurs ved slutt</th>'
                     '<th>Totalavk.</th><th>mot OSEBX</th><th>mot kursmål</th><th>I båndet</th><th>Retning</th><th>Status</th></tr></thead>'
                     f'<tbody>{rows}</tbody></table><div class="src">Totalavkastning fra kursen i vurderingen på den justerte serien (utbytte med); OSEBX fra lageret; '
                     'kursene er forsinket. Retning for BUY/SELL = fortegnet på meravkastningen mot OSEBX.</div></div>')

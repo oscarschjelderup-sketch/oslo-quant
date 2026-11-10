@@ -101,7 +101,11 @@ def decisions(snap: mk.Snapshot, cases: list[bk.Case], alerts: list[sg.Alert], t
             age = (today - pd.Timestamp(v.get("date"))).days
         except (TypeError, ValueError):
             age = 0
-        if age > 30 * int(v.get("horizon_months") or 12):
+        try:        # twelve months are twelve calendar months, as the calibration counts them (funn #75)
+            past = today > pd.Timestamp(v.get("date")) + pd.DateOffset(months=int(v.get("horizon_months") or 12))
+        except (TypeError, ValueError):
+            past = False
+        if past:
             items.append(Item(c.code, "stale-view", f"{c.name}: synet er {age} dager gammelt", "Horisonten er ute. Logg en ny vurdering – HOLD hvis du ikke lenger har et syn.", 2))
     book_codes = {c.code for c in cases}
     for a in alerts:

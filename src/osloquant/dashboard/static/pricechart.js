@@ -89,7 +89,7 @@
     crosshair: { mode: LC.CrosshairMode.Normal,
       vertLine: { color: '#9aa6ae', style: LC.LineStyle.Dashed, width: 1, labelBackgroundColor: '#4a5560' },
       horzLine: { color: '#9aa6ae', style: LC.LineStyle.Dashed, width: 1, labelBackgroundColor: '#4a5560' } },
-    localization: { locale: 'nb-NO', priceFormatter: price, timeFormatter: function (t) { var s = ymd(t); return s ? dato(s, true) : ''; } },
+    localization: { locale: 'nb-NO', timeFormatter: function (t) { var s = ymd(t); return s ? dato(s, true) : ''; } },
     handleScale: { axisPressedMouseMove: { time: true, price: false } }
   });
   // volume in its own pane under the prices: the price axis never runs below zero into the volume bars
@@ -114,12 +114,15 @@
     });
     return r;
   }
+  // Each series formats its own axis. A formatter on the whole chart would also write the volume pane's counts as per
+  // cent when the price pane compares returns.
+  var AXIS = { type: 'custom', minMove: 0.001, formatter: function (v) { return comparing() ? pctPoints(v) : price(v); } };
   function buildMain() {
     // the new series is added before the old one goes: the library drops a pane that becomes empty, and the volume
     // pane would then move up into the prices' place
     if (markers) { markers.detach(); markers = null; }
     var old = main;
-    var common = { priceLineVisible: false, lastValueVisible: true, autoscaleInfoProvider: autoscale };
+    var common = { priceLineVisible: false, lastValueVisible: true, autoscaleInfoProvider: autoscale, priceFormat: AXIS };
     if (S.type === 'candles') {
       main = chart.addSeries(LC.CandlestickSeries, Object.assign({ upColor: UP, downColor: DOWN, borderUpColor: UP, borderDownColor: DOWN,
         wickUpColor: UP, wickDownColor: DOWN }, common), 0);
@@ -160,7 +163,7 @@
     [50, 200].forEach(function (len) {
       if (S.sma[len] && !smaS[len]) {
         smaS[len] = chart.addSeries(LC.LineSeries, { color: len === 50 ? '#c98500' : '#6a5acd', lineWidth: 1, priceLineVisible: false,
-          lastValueVisible: false, crosshairMarkerVisible: false, title: 'SMA ' + len }, 0);
+          lastValueVisible: false, crosshairMarkerVisible: false, title: 'SMA ' + len, priceFormat: AXIS }, 0);
       }
       if (!S.sma[len] && smaS[len]) { chart.removeSeries(smaS[len]); delete smaS[len]; }
       if (smaS[len]) smaS[len].setData(D.t.map(function (t, i) { var v = SMA[len][i]; return v == null ? { time: t } : { time: t, value: tf(v) }; }));
@@ -171,7 +174,7 @@
       var c = D.cmp && D.cmp[k];
       if (S.cmp[k] && c && !cmpS[k]) {
         cmpS[k] = chart.addSeries(LC.LineSeries, { color: k === 'osebx' ? '#3b6fb6' : '#8a6d3b', lineWidth: 1.5, priceLineVisible: false,
-          lastValueVisible: true, crosshairMarkerVisible: false, title: c.short }, 0);
+          lastValueVisible: true, crosshairMarkerVisible: false, title: c.short, priceFormat: AXIS }, 0);
       }
       if (!S.cmp[k] && cmpS[k]) { chart.removeSeries(cmpS[k]); delete cmpS[k]; }
       if (cmpS[k]) {
@@ -190,7 +193,6 @@
   }
   function redraw() {
     if (comparing()) S.base = baseFor(S.i0);
-    chart.applyOptions({ localization: { priceFormatter: comparing() ? pctPoints : price } });
     buildMain(); drawSma(); drawCmp();
     chart.priceScale('right').applyOptions({ mode: S.log && !comparing() ? LC.PriceScaleMode.Logarithmic : LC.PriceScaleMode.Normal });
   }
