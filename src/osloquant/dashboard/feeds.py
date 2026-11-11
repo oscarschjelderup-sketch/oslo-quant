@@ -240,6 +240,55 @@ def corporate_kind(title: str) -> str | None:
     return None
 
 
+#: how far a listing has come, read from the title; the first two mean the share is trading
+LISTING_STAGE = (
+    ("første handelsdag", r"(?i)first day of (trading|listing)|første (handels|noterings)dag"),
+    ("tatt opp til handel", r"(?i)admitted to trading|tatt opp til handel"),
+    ("godkjent for notering", r"(?i)approved for (listing|admission)|godkjent for (notering|opptak)"),
+    ("søknad om opptak til handel", r"(?i)received application|mottatt søknad|application for admission|søknad om opptak"),
+    ("notering varslet", r"(?i)intends to apply|plans to (apply|list)|contemplated|subsequent listing|planlegger|vurderer notering"),
+)
+LISTED = ("første handelsdag", "tatt opp til handel")
+_EXCHANGE = r"(?i)^(euronext|oslo børs|oslo bors)"
+
+
+def listing_stage(title: str) -> str | None:
+    import re
+
+    return next((stage for stage, pattern in LISTING_STAGE if re.search(pattern, title or "")), None)
+
+
+def company_from_title(title: str) -> str | None:
+    """The company a listing announcement is about, read from the title. The exchange publishes these itself, so the
+    issuer field says «Oslo Børs» and the ticker field «-»."""
+    import re
+
+    t = (title or "").strip()
+    m = re.search(r"(?i)(?:admission to trading|opptak til handel|first day of (?:trading|listing)|første (?:handels|noterings)dag|approved for listing)\s*[-–:]\s*(.+)$", t)
+    if m:
+        return m.group(1).strip() or None
+    if ":" in t:
+        head = t.split(":", 1)[0].strip()
+        if 2 < len(head) <= 70 and not re.search(_EXCHANGE, head):
+            return head
+    m = re.match(r"(?i)(.+?)\s+(?:intends to|plans to|has applied|applies for|to apply|søker om|har søkt|planlegger)\b", t)
+    if m and not re.search(_EXCHANGE, m.group(1)):
+        return m.group(1).strip()
+    parts = [p.strip() for p in re.split(r"\s+[-–]\s+", t) if p.strip()]
+    if len(parts) > 1:
+        named = [p for p in (parts[0], parts[-1]) if not re.search(_EXCHANGE, p) and not listing_stage(p)]
+        return named[0] if named else None
+    return None
+
+
+def corporate_subject(e: dict) -> str:
+    """Who a corporate event is about: the ticker when there is one, otherwise the company named in the title."""
+    code = (e.get("code") or "").strip()
+    if code and code not in ("-", "–"):
+        return code
+    return company_from_title(e.get("title", "")) or e.get("issuer") or "ukjent selskap"
+
+
 def corporate_events(days: int = CORPORATE_KEEP_DAYS, now: datetime | None = None) -> list[dict]:
     """The corporate events in the announcement cache from the last ``days`` days, newest first."""
     doc = read("announcements") or {}

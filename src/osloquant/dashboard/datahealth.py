@@ -279,18 +279,58 @@ def overview(closes: pd.DataFrame, cases, asof: pd.Timestamp | None = None) -> d
 CORPORATE_ALERT_DAYS = 14
 
 
-def corporate_lines(events: list[dict], now: datetime | None = None) -> list[str]:
-    """One line per corporate event from the last fortnight: the universe is a fixed list and may need a look."""
+def _recent(events: list[dict], now: datetime | None = None) -> list[dict]:
+    """The events of the last fortnight, newest first, one per company and kind: an issuer that publishes in two
+    languages, or the exchange and the company both, is one event."""
     cutoff = f"{(now or datetime.now(UTC)) - pd.Timedelta(days=CORPORATE_ALERT_DAYS):%Y-%m-%d}"
-    return [f"{e['code'] or e.get('issuer') or '?'}: {e['kind']} {dato(e['time'][:10], False)}" + ("" if e.get("in_universe") else " (ikke i universet)")
-            for e in events if e.get("time", "")[:10] >= cutoff]
+    seen, out = set(), []
+    for e in sorted((e for e in events if e.get("time", "")[:10] >= cutoff), key=lambda e: e["time"], reverse=True):
+        key = (fd.corporate_subject(e).lower(), e["kind"])
+        if key not in seen:
+            seen.add(key)
+            out.append(e)
+    return out
+
+
+def _coming(e: dict) -> bool:
+    """A listing that is applied for or announced, of a company outside the universe: nothing to check yet."""
+    return e["kind"] == "ny på børsen" and not e.get("in_universe") and fd.listing_stage(e.get("title", "")) not in fd.LISTED
+
+
+def corporate_lines(events: list[dict], now: datetime | None = None) -> list[str]:
+    """One line per corporate event from the last fortnight that touches the universe: the universe is a fixed list and
+    may need a look. A listing that has not happened yet is in ``coming_lines``."""
+    out = []
+    for e in _recent(events, now):
+        if _coming(e):
+            continue
+        stage = fd.listing_stage(e.get("title", "")) if e["kind"] == "ny på børsen" else None
+        out.append(f"{fd.corporate_subject(e)}: {e['kind']}" + (f", {stage}" if stage else "") + f" {dato(e['time'][:10], False)}"
+                   + ("" if e.get("in_universe") else " (ikke i universet)"))
+    return out
+
+
+def coming_lines(events: list[dict], now: datetime | None = None) -> list[str]:
+    """Companies on their way to the exchange: «Cetus Maritime Holdings Limited: søknad om opptak til handel 10. nov.»"""
+    return [f"{fd.corporate_subject(e)}: {fd.listing_stage(e.get('title', '')) or 'notering omtalt'} {dato(e['time'][:10], False)}"
+            for e in _recent(events, now) if _coming(e)]
 
 
 def corporate_html(events: list[dict]) -> str:
     from osloquant.dashboard.render import E, link
 
-    rows = "".join(f'<tr><td class="l">{dato(e["time"][:10])}</td><td class="l">{link(e["code"]) if e.get("in_universe") else E(e.get("code") or "–")} '
-                   f'<span class="src">{E(e.get("issuer") or "")}</span></td><td class="l">{E(e["kind"])}</td>'
+    def who(e: dict) -> str:
+        if e.get("in_universe"):
+            return f'{link(e["code"])} <span class="src">{E(e.get("issuer") or "")}</span>'
+        subject = fd.corporate_subject(e)
+        via = e.get("issuer") or ""
+        return E(subject) + (f' <span class="src">meldt av {E(via)}</span>' if via and via != subject else "")
+
+    def what(e: dict) -> str:
+        stage = fd.listing_stage(e.get("title", "")) if e["kind"] == "ny på børsen" else None
+        return E("på vei til børsen" if _coming(e) else e["kind"]) + (f' <span class="src">{E(stage)}</span>' if stage else "")
+
+    rows = "".join(f'<tr><td class="l">{dato(e["time"][:10])}</td><td class="l">{who(e)}</td><td class="l">{what(e)}</td>'
                    f'<td class="l" style="white-space:normal"><a href="{E(e["url"])}" target="_blank" rel="noopener">{E(e["title"][:140])}</a></td></tr>' for e in events)
     return ('<div class="card" id="selskapshendelser"><h3>Selskapshendelser (siste 120 dager)</h3><table class="odds"><thead><tr><th class="l">Dato</th><th class="l">Selskap</th>'
             f'<th class="l">Hva</th><th class="l">Børsmelding</th></tr></thead><tbody>{rows or "<tr><td colspan=4 class=empty>ingen funnet i børsmeldingene</td></tr>"}</tbody></table>'

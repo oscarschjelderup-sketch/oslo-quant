@@ -68,7 +68,8 @@ def test_the_fetch_keeps_events_of_the_universe_and_new_listings_outside_it(home
     fd.write("announcements", doc)
     assert [e["code"] for e in fd.corporate_events()] == ["AAA", "NEW"]       # newest first
     lines = dh.corporate_lines(fd.corporate_events())
-    assert any(x.startswith("AAA: emisjon") for x in lines) and any(x.startswith("NEW: ny på børsen") and "(ikke i universet)" in x for x in lines)
+    assert any(x.startswith("AAA: emisjon") for x in lines)
+    assert any(x.startswith("NEW: ny på børsen, første handelsdag") and "(ikke i universet)" in x for x in lines)
     # an event older than the alert window stays on the card but leaves the alert
     assert dh.corporate_lines(fd.corporate_events(), now=now + timedelta(days=20)) == []
     # the next fetch keeps what was found, also when the day is no longer asked for
@@ -101,3 +102,57 @@ def test_the_kog_demerger_is_taken_out_of_the_adjusted_series():
     assert adj[2] / adj[1] == pytest.approx(1.0) and adj[3] / adj[2] == pytest.approx(330.0 / 326.0)        # the gap is gone, the next day is kept
     assert adj[1] / adj[0] == pytest.approx(398.5 / 400.0) and out["close"].tolist() == closes                   # quoted prices untouched
     assert len(business_days(3)) == 3
+
+
+# ------------------------------------------------------------------------------------------------ on the way to the exchange
+def _event(mid: int, code: str, issuer: str, title: str, days_ago: float, kind: str = "ny på børsen", in_universe: bool = False) -> dict:
+    when = (datetime.now(UTC) - timedelta(days=days_ago)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return {"id": mid, "code": code, "issuer": issuer, "title": title, "time": when, "kind": kind, "in_universe": in_universe,
+            "url": f"https://newsweb.oslobors.no/message/{mid}"}
+
+
+#: the four messages of 9–10 Nov 2026 that read «-: ny på børsen (ikke i universet)» four times on the front page
+REAL = [("-", "Oslo Børs", "Euronext Oslo Børs - Received application for admission to trading - Cetus Maritime Holdings Limited", 0.5),
+        ("-", "Oslo Børs", "Euronext Oslo Børs - Mottatt søknad om opptak til handel - Cetus Maritime Holdings Limited", 0.5),
+        ("-", "Oslo Børs", "Cetus Maritime Holdings Limited: Contemplated Private Placement and Subsequent Listing on Euronext Growth Oslo", 0.6),
+        ("-", "Oslo Børs", "Heder Bank intends to apply for a listing on Euronext Oslo Børs", 1.5)]
+
+
+@pytest.mark.parametrize(("title", "company", "stage"), [
+    (REAL[0][2], "Cetus Maritime Holdings Limited", "søknad om opptak til handel"),
+    (REAL[1][2], "Cetus Maritime Holdings Limited", "søknad om opptak til handel"),
+    (REAL[2][2], "Cetus Maritime Holdings Limited", "notering varslet"),
+    (REAL[3][2], "Heder Bank", "notering varslet"),
+    ("Nykommer ASA - First day of trading on Euronext Oslo Børs", "Nykommer ASA", "første handelsdag"),
+    ("Oslo Børs - Approved for listing", None, "godkjent for notering"),
+])
+def test_a_listing_title_names_its_company_and_its_stage(title, company, stage):
+    assert fd.company_from_title(title) == company and fd.listing_stage(title) == stage
+
+
+def test_a_company_without_a_ticker_is_named_and_a_planned_listing_is_not_a_warning():
+    events = [_event(i, code, issuer, title, ago) for i, (code, issuer, title, ago) in enumerate(REAL, 1)]
+    assert dh.corporate_lines(events) == []                                              # nothing in the universe has changed
+    coming = dh.coming_lines(events)
+    assert len(coming) == 2                                                              # one line per company, not one per message
+    assert coming[0].startswith("Cetus Maritime Holdings Limited: søknad om opptak til handel ")
+    assert coming[1].startswith("Heder Bank: notering varslet ")
+    assert not any(line.startswith("-") or "ny på børsen" in line for line in coming)
+    # the day the share trades, it is a reason to look at the universe
+    events.append(_event(9, "CETUS", "Cetus Maritime Holdings Limited", "Cetus Maritime Holdings Limited - First day of trading on Euronext Growth Oslo", 0.1))
+    assert dh.corporate_lines(events)[0].startswith("CETUS: ny på børsen, første handelsdag ") and "(ikke i universet)" in dh.corporate_lines(events)[0]
+    assert fd.corporate_subject({"code": "", "issuer": "Oslo Børs", "title": "Noe uten navn"}) == "Oslo Børs"
+
+
+def test_the_front_page_says_who_is_on_the_way_without_a_warning(app):  # noqa: F811
+    client, _ = app
+    fd.write("announcements", {"items": [], "corporate": [_event(i, code, issuer, title, ago) for i, (code, issuer, title, ago) in enumerate(REAL, 1)]})
+    front = client.get("/").get_data(as_text=True)
+    assert 'id="selskapshendelser-varsel"' not in front and "Universet bør sjekkes" not in front
+    box = front.split('id="pa-vei-til-borsen"')[1].split("</div>")[0]
+    assert "På vei til Oslo Børs" in box and "Cetus Maritime Holdings Limited: søknad om opptak til handel" in box and "Heder Bank: notering varslet" in box
+    assert "Ingen av dem er i universet ennå" in box and "-:" not in box and ".." not in box
+    health = client.get("/health").get_data(as_text=True)
+    card = health.split('id="selskapshendelser"')[1].split("</table>")[0]
+    assert "Cetus Maritime Holdings Limited" in card and "meldt av Oslo Børs" in card and "på vei til børsen" in card
+    assert "selskapshendelser siste 14 dager" not in health                              # not among the things that should worry the reader
