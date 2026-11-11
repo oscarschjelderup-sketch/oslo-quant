@@ -250,6 +250,7 @@ ul.issues { margin:0; padding-left:16px; } ul.issues li { margin:2px 0; } ul.iss
 .ok { background:var(--accent-pale); color:var(--accent-dark); padding:8px 12px; border-left:4px solid var(--accent); margin:8px 0; }
 .warn { background:var(--gold-bg); color:#6b4a00; padding:8px 12px; border-left:4px solid var(--gold); margin:8px 0; font-size:13px; }
 .warn ul { margin:4px 0 0; padding-left:18px; }
+.fyi { background:var(--accent-pale); color:#17403d; padding:8px 12px; border-left:4px solid var(--accent); margin:8px 0; font-size:13px; }
 /* the judgement form */
 form.judge label { display:block; font-size:12.5px; font-weight:600; margin:8px 0 3px; }
 form.judge input, form.judge select, form.judge textarea { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:2px; background:#fff; color:var(--text); font:inherit; }
@@ -408,7 +409,13 @@ def today_page(ctx: dict, static: bool = False) -> str:
         banner = src.banner_html(ctx["sources"], static)
         if ctx.get("corporate"):
             banner += ('<div class="warn" id="selskapshendelser-varsel"><b>Universet bør sjekkes.</b> Selskapshendelser i børsmeldingene de siste 14 dagene: '
-                       + E("; ".join(ctx["corporate"][:6])) + ('.' if static else '. <a href="/health#selskapshendelser">Se meldingene på Datahelse</a>.') + '</div>')
+                       + E("; ".join(ctx["corporate"][:6]).rstrip(".")) + ('.' if static else '. <a href="/health#selskapshendelser">Se meldingene på Datahelse</a>.') + '</div>')
+        if ctx.get("coming"):                   # not a warning: nothing in the universe has changed yet
+            n = len(ctx["coming"])
+            banner += ('<div class="fyi" id="pa-vei-til-borsen"><b>På vei til Oslo Børs.</b> ' + E("; ".join(ctx["coming"][:6]).rstrip(".")) + ". "
+                       + ("Selskapet er ikke" if n == 1 else "Ingen av dem er") + " i universet ennå. Etter første handelsdag kan "
+                       + ("det" if n == 1 else "de") + " legges til i <code>universe.yaml</code>, hvis du vil følge " + ("det" if n == 1 else "dem") + "."
+                       + ("" if static else ' <a href="/health#selskapshendelser">Se meldingene på Datahelse</a>.') + "</div>")
     else:
         banner = (f'<div class="warn">Siste sluttkurs i lageret er fra {dato(asof, False, weekday=True)} – eldre enn siste virkedag ({dato(expected, False)}). '
                   'Kjør <code>oq record</code> før du stoler på kursene.</div>' if stale else '')
