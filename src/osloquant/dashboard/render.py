@@ -485,8 +485,12 @@ def today_page(ctx: dict, static: bool = False) -> str:
                 or '<li class="empty">ingen børsmeldinger i vinduet</li>') + f'</ul><div class="src">{E(ann["source"])}</div>' if ann else \
         '<li class="empty">børsmeldinger ikke hentet (oq dashboard --refresh)</li></ul>'
     upcoming = ('<h2>Kommende datoer (30 dager)</h2><div class="card"><ul class="news">'
-                + (up or '<li class="empty">ingen hendelser de neste 30 dagene</li>') + '</ul><div class="src">Research book, selskapenes finanskalendere på NewsWeb og Norges Bank; '
+                + (up or '<li class="empty">ingen hendelser de neste 30 dagene</li>') + '</ul><div class="src">Research book og selskapenes finanskalendere på NewsWeb; '
                 + ('<a href="/calendar">hele kalenderen</a>' if not static else 'hele kalenderen står på dashbordet') + '.</div></div>')
+    if "macro_week" in ctx:              # D71: rate meetings and releases of the next seven days
+        from osloquant.dashboard import calendar as cal
+
+        upcoming = cal.week_html(ctx["macro_week"], ctx["today"], static) + upcoming
     if ctx.get("news_html"):          # D67: the announcements are in «Nyheter som betyr noe» at the top, sorted by weight
         body.append(upcoming)
     else:

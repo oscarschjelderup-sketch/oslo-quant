@@ -24,8 +24,9 @@ _SKIP = {"script", "style", "textarea", "code", "pre", "title", "select"}
 _TAG = re.compile(r"(<[^>]+>)")
 _TITLE = re.compile(r'(\btitle=")([^"]*)(")')
 # 45.50, 0.25, 9.410, 15.7x, 3.2m – but not 5.2.1, 127.0.0.1, 09.11.2026, v3.0 or a file name. A unit of up to three
-# letters may be glued to the number. A number hyphenated to a word is part of a name: Apache-2.0.
-_DECIMAL = re.compile(r"(?<![\w.,])(?<![A-Za-zæøå]-)(\d+)\.(\d+)(?!(?![a-zA-Z\u00e6\u00f8\u00e5]{1,3}\b)\w|[.,]\d)")
+# letters may be glued to the number. A number hyphenated to a word is part of a name: Apache-2.0; so is the version of a
+# Creative Commons licence (CC BY 4.0). A time of day after «kl.» keeps its full stop: kl. 10.00.
+_DECIMAL = re.compile(r"(?<![\w.,])(?<![A-Za-zæøå]-)(?<!BY )(?<!kl\. )(\d+)\.(\d+)(?!(?![a-zA-Z\u00e6\u00f8\u00e5]{1,3}\b)\w|[.,]\d)")
 _PERCENT = re.compile(r"(?<=\d)\s?%")
 # a hyphen used as a minus sign: before a digit, not inside a date, a range or a word
 _HYPHEN_MINUS = re.compile(r"(?<![\w\d.," + MINUS + r"\-–])-(?=\d)")

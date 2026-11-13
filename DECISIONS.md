@@ -1228,3 +1228,32 @@ B3). FRED's keyless CSV works but the site discourages automated extraction; the
 - **Not built:** the FOMC and ECB meeting dates. FRED's «FOMC Press Release» (101) and «Key ECB Interest Rates» (484)
   list every day the data is updated, not the meetings. The ECB rate itself can come from the ECB's own data portal
   once its terms are read. SSB's release calendar is not built either.
+
+## D71. The macro calendar: three central banks and SSB's releases
+
+Step 1 of the holiday plan (`FERIEPLAN.md`, 13 Nov 2026). Before it, «Det som kommer» on /makro had only Norges Bank's
+meetings and the US releases, and said so («Tallslipp fra SSB og møtene i Fed og ESB er ikke med ennå»).
+
+- **Rate meetings from the banks' own pages, copied by hand.** None of the three publishes its meeting plan as data
+  (Norges Bank's API has past decisions only; the Fed's and the ECB's calendars are HTML pages). Each bank has a
+  resource file with the page, the day it was read and only the dates on it: Norges Bank (read 2 Nov 2026, to Dec
+  2027), the Fed (read 13 Nov 2026, to Nov 2027; the date is the second day of the meeting, when the decision comes;
+  «med anslag» is the page's asterisk for the Summary of Economic Projections) and the ECB (read 13 Nov 2026, to Dec
+  2028; the monetary policy meetings only, day two with the press conference). The ECB allows reuse with the ECB as the
+  source; the Fed's pages are public domain; Norges Bank allows reproduction with the bank as the source.
+- **A file that runs out is said.** When a bank's last date is less than 90 days away, /calendar and /makro say
+  «Møteplanen må fylles på» with the page to copy from. Nothing is extrapolated.
+- **SSB's releases from its upcoming-releases page.** SSB has no calendar API; `ssb.no/en/kommende-publiseringer`
+  carries the calendar as JSON in the page (robots.txt allows it; CC BY 4.0, credit SSB). The macro feed reads it once
+  a run and keeps four statistics: KPI, the labour force survey (AKU), the national accounts (BNP) and the index of
+  wholesale and retail sales (detaljomsetning). The month number there is zero-based. A page without release data is
+  an error in the feed (`SSB-kalenderen: …`), and the last good calendar is kept, so a changed page shows on the
+  data-health page instead of as an empty calendar. SSB's own period line is shown as printed, translated
+  («tall for oktober 2026»).
+- **Where it shows.** /makro «Det som kommer»: rate meetings 120 days ahead, releases 45. /calendar: all of it with
+  the type in Norwegian (it said «rates», «report»). The front page: a new card «Makro de neste sju dagene»; the rate
+  meetings left «Kommende datoer», which now holds the companies' dates only.
+- **Two number-pass fixes found on the way.** The licence «CC BY 4.0» read «4,0» and «kl. 10.00» read «10,00» on every
+  page; both are left alone now (`tall.py`).
+- **Not built:** times of day for the Fed and the ECB (their calendar pages do not print them), Eurostat's calendar,
+  and consensus forecasts (no free source; D65).

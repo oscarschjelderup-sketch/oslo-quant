@@ -1,0 +1,23 @@
+# The Federal Reserve's FOMC meetings, copied by hand from the Fed's meeting calendar (public domain). A meeting runs
+# over two days; the date here is the second day, when the decision is announced. Only dates read from the page are
+# here; nothing is extrapolated. "med anslag" = the page's asterisk: "Meeting associated with a Summary of Economic
+# Projections" (the page shows no asterisks for 2027 yet). Add later years from the page when the Fed publishes them.
+source: https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm
+read: 2026-11-13
+dates:
+  - {date: 2026-01-28, what: "FOMC-møte 27.–28. jan., beslutning andre dag"}
+  - {date: 2026-03-18, what: "FOMC-møte 17.–18. mars med anslag, beslutning andre dag"}
+  - {date: 2026-04-29, what: "FOMC-møte 28.–29. april, beslutning andre dag"}
+  - {date: 2026-06-17, what: "FOMC-møte 16.–17. juni med anslag, beslutning andre dag"}
+  - {date: 2026-07-29, what: "FOMC-møte 28.–29. juli, beslutning andre dag"}
+  - {date: 2026-09-16, what: "FOMC-møte 15.–16. sep. med anslag, beslutning andre dag"}
+  - {date: 2026-10-28, what: "FOMC-møte 27.–28. okt., beslutning andre dag"}
+  - {date: 2026-12-09, what: "FOMC-møte 8.–9. des. med anslag, beslutning andre dag"}
+  - {date: 2027-01-27, what: "FOMC-møte 26.–27. jan., beslutning andre dag"}
+  - {date: 2027-03-17, what: "FOMC-møte 16.–17. mars, beslutning andre dag"}
+  - {date: 2027-04-28, what: "FOMC-møte 27.–28. april, beslutning andre dag"}
+  - {date: 2027-06-09, what: "FOMC-møte 8.–9. juni, beslutning andre dag"}
+  - {date: 2027-07-28, what: "FOMC-møte 27.–28. juli, beslutning andre dag"}
+  - {date: 2027-09-15, what: "FOMC-møte 14.–15. sep., beslutning andre dag"}
+  - {date: 2027-10-27, what: "FOMC-møte 26.–27. okt., beslutning andre dag"}
+  - {date: 2027-11-17, what: "FOMC-møte 16.–17. nov., beslutning andre dag"}

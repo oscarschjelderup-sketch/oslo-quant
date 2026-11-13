@@ -24,7 +24,16 @@ makro, og rettelsen av de to gule varslene. Ingen åpne PR-er. En CI-kjøring ti
 
 ## Planen
 
-- [ ] **Steg 1: Trygt grunnlag og makrokalender**
+- [x] **Steg 1: Trygt grunnlag og makrokalender** – ferdig 13. nov. 2026 (PR inn i `ferie-2026-11`, D71)
+  - Den avbrutte kjøringen var ikke CI, men «goats session» (papirkontoene, som ikke skal røres). Den ble avbrutt
+    fordi en nyere kjøring kom i samme kø, slik arbeidsflyten er laget. Det er ingen feil hos oss. CI på main
+    (fa57025) er grønn fra 11. nov.
+  - Rentemøtene til Norges Bank, Fed og ESB ligger i hver sin kildefil, kopiert fra bankenes egne sider med dato.
+    SSBs tallslipp (KPI, AKU, BNP, detaljomsetning) hentes fra SSBs publiseringskalender med makrofeeden. Dashbordet
+    varsler når en møteplan går tom.
+  - Alt vises på /makro («Det som kommer»), /calendar (nå med norske typer) og i et nytt kort på «I dag», «Makro de
+    neste sju dagene». Underveis ble to tallfeil rettet: «CC BY 4.0» og «kl. 10.00» ble vist som «4,0» og «10,00».
+    Før- og etter-bilder: `Pareto Equity Research/ferie-2026-11/steg1/`.
   - Finn ut hvorfor CI-kjøringen ble avbrutt, og rett det hvis det er en feil hos oss. Bekreft at main er grønn.
   - Opprett feriegrenen. (Grenen `ferie-2026-11` ble opprettet fra main fa57025 12. nov. for å holde denne filen.)
   - Bygg makrokalenderen: rentemøtene til Norges Bank, Fed og ECB, og SSBs kalender for tallslipp (KPI,
@@ -36,7 +45,7 @@ makro, og rettelsen av de to gule varslene. Ingen åpne PR-er. En CI-kjøring ti
     faktisk har skjedd.
   - Koble rentene til sektorene som er mest følsomme for dem, målt på våre egne data.
 
-- [ ] **Steg 3: Rapportene som har kommet**
+- [ ] **Steg 3: Rapportene som har kommet** (Outlet-delen er gjort 12. nov. etter Oscars ønske, se under)
   - Outlet la frem Q3 12. november. Kjør rapportanalysen (privat, utenfor git) og oppdater casen mot forutsetningene
     og kill-kriteriene.
   - Gjør det samme for andre selskaper i research book og på overvåkningslisten som har rapportert siden sist.
@@ -72,7 +81,16 @@ hva som anbefales slått sammen til main først. Vent med sammenslåingen til Os
 
 ## Hvor jeg stoppet
 
-Ingenting påbegynt ennå. Neste «jobb» starter steg 1.
+Steg 1 er ferdig. Neste «jobb» starter steg 2 (renter).
+
+**Outlet Q3 (del av steg 3) er gjort 12. nov.:** rapportanalysen ligger privat i Toolkit-mappen
+`OUTLET/Q3_2026_rapportanalyse.md` (utenfor git). Steg 3 gjenstår for de andre selskapene i research book og på
+overvåkningslisten.
+
+**Notert til steg 6 (gjennomgangen):**
+- Engelsk tekst på sider som ellers er norske: «No insider …» i kortet om innsidere og short på «I dag», og
+  etter-rapport-blokken på aksjesiden («light case rebuilt», «Yahoo has quarterly statements only to …»).
+- Rapportleseren kan ikke lese Outlets rapport: tusenskilletegn med komma (som «1,234.5») og rader med bare prosent.
 
 ## Forbedringer (steg 7 og videre)
 
@@ -80,8 +98,8 @@ Ingen ennå.
 
 ## Krever en vurdering fra deg
 
-Ingen ennå. Tall og funn fra private caser (som Outlet) står ikke her, bare en henvisning til hvor de ligger utenfor
-git.
+- **Outlet etter Q3:** sju punkter i avsnitt 6 i den private rapportanalysen (`OUTLET/Q3_2026_rapportanalyse.md` i
+  Toolkit-mappen, utenfor git). Tall og funn står bare der, ikke i denne filen, siden repoet er offentlig.
 
 ## Venter på Oscar
 
