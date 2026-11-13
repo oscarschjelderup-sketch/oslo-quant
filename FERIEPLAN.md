@@ -90,7 +90,7 @@ overvåkningslisten.
 **Notert til steg 6 (gjennomgangen):**
 - Engelsk tekst på sider som ellers er norske: «No insider …» i kortet om innsidere og short på «I dag», og
   etter-rapport-blokken på aksjesiden («light case rebuilt», «Yahoo has quarterly statements only to …»).
-- Rapportleseren kan ikke lese Outlets rapport: tusenskilletegn med komma («1,817.9») og rader med bare prosent.
+- Rapportleseren kan ikke lese Outlets rapport: tusenskilletegn med komma (som «1,234.5») og rader med bare prosent.
 
 ## Forbedringer (steg 7 og videre)
 
@@ -99,8 +99,7 @@ Ingen ennå.
 ## Krever en vurdering fra deg
 
 - **Outlet etter Q3:** sju punkter i avsnitt 6 i den private rapportanalysen (`OUTLET/Q3_2026_rapportanalyse.md` i
-  Toolkit-mappen, utenfor git). Tall og funn står bare der, ikke i denne filen, siden repoet er offentlig. Tall og funn fra private caser (som Outlet) står ikke her, bare en henvisning til hvor de ligger utenfor
-git.
+  Toolkit-mappen, utenfor git). Tall og funn står bare der, ikke i denne filen, siden repoet er offentlig.
 
 ## Venter på Oscar
 
