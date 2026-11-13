@@ -1,0 +1,196 @@
+{
+ "rewrites": 0,
+ "reviewed_at": "2026-10-21T20:58:57Z",
+ "entries": [
+  {
+   "t": "2026-10-13T07:40:00Z",
+   "kind": "intro",
+   "text": "Who's that tripping over my bridge? Three goats with NOK 100 000 of play money each, and I read their books every weekday evening after the close. No goat gets its rules rewritten before it has had a full week on the far bank."
+  },
+  {
+   "t": "2026-10-13T07:44:00Z",
+   "kind": "verdict",
+   "goat": "mellombukk",
+   "text": "Mellombukk leads at +5.1% with all five slots full: OKEA, FRO, SUBC, OET, VAR. One round trip so far, and it lost. Everything else is open profit, and open profit is the troll's favourite breakfast."
+  },
+  {
+   "t": "2026-10-13T07:47:00Z",
+   "kind": "verdict",
+   "goat": "lillebukk",
+   "text": "Lillebukk has judged 136 signals, taken twelve fills and six round trips, half of them winners, and sits NOK 163 under its start. The bridge toll took NOK 594 of that. Trip-trap all day and the toll eats you."
+  },
+  {
+   "t": "2026-10-13T07:50:00Z",
+   "kind": "verdict",
+   "goat": "storebukk",
+   "text": "Storebukk's books stand at Friday. The evening job slept through Monday, so its +0.8% is three sessions old. Not the goat's fault. I only judge what is written down, and on Monday nothing was."
+  },
+  {
+   "t": "2026-10-13T07:55:00Z",
+   "kind": "handsoff",
+   "text": "Hands off. All three have holes from last week while the laptop dozed: two whole days of looks for the little ones, Monday's close for the big one. I rewrite rules, not naps. Fix the shepherd before you fix the goats."
+  },
+  {
+   "t": "2026-10-13T08:52:25Z",
+   "kind": "verdict",
+   "text": "Lillebukk burned all three entries at 10:00 on NOD, OKEA and WAWI and sits benched at NOK 99 440.4, -0.6% with OSEBX at +0.9%, while twelve more breakouts were turned away at the gate. Six round trips, three won, and the toll has taken NOK 743.2, more than this goat has ever made gross. It is midday and the market is open, so today's number is a mark, not a result.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-13T08:52:26Z",
+   "kind": "verdict",
+   "text": "Mellombukk stands at NOK 106 048.0, +6.0%, with all five slots full and NOK 6 966.6 of it open profit in OKEA, OET, FRO, SUBC and VAR; MPCC knocked at 10:00 and found no free slot. Its one closed trade is the AKER stop at -4.1%, and fees are NOK 206.2. Open profit is not profit; what is booked is one loss.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-13T08:52:29Z",
+   "kind": "verdict",
+   "text": "Storebukk's books still stand at Friday 9 October: NOK 100 774.9, +0.8%, ten names held, no round trips, NOK 290.0 in fees. The evening job never stepped Monday, and this morning's run called Friday up to date, so the big goat has slept two sessions and is sleeping through a third. I judge what is written down, and nothing new is.",
+   "goat": "storebukk"
+  },
+  {
+   "t": "2026-10-13T08:52:30Z",
+   "kind": "handsoff",
+   "text": "Hands off. Lillebukk and Mellombukk are four sessions old, one short of the five I need, and Storebukk has no round trips and books three sessions stale. I rewrite patterns, not naps, and not midday marks."
+  },
+  {
+   "t": "2026-10-13T19:23:05Z",
+   "kind": "verdict",
+   "text": "Lillebukk bought NOD, OKEA and WAWI at 10:00 and then the shepherd's loop went quiet at 11:16: 8 looks of 30 made, and the three names still sit in the books unclosed at a mark of NOK 99 496.5, -0.5% against OSEBX at +1.3%. Six round trips over four sessions, three won, and NOK 743.2 paid in toll against NOK 1 433.0 of gross wins. A goat that never came back for the close has no result today, only a mark from before lunch.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-13T19:23:07Z",
+   "kind": "verdict",
+   "text": "Mellombukk marks NOK 105 882.9, +5.9%, with all five slots full and NOK 6 801.5 of it open in OKEA, FRO, OET, SUBC and VAR; MPCC knocked twice more and found no slot. It too stopped looking at 11:16, 8 looks of 30, so its stops went unwatched all afternoon. One round trip in the books, the AKER stop at -4.1%, and NOK 206.2 of toll. Open profit is still not profit.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-13T19:23:09Z",
+   "kind": "verdict",
+   "text": "Storebukk's books are finally current: the evening job stepped Monday and Tuesday tonight, and the big goat stands at NOK 102 833.7, +2.8%, with OSEBX at +1.2% and its own ten-name pasture at +1.9%. OKEA, FRO and OET carry it at +16.9%, +12.5% and +12.9%, while AKER and AUTO drag at -6.4% and -5.4%. Eight sessions, no round trips, NOK 290.0 in fees, nothing booked. A week of marks is not a record.",
+   "goat": "storebukk"
+  },
+  {
+   "t": "2026-10-13T19:23:11Z",
+   "kind": "handsoff",
+   "text": "Hands off. Lillebukk and Mellombukk are four sessions old, one short of five, and both slept from 11:16 today with names open, so the day's books are half-written. Storebukk is eight sessions old with ten names and no round trips, and there is no pattern in a book where nothing has closed. I rewrite patterns, not naps."
+  },
+  {
+   "t": "2026-10-13T19:46:49Z",
+   "kind": "rewrite",
+   "text": "Lillebukk's rules rewritten: daytrade_orb closed its book at NOK 99,497; lillebukk_v2 starts there with shorts True, max_leverage 10. The shepherd asked for it: the little goat may now short a breakdown of the opening range and size its entries by how hard the bar broke out, up to ten slots. Same 2 percent stop, same flat-at-close rule, same filters.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-13T19:46:54Z",
+   "kind": "rewrite",
+   "text": "Mellombukk's rules rewritten: intraday_breakout_slow closed its book at NOK 105,883; mellombukk_v2 starts there with shorts True, max_leverage 10. The shepherd asked for it: the middle goat may now short a close under its 60-bar low and size its entries by how far the close cleared the range, up to ten slots. Same 3 percent stop and 4 percent trailing stop.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-15T07:19:51Z",
+   "kind": "verdict",
+   "text": "Lillebukk's first day with a short in its teeth: at 10:00 it put NOK 195.7k into DNO, NOK 271.5k into ODL and sold NOK 242.1k of NEL short, seven times its equity, and by 15:45 ODL and NEL were closed for -1.2% and -1.7%, NOK 7 403.3 gone in two trips. It marks NOK 91 787.7, -8.2%, with OSEBX up 0.4% on the day; eight round trips, three won, and the toll stands at NOK 2 680.3 against NOK 1 433.0 of gross wins, NOK 1 835.3 of it paid on yesterday's five fills alone. The close order for DNO was written at 15:15 and never filled: the laptop slept at 16:01, and the goat that never holds overnight is holding NOK 195.7k of DNO this morning.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-15T07:19:53Z",
+   "kind": "verdict",
+   "text": "Mellombukk went out at 09:30 with five slots and borrowed money: OET, FRO, OKEA, WAWI and HAUTO for NOK 469.4k on NOK 105.9k of equity, 4.8 times its equity today, and by the close OET was -4.7% and FRO -3.3%, both through their 3% stops. The stops were decided at 15:30 along with a short in BWLPG, then the laptop slept at 16:01 and nothing filled, so the goat marks NOK 95 955.8, -4.0% since the start and -9.4% since Tuesday's fork, with one round trip in the book, the AKER stop at -4.1%, and NOK 910.3 of toll. A 3% stop on five leveraged slots is 14% of equity; that is what the leverage did yesterday, and the stops it was meant to honour are still unfilled.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-15T07:19:55Z",
+   "kind": "verdict",
+   "text": "Storebukk's books still stand at Tuesday 13 October: NOK 102 833.7, +2.8%, with OSEBX at +1.2%, ten names held, no round trips, NOK 290.0 in fees. The evening job did not run on Wednesday and this morning's run called Tuesday up to date, so the big goat has slept through a session again. Nothing new is written, and I judge nothing new.",
+   "goat": "storebukk"
+  },
+  {
+   "t": "2026-10-15T07:20:04Z",
+   "kind": "handsoff",
+   "text": "Hands off. Lillebukk and Mellombukk were reborn on Tuesday evening and have one session in their new books, four short of the five I need, and that one session ended with the laptop asleep and their orders unfilled. Storebukk has no round trips and books two days stale. I see the toll on Lillebukk, NOK 2 680.3 against NOK 1 433.0 of gross wins, and the borrowed money on both little goats; I will have words about that when the books are old enough to read."
+  },
+  {
+   "t": "2026-10-19T19:35:24Z",
+   "kind": "verdict",
+   "text": "Lillebukk calls itself flat and has been holding NOK 700.9k of OKEA short, NAS and BWLPG long since Thursday 10:00, 7.9 times its equity, through Friday and the weekend, because the laptop made no looks on Friday and 2 of 30 today, both after the close. It marks NOK 89 241.5, -10.8% with OSEBX at +0.2%; nine round trips, three won, NOK 1 433.0 of gross wins against NOK 4 238.7 of toll, so the toll has eaten its wins three times over. The two closes and the BWLPG stop were written at 16:00 and sit unfilled, while its old unleveraged self still trots in the herd at NOK 100 979.0.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-19T19:35:27Z",
+   "kind": "verdict",
+   "text": "Mellombukk grazes on borrowed grass: five names for NOK 594.0k on NOK 91 943.9 of equity, 6.5 times, and marks -8.1% against OSEBX at +0.2%. Three round trips in the book and none won, NOK 15 182.3 lost on AKER, OET and FRO, the last two stopped at -8.2% and -6.2% because their 3% stops filled a morning late; NOK 1 790.0 of toll on top. Today's OKEA stop at -3.6% was decided at 16:00 after 2 of 30 looks and is still waiting for the open, and the shorts in AKER and BWLPG carry NOK 9 410.5 of open profit, which is not profit.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-19T19:35:31Z",
+   "kind": "verdict",
+   "text": "Storebukk's books stand at Friday 16 October: NOK 99 559.2, -0.4%, with OSEBX at +1.9% and its own ten-name pasture at +1.5%, so the big goat trails both its market and its own field. Ten names, no round trips, NOK 290.0 of toll; OKEA carries +17.4% and AKER drags -9.8%. Yahoo has Monday's bar and the evening job has not stepped it, so I judge Friday, because Friday is what is written down.",
+   "goat": "storebukk"
+  },
+  {
+   "t": "2026-10-19T19:35:34Z",
+   "kind": "handsoff",
+   "text": "Hands off. Lillebukk and Mellombukk are four sessions into their leveraged lives, one short of the five I need, and one of those four was slept through entirely, so the stops and closes they owe are unfilled and their books are half-written again. The borrowed money has lost on both banks, six leveraged round trips and not one winner, and it is the first thing I will take when the books are old enough; tonight I rewrite patterns, not naps."
+  },
+  {
+   "t": "2026-10-19T19:38:10Z",
+   "kind": "rewrite",
+   "text": "Lillebukk's rules rewritten: lillebukk_v2 closed its book at NOK 89,242; lillebukk_v3 starts there with shorts False, max_leverage 2. Thirty days of replay: the opening range is break-even before costs long-only and loses 29 percent before costs with shorts, and ten slots turned that into minus 58. Three round trips in the new book, all lost, and three positions carried over a weekend at eight times equity while the laptop slept. Shorts off, two slots at most.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-19T19:38:12Z",
+   "kind": "rewrite",
+   "text": "Mellombukk's rules rewritten: mellombukk_v2 closed its book at NOK 91,944; mellombukk_v3 starts there with max_leverage 3. Thirty days of replay: the 60-bar breakout earns 9 percent before costs long-only and 31 percent before costs with shorts and ten slots, but commission took it from 6.5 to 5.7 after costs. Two stops on five-slot entries cost 14 400 kroner in one day. Three slots at most keeps the gross and a third of the toll.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-21T20:58:25Z",
+   "kind": "verdict",
+   "text": "Lillebukk made every one of its 30 looks today and came home lighter anyway: ELK, SCATC and KID earned NOK 185 before commission and lost NOK 242 after it, because the bridge took NOK 427. Five round trips on its new two-slot rules, none won, and NOK 88 030, -12.0% since the start, on a day OSEBX rose 1.0%. The goat is no longer losing to the market; it is losing to the toll.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-21T20:58:28Z",
+   "kind": "verdict",
+   "text": "Mellombukk bet against a market that rose 1.0% today: it shorted SUBC, VAR and OKEA beside yesterday's AKSO, bought TGS, and goes into the night at 1.5 times its equity with NOK 1 167 of open loss, AKSO alone NOK 696. NOK 90 569, -9.4% since the start, no round trip closed on the new rules yet, and NOK 237 paid for borrowed money in all. Four shorts and a long are a view of the market, and one day is not a record.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-21T20:58:31Z",
+   "kind": "verdict",
+   "text": "Storebukk has held the same ten names since 5 October: NOK 97 427, -2.6%, while OSEBX rose 2.4% and its own equal-weighted pasture 1.2% over the same days. OKEA carries it at +12.6% and AKER drags at -14.3%; nothing has been sold, so all of it is open. Its monthly turn comes after the first close of November, and I judge its trades then.",
+   "goat": "storebukk"
+  },
+  {
+   "t": "2026-10-21T20:58:34Z",
+   "kind": "handsoff",
+   "text": "Hands off. Lillebukk and Mellombukk have had one full session on their new rules, four short of the five I wait for, and this was the first day the runner watched every look; Storebukk has nothing closed to judge. Last night's verdict is missing because I sat stuck under the bridge, and that silence was mine, not the goats'."
+  },
+  {
+   "t": "2026-10-21T20:58:50Z",
+   "kind": "verdict",
+   "text": "Lillebukk ends flat at NOK 88 030.0, -12.0% since it first crossed, with OSEBX at +1.0%; all 30 looks made today, no excuse from the laptop. Its new short-free book has five round trips over two days and won none, NOK 1 212.0 lost, and today's three entries made about NOK 184 before costs and paid NOK 426 of toll to lose NOK 242. Lifetime that is 14 round trips, 3 won, NOK 9 612.6 in fees: the little goat is losing to the toll, not to the market.",
+   "goat": "lillebukk"
+  },
+  {
+   "t": "2026-10-21T20:58:52Z",
+   "kind": "verdict",
+   "text": "Mellombukk marks NOK 90 568.5, -9.4% against OSEBX at +1.0%, and is down 1.5% since its three-slot rules began on Monday. It sleeps on the far bank with NOK 138.7k of exposure, 1.5 times its equity: four shorts in AKSO, VAR, SUBC and OKEA and one long in TGS, NOK 1 166.5 of open loss between them, which is a mark, not a result. No round trip closed in the new book yet; lifetime three, none won, NOK 2 849.5 in fees and NOK 236.9 of financing.",
+   "goat": "mellombukk"
+  },
+  {
+   "t": "2026-10-21T20:58:54Z",
+   "kind": "verdict",
+   "text": "Storebukk stands at NOK 97 426.8, -2.6%, while OSEBX is up 2.4% since its start and its own pasture up 1.2%, so the big goat trails both. Ten names untouched since 5 October, no round trips, NOK 290.0 of toll; OKEA carries +12.6% and AKER drags -14.3%. The evening job stepped it tonight; a month's rule judged after two and a half weeks is a reading, not a record.",
+   "goat": "storebukk"
+  },
+  {
+   "t": "2026-10-21T20:58:57Z",
+   "kind": "handsoff",
+   "text": "Hands off. Lillebukk and Mellombukk are two sessions into the rules I gave them on Monday, three short of the five I need, and Storebukk has closed no round trip to read a pattern from. Lillebukk's toll is the thing I am counting: five losers in the new book and fees bigger than its gross, again."
+  }
+ ]
+}
