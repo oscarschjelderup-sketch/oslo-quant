@@ -1,0 +1,24 @@
+# The ECB Governing Council's monetary policy meetings, copied by hand from the ECB's meeting calendar (reuse allowed
+# with the ECB as source, ecb.europa.eu/services/disclaimer). A meeting runs over two days; the date here is the second
+# day, "followed by press conference" on the page. The non-monetary policy meetings on the same page are left out.
+# Only dates read from the page are here (it listed meetings from 25 Nov 2026 to Dec 2028 on 2026-11-13).
+source: https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html
+read: 2026-11-13
+dates:
+  - {date: 2026-12-17, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-02-04, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-03-18, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-04-29, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-06-10, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-07-22, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-09-09, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-10-28, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2027-12-16, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-02-03, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-03-23, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-05-04, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-06-08, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-07-20, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-09-07, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-10-12, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}
+  - {date: 2028-12-07, what: "Rentemøte i Frankfurt, beslutning og pressekonferanse"}

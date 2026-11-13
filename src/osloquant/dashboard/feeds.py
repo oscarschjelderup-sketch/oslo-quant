@@ -563,6 +563,72 @@ def _fetch_fred(today) -> tuple[dict, list[str], list[dict] | None, dict]:
     return got, [_scrub(x, key) for x in errors], releases, info
 
 
+SSB_CALENDAR = "https://www.ssb.no/en/kommende-publiseringer"
+#: the SSB statistics the macro calendar follows: short name on SSB's page -> what the dashboard calls it
+SSB_STATS = {"kpi": "KPI (konsumprisindeksen)", "aku": "Arbeidsledighet (AKU)", "knr": "BNP (nasjonalregnskapet)",
+             "doi": "Detaljomsetning (varehandelsindeksen)"}
+_EN_MONTHS = {m: i for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august", "september",
+                                           "october", "november", "december"), 1)}
+_NO_MONTHS = ("januar", "februar", "mars", "april", "mai", "juni", "juli", "august", "september", "oktober", "november", "desember")
+
+
+def ssb_period(text: str) -> str:
+    """SSB's period line in Norwegian: «Figures for November 2026» -> «tall for november 2026», «Figures for 3rd quarter
+    2026» -> «tall for 3. kvartal 2026». Anything else is kept as printed."""
+    import re
+
+    t = (text or "").strip()
+    m = re.fullmatch(r"(?i)figures for (\w+) (\d{4})", t)
+    if m and m.group(1).lower() in _EN_MONTHS:
+        return f"tall for {_NO_MONTHS[_EN_MONTHS[m.group(1).lower()] - 1]} {m.group(2)}"
+    m = re.fullmatch(r"(?i)figures for (\d)(?:st|nd|rd|th) quarter (\d{4})", t)
+    if m:
+        return f"tall for {m.group(1)}. kvartal {m.group(2)}"
+    m = re.fullmatch(r"(?i)figures for (\d{4})", t)
+    if m:
+        return f"tall for {m.group(1)}"
+    return t
+
+
+def parse_ssb_calendar(page: str) -> list[dict]:
+    """The coming releases of the statistics in SSB_STATS, from the JSON SSB embeds in its upcoming-releases page. The
+    month number there is zero-based (11 = December). Raises ValueError when the page has no release data, so a
+    changed page is an error on the data-health page and not an empty calendar."""
+    import re
+
+    dec, out, seen, found = json.JSONDecoder(), [], set(), False
+    for m in re.finditer(r'\{"id":\s*\d+,\s*"name":', page or ""):
+        try:
+            obj, _ = dec.raw_decode(page, m.start())
+        except ValueError:
+            continue
+        v = obj.get("variant") or {}
+        if not isinstance(v, dict) or "monthNumber" not in v:
+            continue
+        found = True
+        short = obj.get("shortName")
+        if short not in SSB_STATS:
+            continue
+        try:
+            day = datetime(int(v["year"]), int(v["monthNumber"]) + 1, int(v["day"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        key = (short, f"{day:%Y-%m-%d}", v.get("period"))
+        if key in seen:
+            continue
+        seen.add(key)
+        url = obj.get("statisticsPageUrl") or ""
+        out.append({"date": f"{day:%Y-%m-%d}", "stat": short, "what": SSB_STATS[short], "period": ssb_period(v.get("period", "")),
+                    "url": ("https://www.ssb.no" + url) if url.startswith("/") else (url or SSB_CALENDAR)})
+    if not found:
+        raise ValueError("SSB-siden hadde ingen publiseringsdata")
+    return sorted(out, key=lambda r: (r["date"], r["stat"]))
+
+
+def fetch_ssb_calendar() -> list[dict]:
+    return parse_ssb_calendar(_get(SSB_CALENDAR).decode("utf-8", "replace"))
+
+
 def fetch_macro() -> dict:
     """The history of every macro driver (dashboard/macro.py). A source that fails keeps its series from the cache and is
     named in ``errors``; the feed fails only when nothing at all could be fetched."""
@@ -590,6 +656,11 @@ def fetch_macro() -> dict:
             series[key] = fn()
         except Exception as e:  # noqa: BLE001
             errors.append(f"{key}: {type(e).__name__}")
+    ssb = None
+    try:
+        ssb = fetch_ssb_calendar()
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"SSB-kalenderen: {type(e).__name__}")
     if not series:
         raise RuntimeError("; ".join(errors) or "no macro series")
     for key, s in old.items():                       # what could not be fetched now is kept as it was, and said to be old
@@ -597,7 +668,8 @@ def fetch_macro() -> dict:
     uses_fred = any(k in series for k in MACRO_FRED)
     return {"series": series, "errors": errors, "fred": fred_info,
             "releases": releases if releases is not None else before.get("releases") or [],
-            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 (CC BY 4.0), hvakosterstrommen.no (ENTSO-E)"
+            "ssb_releases": ssb if ssb is not None else before.get("ssb_releases") or [],
+            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 og publiseringskalenderen (CC BY 4.0), hvakosterstrommen.no (ENTSO-E)"
                       + (", FRED (St. Louis Fed)" if uses_fred else "")}
 
 

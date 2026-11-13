@@ -292,7 +292,8 @@ def merge_items(*groups: list[Item]) -> list[Item]:
 
 def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAYS) -> list[dict]:
     """The next ``days`` days: the research book's own events (with the kill criteria to check when close), then the
-    issuers' financial calendars and Norges Bank from the calendar feed, without repeating a date the book has."""
+    issuers' financial calendars from the calendar feed, without repeating a date the book has. Rate meetings and
+    releases are on the front page's macro week (calendar.macro_week)."""
     from osloquant.dashboard import calendar as cal
 
     out = []
@@ -303,7 +304,7 @@ def upcoming(cases: list[bk.Case], today: pd.Timestamp, days: int = UPCOMING_DAY
                 out.append({"code": c.code, "name": c.name, "date": d, "what": ev["what"],
                             "kill": c.kill if (d - today).days <= KILL_SOON_DAYS else [], "source": None})
     for e in cal.events(cases, today=today, days=days):
-        if e["kind"] == "case" or e.get("duplicate_of_case_event"):
+        if e["kind"] in ("case", "rates", "release") or e.get("duplicate_of_case_event"):    # rates and releases: «Makro de neste sju dagene»
             continue
         out.append({"code": e.get("code"), "name": e["name"], "date": e["date"], "what": e["what"], "kill": [], "source": e["source"].split(" (")[0]})
     return sorted(out, key=lambda e: e["date"])
