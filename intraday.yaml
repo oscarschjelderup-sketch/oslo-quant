@@ -1,0 +1,144 @@
+# The intraday paper accounts. `oq intraday run` steps them every 15 minutes while Oslo is open.
+# Play money only. An account starts the first time it is seen and is never restarted: to try other
+# rules, add an account under a new name.
+#
+# watchlist  which stocks an account may buy: the name of a daily factor (its positive targets at the last
+#            close, e.g. MomentumFactor or AboveMaFactor), "all", or a list of codes like [EQNR, DNB]
+# signal     the rule that raises BUY and SELL: ma_cross (fast, slow), breakout (lookback),
+#            macd_cross (fast, slow, n), rsi (period, low, high), or your own as "package.module:ClassName"
+# stop_loss / take_profit / trailing_stop   exits measured from the purchase price (trailing: from the highest
+#            price since), as fractions: 0.03 is 3 %. Leave out to switch off.
+# flat_at_close   true sells everything before the close, so nothing is held overnight
+# cooldown_bars   after selling a stock, ignore buy signals in it for this many 15-minute bars. Stops a rule
+#            from buying back what it was just stopped out of.
+#
+# Day trading. A round trip costs about 0.5 % here whatever the rule, so what decides the result is how many
+# trades there are and how far each one gets to move. These settings are about exactly that:
+# day_trade       true is shorthand for: flat_at_close, exit_on_signal false, entry_window 09:30-14:30 and
+#                 max_entries_per_stock_per_day 1. Any of them can still be set on its own.
+# exit_on_signal  false: the rule's SELL does not close a position; the stops and the close do. A position
+#                 then gets the rest of the day to move instead of being turned over at the next wobble.
+# entry_window    buy only on signals from bars starting in this window, Oslo time: ["09:30", "14:30"]
+# max_entries_per_stock_per_day / max_entries_per_day   caps on the number of buys
+# min_relative_volume   the signal bar must trade this many times the stock's normal bar volume (the median of
+#                 the five sessions before). Candidates arriving together are then taken busiest first.
+# min_range_to_cost     the stock's average daily range over the 20 sessions before must be at least this many
+#                 round-trip costs: a stock that moves 1 % a day cannot pay for 0.5 % round trips.
+# max_per_sector  at most this many positions in one sector, so that five shipping stocks are not one bet five times
+
+# Yahoo's Oslo quotes arrive about this many minutes late
+feed_delay_minutes: 15
+
+costs:
+  # Nordnet Mini as of October 2026: 0.15 %, at least NOK 29 per order. Set this to your broker's price list.
+  commission_rate: 0.0015
+  commission_min: 29
+  slippage: 0.001
+
+accounts:
+  # The day-trade bots: few trades, each held for the rest of the day unless a stop takes it, nothing overnight.
+  - name: daytrade_orb
+    watchlist: all
+    signal: {rule: opening_range, minutes: 30}
+    day_trade: true
+    stop_loss: 0.02
+    min_relative_volume: 1.5
+    min_range_to_cost: 4
+    max_per_sector: 1
+    max_entries_per_day: 3
+    input_money: 100000
+    max_positions: 3
+  - name: daytrade_breakout
+    watchlist: MomentumFactor
+    signal: {rule: breakout, lookback: 60}
+    day_trade: true
+    stop_loss: 0.02
+    min_relative_volume: 1.5
+    min_range_to_cost: 4
+    max_per_sector: 1
+    max_entries_per_day: 3
+    input_money: 100000
+    max_positions: 3
+  # The plain rules, held overnight, for comparison.
+  - name: intraday_ma
+    watchlist: MomentumFactor
+    signal: {rule: ma_cross, fast: 5, slow: 20}
+    stop_loss: 0.03
+    take_profit: 0.06
+    input_money: 100000
+    max_positions: 5
+  - name: intraday_breakout
+    watchlist: MomentumFactor
+    signal: {rule: breakout, lookback: 20}
+    stop_loss: 0.03
+    trailing_stop: 0.04
+    input_money: 100000
+    max_positions: 5
+  # The same two rules, three to four times slower. A round trip costs about 0.5 % whatever the rule, so a rule
+  # that trades a third as often pays a third of the costs. Running fast and slow side by side shows what that is worth.
+  - name: intraday_ma_slow
+    watchlist: MomentumFactor
+    signal: {rule: ma_cross, fast: 20, slow: 60}
+    stop_loss: 0.03
+    take_profit: 0.06
+    input_money: 100000
+    max_positions: 5
+  - name: intraday_breakout_slow
+    watchlist: MomentumFactor
+    signal: {rule: breakout, lookback: 60}
+    stop_loss: 0.03
+    trailing_stop: 0.04
+    input_money: 100000
+    max_positions: 5
+
+  # rewritten by the troll on 2026-10-13 21:46 from daytrade_orb: The shepherd asked for it: the little goat may now short a breakdown of the opening range and size its entries by how hard the bar broke out, up to ten slots. Same 2 percent stop, same flat-at-close rule, same filters.
+  - name: lillebukk_v2
+    watchlist: all
+    signal: {rule: opening_range, minutes: 30}
+    day_trade: true
+    stop_loss: 0.02
+    min_relative_volume: 1.5
+    min_range_to_cost: 4
+    max_per_sector: 1
+    max_entries_per_day: 3
+    input_money: 99497
+    max_positions: 3
+    shorts: true
+    max_leverage: 10
+
+  # rewritten by the troll on 2026-10-13 21:46 from intraday_breakout_slow: The shepherd asked for it: the middle goat may now short a close under its 60-bar low and size its entries by how far the close cleared the range, up to ten slots. Same 3 percent stop and 4 percent trailing stop.
+  - name: mellombukk_v2
+    watchlist: MomentumFactor
+    signal: {rule: breakout, lookback: 60}
+    stop_loss: 0.03
+    trailing_stop: 0.04
+    input_money: 105883
+    max_positions: 5
+    shorts: true
+    max_leverage: 10
+
+  # rewritten by the troll on 2026-10-19 21:38 from lillebukk_v2: Thirty days of replay: the opening range is break-even before costs long-only and loses 29 percent before costs with shorts, and ten slots turned that into minus 58. Three round trips in the new book, all lost, and three positions carried over a weekend at eight times equity while the laptop slept. Shorts off, two slots at most.
+  - name: lillebukk_v3
+    watchlist: all
+    signal: {rule: opening_range, minutes: 30}
+    day_trade: true
+    stop_loss: 0.02
+    min_relative_volume: 1.5
+    min_range_to_cost: 4
+    max_per_sector: 1
+    max_entries_per_day: 3
+    input_money: 89242
+    max_positions: 3
+    shorts: false
+    max_leverage: 2
+
+  # rewritten by the troll on 2026-10-19 21:38 from mellombukk_v2: Thirty days of replay: the 60-bar breakout earns 9 percent before costs long-only and 31 percent before costs with shorts and ten slots, but commission took it from 6.5 to 5.7 after costs. Two stops on five-slot entries cost 14 400 kroner in one day. Three slots at most keeps the gross and a third of the toll.
+  - name: mellombukk_v3
+    watchlist: MomentumFactor
+    signal: {rule: breakout, lookback: 60}
+    stop_loss: 0.03
+    trailing_stop: 0.04
+    input_money: 91944
+    max_positions: 5
+    shorts: true
+    max_leverage: 3
