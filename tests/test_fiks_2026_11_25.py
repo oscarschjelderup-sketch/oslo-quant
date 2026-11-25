@@ -73,3 +73,12 @@ def test_texts_stored_in_english_are_shown_in_norwegian():
     html = ar.block_html("XYZ", {"code": "XYZ", "ran_at": "2026-11-03T19:26:00Z", "steps": old[:3],
                                  "lightcase": {"before": {}, "after": {}, "diff": {}, "warnings": old[3:]}})
     assert "light case" not in html and "Yahoo has" not in html and "lett case bygget på nytt" in html and "Yahoo har kvartalsregnskap" in html
+
+
+def test_the_stock_page_and_pretrade_show_the_light_case_warnings_in_norwegian_and_the_grade_still_reads_them():
+    from osloquant.dashboard import lightcase as lcm
+
+    raw = "reporting currency unknown – run oq case build with --refresh"
+    assert lcm.norsk(raw) == "rapporteringsvalutaen er ukjent – kjør oq case build med --refresh"
+    case = {"price": {"value": 10.0, "date": "2026-11-20"}, "shares": 1.0, "currency": {}, "warnings": [raw], "annual": [1, 2, 3]}
+    assert lcm.quality(case)["grade"] == "C"                       # the check reads the stored text, not the shown one
