@@ -1228,3 +1228,22 @@ B3). FRED's keyless CSV works but the site discourages automated extraction; the
 - **Not built:** the FOMC and ECB meeting dates. FRED's «FOMC Press Release» (101) and «Key ECB Interest Rates» (484)
   list every day the data is updated, not the meetings. The ECB rate itself can come from the ECB's own data portal
   once its terms are read. SSB's release calendar is not built either.
+
+## D72. A missed evening is caught up without storing half a session
+
+Found in the system check of 25 Nov 2026 (D71 is the macro calendar on the holiday branch).
+
+- **The fault.** When the laptop is off at 17:45, Windows runs the signal task the next morning, with Oslo Børs open.
+  `oq record` then stored the session still trading as that day's close, and the desk and the digest read it as the
+  close (12, 17 and 25 Nov 2026). The next evening's run overwrote the bar, so the history was right again; what the
+  desk and the front page said that morning was not.
+- **The fix.** `oq record --closed-only` leaves out every daily bar dated after the newest closed session
+  (`sources.closed_session`: today from 16:45 Oslo time, the close at 16:20 plus the time Yahoo needs, otherwise the
+  session before). The two laptop tasks use it; the paper accounts on GitHub Actions do not, and nothing else changes
+  for them.
+- **The weekly summary.** The Sunday task the laptop missed ran on Monday 23 Nov 07:59 and failed («no sessions in the
+  week of 23 Nov»). Without a date it now covers the week just ended: this week on a weekend, last week from Monday.
+- **On the way.** English left on the pages (the after-report steps, the light-case warnings, empty states, the weekly
+  page) is in Norwegian; texts already stored in English are translated when shown (`lightcase.norsk`). The browser
+  helper of the tests retries when Edge still holds its DevTools port file (a PermissionError on Windows made 17
+  browser tests fail at setup).

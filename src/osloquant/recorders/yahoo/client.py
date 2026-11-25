@@ -33,6 +33,8 @@ def _with_retries(what: str, fn):
 #: histories fetched in the last few minutes: the raw bars, the adjusted bars and the corporate actions of a
 #: stock all come from the same download, so recording the three costs one request, not three
 _history_cache: dict[tuple, tuple[float, pd.Timestamp, pd.DataFrame]] = {}
+#: set by `oq record --closed-only`: daily bars dated after this session are left out (a session still trading)
+CLOSED_ONLY: pd.Timestamp | None = None
 _HISTORY_CACHE_SECONDS = 300
 
 
@@ -89,6 +91,8 @@ def _fetch_history(symbol: str, start: pd.Timestamp, end: pd.Timestamp | None = 
     )
     df = df.dropna(subset=["close"])
     df = df[df["close"] > 0]
+    if CLOSED_ONLY is not None:
+        df = df[df["timestamp"] <= CLOSED_ONLY]
     return df.drop_duplicates(subset="timestamp", keep="last").reset_index(drop=True)
 
 

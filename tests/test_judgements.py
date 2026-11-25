@@ -167,4 +167,4 @@ def test_fingerprint_flags_numbers_repeated_across_companies():
     from osloquant.dashboard import render as rd
 
     assert "Samme tall i flere selskaper" in rd.fingerprint_block(fp) and "target 20" in rd.fingerprint_block(fp)
-    assert "is repeated" in rd.fingerprint_block(jg.fingerprint(views[1:])) and rd.fingerprint_block(None) == ""
+    assert "går igjen" in rd.fingerprint_block(jg.fingerprint(views[1:])) and rd.fingerprint_block(None) == ""

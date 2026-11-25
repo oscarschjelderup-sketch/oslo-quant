@@ -99,7 +99,7 @@ def test_run_one_rebuilds_reads_or_suggests_and_the_stock_page_shows_it(app, mon
     assert log["reader"]["mode"] == "dry-run" and log["reader"]["found"] == {"revenue": 500.0}
     spec = ar.spec_text("BBB")
     assert spec.startswith("# Suggested reader spec for BBB") and "revenue:" in spec and "# ebit:" in spec and "Operating profit before other items" in spec
-    assert ar.load("BBB")["steps"][0] == "light case rebuilt"
+    assert ar.load("BBB")["steps"][0] == "lett case bygget på nytt"
     page = client.get("/stock/BBB").get_data(as_text=True)
     assert "Etter rapporten" in page and "Beta Q3 2026 report" in page and "90,00" in page and "100,00" in page and "+11,1\N{NO-BREAK SPACE}%" in page
     assert "Ingen leserspesifikasjon" in page and "a warning from the build" in page and "/report/BBB/555.pdf" in page

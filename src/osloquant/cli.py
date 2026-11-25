@@ -57,6 +57,10 @@ def record(
     ),
     raw: bool = typer.Option(False, "--raw", help="Also record unadjusted bars."),
     force: bool = typer.Option(False, "--force", help="Download everything again instead of only what is missing."),
+    closed_only: bool = typer.Option(
+        False, "--closed-only", help="Leave out today's bar until Oslo Børs has closed (16:45 Oslo time): a run in the "
+        "morning or the day must not store half a session as a close."
+    ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Record the entity lists and daily bars from Yahoo. Run it again any time: only what is missing is fetched."""
@@ -80,6 +84,11 @@ def record(
     from osloquant.recorders.yahoo import client
 
     client.clear_history_cache()
+    from osloquant.dashboard import sources
+
+    client.CLOSED_ONLY = sources.closed_session(sources.oslo_now()) if closed_only else None
+    if closed_only:
+        console.print(f"closed sessions only: bars to {client.CLOSED_ONLY:%Y-%m-%d}")
     stock_codes = _codes(codes)
     steps = [(schema, {}) for schema in (Stock, Index, Future, Currency)]
     # the actions ask for the longest stretch, so they go first and the bar tables reuse the same download
@@ -96,14 +105,13 @@ def record(
 
     import time
 
-    from osloquant.dashboard import sources
-
     for schema, kwargs in steps:
         key, t0 = sources.TABLE_KEY.get(schema.__name__), time.monotonic()
         try:
             with console.status(f"Recording {schema.__name__} ..."):
                 summary = schema.record_data(provider="yahoo", **kwargs)
         except Exception as e:
+            client.CLOSED_ONLY = None
             if key:
                 sources.record_run(key, False, f"{type(e).__name__}: {e}", time.monotonic() - t0)
             raise
@@ -112,6 +120,7 @@ def record(
             sources.record_run(key, not summary.failed, f"{len(summary.failed)} feilet ({failed})" if summary.failed else None,
                                time.monotonic() - t0, summary.rows)
         console.print(f"[green]ok[/green] {summary}" if not summary.failed else f"[yellow]partly[/yellow] {summary}")
+    client.CLOSED_ONLY = None
     sources.clear_cache()
 
 
@@ -1980,7 +1989,7 @@ def book_monthly(record: bool = typer.Option(True, "--record/--no-record", help=
 
 @book_app.command("weekly")
 def book_weekly(
-    date: str | None = typer.Option(None, help="Any day of the week to summarise (default: this week)."),
+    date: str | None = typer.Option(None, help="Any day of the week to summarise (default: the week just ended – this week on a weekend, last week from Monday)."),
     open_page: bool = typer.Option(False, "--open", help="Open the HTML page in the browser."),
     notify: bool = typer.Option(False, "--notify", help="Show a Windows notification with the count of missed judgements."),
 ) -> None:
