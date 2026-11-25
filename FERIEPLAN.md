@@ -88,8 +88,9 @@ Steg 1 er ferdig. Neste «jobb» starter steg 2 (renter).
 overvåkningslisten.
 
 **Notert til steg 6 (gjennomgangen):**
-- Engelsk tekst på sider som ellers er norske: «No insider …» i kortet om innsidere og short på «I dag», og
-  etter-rapport-blokken på aksjesiden («light case rebuilt», «Yahoo has quarterly statements only to …»).
+- Engelsk tekst: «No insider …», etter-rapport-blokken og advarslene i lett case er rettet på main 25. nov. (PR #17 og
+  #18, D72). Gjenstår: lett case-avlesningen («the enterprise value pays for …») og kvalitetsgrunnene («cyclical
+  group …», «investment company …») på alle aksjesider, og ukesoppsummeringen i markdown.
 - Rapportleseren kan ikke lese Outlets rapport: tusenskilletegn med komma (som «1,234.5») og rader med bare prosent.
 
 ## Forbedringer (steg 7 og videre)
