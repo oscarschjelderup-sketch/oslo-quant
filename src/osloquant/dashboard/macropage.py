@@ -121,25 +121,24 @@ def matrix_html(table: pd.DataFrame, groups: dict[str, str], order: list[str]) -
 
 
 def calendar_html(events: list[dict], today: pd.Timestamp, days: int = 45) -> str:
-    """What is coming: Norges Bank's rate meetings (120 days ahead), the followed companies' dated events and the US
-    releases from FRED's calendar (45 days)."""
+    """What is coming: the rate meetings of Norges Bank, the Fed and the ECB (120 days ahead), the followed companies'
+    dated events, and the releases of SSB and the US (45 days)."""
     rows = []
     for e in events:
         d = pd.Timestamp(e["date"])
         if e.get("kind") == "rates":
-            what = "Rentemøte i Norges Bank" + (" med pengepolitisk rapport" if "Monetary Policy Report" in str(e.get("what")) else "")
-            rows.append((d, "Renter", what, "Norges Banks møteplan"))
+            rows.append((d, "Renter", f'{e.get("name", "")}: {e.get("what", "")}', (e.get("source") or "").split(" (")[0] or "møteplanen"))
         elif e.get("kind") == "release":
             if today <= d <= today + pd.Timedelta(days=days):
-                rows.append((d, "USA", f'Tallslipp: {e.get("what", "")}', e.get("source") or "FRED"))
+                rows.append((d, e.get("name") or "", f'Tallslipp: {e.get("what", "")}', e.get("source") or ""))
         elif today <= d <= today + pd.Timedelta(days=days) and not e.get("duplicate_of_case_event"):
             rows.append((d, e.get("code") or "", f'{e.get("name") or e.get("code") or ""}: {e.get("what", "")}'[:110], e.get("source") or ""))
     if not rows:
         return '<p class="empty">Ingen daterte hendelser de neste ukene i kildene vi har.</p>'
     rows.sort(key=lambda r: r[0])
     tr = "".join(f'<tr><td class="l">{dato(d, False, short_weekday=True)}</td><td class="l">{(d - today).days} d</td>'
-                 f'<td class="l">{_link(tag) if tag and tag not in ("Renter", "USA") and tag.isalnum() and tag.isupper() else _E(tag)}</td>'
-                 f'<td class="l" style="white-space:normal">{_E(what)}</td><td class="l src">{_E(src)}</td></tr>' for d, tag, what, src in rows[:24])
+                 f'<td class="l">{_link(tag) if tag and tag not in ("Renter", "USA", "Norge") and tag.isalnum() and tag.isupper() else _E(tag)}</td>'
+                 f'<td class="l" style="white-space:normal">{_E(what)}</td><td class="l src">{_E(src)}</td></tr>' for d, tag, what, src in rows[:40])
     return (f'<table class="odds"><thead><tr><th class="l">Dato</th><th class="l">Om</th><th class="l">Hvem</th><th class="l">Hva</th><th class="l">Kilde</th></tr></thead>'
             f'<tbody>{tr}</tbody></table>')
 
@@ -171,11 +170,16 @@ def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: l
               'driveren, med OSEBX ved siden av i samme regresjon. Det som står igjen er hva aksjen har gjort utover børsen når driveren beveget seg. '
               'En aksje «følger» driveren når t-verdien er 2 eller mer i tallverdi. Dette er samvariasjon i våre egne data, ikke årsak og ikke en prognose: '
               'en oljetung børs gjør for eksempel at banker ser ut til å falle mot børsen når Brent stiger.</div></div>')
+    from osloquant.dashboard import calendar as calmod
+
     us = mc.releases(doc)
-    cal = ('<h2 id="kalender">Det som kommer</h2><div class="card">' + calendar_html(list(events) + us, today)
-           + '<div class="src">Rentemøter: Norges Banks publiserte møteplan. Selskapshendelser: research book og selskapenes finanskalendere på NewsWeb. '
+    refill = calmod.refill_notes(today)
+    cal = ('<h2 id="kalender">Det som kommer</h2><div class="card">' + calendar_html(list(events), today)
+           + '<div class="src">Rentemøter: de publiserte møteplanene til Norges Bank, Fed og ESB, skrevet av for hånd med kilde og dato (se '
+           '<a href="/calendar">Kalender</a>). Tallslipp i Norge (KPI, AKU, BNP, detaljomsetning): SSBs publiseringskalender (CC BY 4.0), de neste 45 dagene. '
            + ('Tallslipp i USA (KPI, sysselsetting, BNP): FRED-kalenderen. ' if us else 'Tallslipp i USA kommer med FRED-nøkkelen. ')
-           + 'Tallslipp fra SSB og møtene i Fed og ESB er ikke med ennå – se <a href="/calendar">Kalender</a> for alt vi har.</div></div>')
+           + 'Selskapshendelser: research book og selskapenes finanskalendere på NewsWeb.'
+           + (f' <span class="st-warn">Møteplanen må fylles på: {_E("; ".join(refill))}.</span>' if refill else '') + '</div></div>')
     keys = [d.key for d in mc.DRIVERS]
     body = (head + strip + periods + "".join(sections) + matrix + cal + series_json(series, keys) + chart_scripts()
             + f'<div class="src attrib">{pc.attribution_html()}' + (f" {mc.fred_notice_html()}" if fred else "") + "</div>")

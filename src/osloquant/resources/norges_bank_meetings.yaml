@@ -1,16 +1,17 @@
 # Norges Bank policy rate decisions, copied by hand from the bank's public calendar. Only dates read from the page are
 # here; nothing is extrapolated. The policy-rate-decisions page lists the published schedule ("10 of 10 hits" on
-# 2026-11-02, through December 2027); add later years from it when the bank publishes them.
+# 2026-11-02, through December 2027); add later years from it when the bank publishes them. The text after the date is
+# what the dashboard shows (Norwegian); the time is Oslo time as printed on the page.
 source: https://www.norges-bank.no/en/news-events/calendar/policy-rate-decisions/
 read: 2026-11-02
 dates:
-  - {date: 2026-11-05, what: "Policy rate decision (10:00)"}
-  - {date: 2026-12-17, what: "Policy rate decision and Monetary Policy Report (10:00)"}
-  - {date: 2027-01-21, what: "Policy rate decision (10:00)"}
-  - {date: 2027-03-18, what: "Policy rate decision and Monetary Policy Report (10:00)"}
-  - {date: 2027-05-05, what: "Policy rate decision (10:00)"}
-  - {date: 2027-06-17, what: "Policy rate decision and Monetary Policy Report (10:00)"}
-  - {date: 2027-08-19, what: "Policy rate decision (10:00)"}
-  - {date: 2027-09-23, what: "Policy rate decision and Monetary Policy Report (10:00)"}
-  - {date: 2027-11-04, what: "Policy rate decision (10:00)"}
-  - {date: 2027-12-16, what: "Policy rate decision and Monetary Policy Report (10:00)"}
+  - {date: 2026-11-05, what: "Rentebeslutning (kl. 10.00)"}
+  - {date: 2026-12-17, what: "Rentebeslutning og pengepolitisk rapport (kl. 10.00)"}
+  - {date: 2027-01-21, what: "Rentebeslutning (kl. 10.00)"}
+  - {date: 2027-03-18, what: "Rentebeslutning og pengepolitisk rapport (kl. 10.00)"}
+  - {date: 2027-05-05, what: "Rentebeslutning (kl. 10.00)"}
+  - {date: 2027-06-17, what: "Rentebeslutning og pengepolitisk rapport (kl. 10.00)"}
+  - {date: 2027-08-19, what: "Rentebeslutning (kl. 10.00)"}
+  - {date: 2027-09-23, what: "Rentebeslutning og pengepolitisk rapport (kl. 10.00)"}
+  - {date: 2027-11-04, what: "Rentebeslutning (kl. 10.00)"}
+  - {date: 2027-12-16, what: "Rentebeslutning og pengepolitisk rapport (kl. 10.00)"}

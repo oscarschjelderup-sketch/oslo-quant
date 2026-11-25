@@ -45,7 +45,9 @@ def today_context(mark_seen: bool = True, last_seen: str | None = None) -> dict:
     codes = [c.code for c in cases] + [w["code"] for w in watch if not w.get("moved_to_book")]
     decisions = td.merge_items(td.decisions(snap, cases, newest, today, watch), td.report_items(cases, today), td.pre_report_items(cases, today),
                                td.post_report_items(cases, today), td.report_tp_items(cases, today), _habit_items(cases, today))
-    ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today),
+    from osloquant.dashboard import calendar as cal
+
+    ctx = dict(decisions=decisions, upcoming=td.upcoming(cases, today), macro_week=cal.macro_week(cal.events(cases, today=today, days=7), today),
                moves=td.target_moves(snap, cases, today), alerts=alerts, sessions=sessions, asof=snap.asof, today=today,
                book_codes={c.code for c in cases}, price_label=mk.price_label(snap.asof),
                announcements=fd.announcements(codes, days=7))

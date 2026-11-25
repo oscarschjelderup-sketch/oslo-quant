@@ -50,6 +50,8 @@ def test_a_number_is_written_the_norwegian_way(before, after):
     "E4–E6",
     "D58",
     "Apache-2.0",                                 # a licence name, not a number
+    "SSB (CC BY 4.0)",                            # also a licence name (D71)
+    "Rentebeslutning (kl. 10.00)",                # a time of day is written with a full stop in Norwegian
     "1,234,567 rader",                            # thousands are grouped where they are written, not guessed here
     "9,410",                                      # a rate with three decimals: a second pass must not read it as thousands
     "SATS2026.pdf og v2.5beta",

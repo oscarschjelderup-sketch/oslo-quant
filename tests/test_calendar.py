@@ -38,9 +38,12 @@ def test_events_merge_book_calendar_and_norges_bank(home, monkeypatch):
     rep = next(e for e in ev if e["kind"] == "report" and f"{e['date']:%Y-%m-%d}" == "2026-11-12")
     assert rep["duplicate_of_case_event"] and rep["in_book"]
     up = td.upcoming([c], today, days=30)
-    assert [(f"{e['date']:%Y-%m-%d}", e["source"]) for e in up] == [("2026-11-05", "norges-bank.no calendar"), ("2026-11-12", None)]
+    assert [(f"{e['date']:%Y-%m-%d}", e["source"]) for e in up] == [("2026-11-12", None)]   # rate meetings are in the macro week (D71)
+    week = cal.macro_week(ev, today)
+    assert [(f"{e['date']:%Y-%m-%d}", e["name"]) for e in week] == [("2026-11-05", "Norges Bank")]
     html = cal.page_html(ev, today, fd.read(cal.CAL_FEED), cal.norges_bank_meetings())
-    assert "Kalender" in html and "Policy rate decision" in html and "also in the research book" in html
+    assert "Kalender" in html and "Policy rate decision" in html and "står også i research book" in html
+    assert ">rentemøte<" in html and ">rapport<" in html and ">rates<" not in html             # the type column is Norwegian
 
 
 def test_calendar_page_says_what_is_missing(home, monkeypatch):
