@@ -27,7 +27,9 @@ if (-not (Test-Path $oq)) {
 }
 # --raw: the quoted bars come from the same download as the adjusted ones, so they cost no extra request. Without
 # them market value, P/E and the calibration's price read a table that stops the last time someone ran it by hand.
-$output = & $oq record --raw 2>&1 | ForEach-Object { "$_" }
+# --closed-only: when the laptop was off at 17:45 the task catches up the next morning, with the market open; the
+# bar of a session still trading is left out, so the desk and the digest read yesterday's close and not half a day.
+$output = & $oq record --raw --closed-only 2>&1 | ForEach-Object { "$_" }
 $code = $LASTEXITCODE
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "record exit code $code" | Out-File -FilePath $log -Append -Encoding utf8

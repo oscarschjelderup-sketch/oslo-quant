@@ -151,14 +151,22 @@ class Browser:
                                           "--font-render-hinting=none", f"--user-data-dir={self.prof}", "--remote-debugging-port=0", "about:blank"],
                                          stdout=subprocess.DEVNULL, stderr=err)
         port_file = Path(self.prof) / "DevToolsActivePort"
+
+        def port_text() -> str:
+            # Windows: the browser may still hold the file open while writing it (PermissionError) – not ready yet
+            try:
+                return port_file.read_text().strip() if port_file.exists() else ""
+            except OSError:
+                return ""
+
         end = time.monotonic() + 45                      # a cold runner needs far longer than a warm laptop
         while time.monotonic() < end:
-            if port_file.exists() and port_file.read_text().strip():
+            if port_text():
                 break
             if self.proc.poll() not in (None, 0):       # crashed. Exit code 0 is normal on Windows: the launcher hands over and leaves
                 break
             time.sleep(0.05)
-        if not (port_file.exists() and port_file.read_text().strip()):
+        if not port_text():
             try:
                 tail = self.log.read_text(encoding="utf-8", errors="replace")[-1500:]
             except OSError:
@@ -166,7 +174,7 @@ class Browser:
             code = self.proc.poll()
             self.close()
             raise RuntimeError(f"{exe} did not open its DevTools port (exit code {code}; still running: {code is None}). Its log ends:\n{tail}")
-        self.port = port_file.read_text().split()[0]
+        self.port = port_text().split()[0]
 
     def page(self) -> Page:
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}/json/new?about:blank", method="PUT")

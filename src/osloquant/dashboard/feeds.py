@@ -130,7 +130,7 @@ def sector_drivers() -> dict[str, list[dict]]:
     unavailable = lambda label, why: {"label": label, "value": "not free", "source": why}  # noqa: E731
     return {
         "Energy": [_value(brent, "Brent", "USD {:.2f}/bbl"), _value(usd, "USD/NOK", "{:.3f}")],
-        "Shipping": [unavailable("Freight rates (Baltic indices, TCE)", "licensed by the Baltic Exchange – not available free"),
+        "Shipping": [unavailable("Fraktrater (Baltic-indeksene, TCE)", "lisensiert av Baltic Exchange – ikke fritt tilgjengelig"),
                      _value(usd, "USD/NOK", "{:.3f}")],
         "Seafood": [_value(salmon, "Salmon export price (fresh, whole)", "NOK {:.2f}/kg"), _value(eur, "EUR/NOK", "{:.3f}"), *krone],
         "Finance": [_value(pr, "Policy rate", "{:.2f}%"), _value(y10, "10-year government bond", "{:.2f}%")],

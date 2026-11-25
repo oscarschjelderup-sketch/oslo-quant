@@ -101,6 +101,21 @@ def expected_session(now: pd.Timestamp) -> pd.Timestamp:
     return day
 
 
+#: Oslo Børs closes at 16:20 (closing auction); Yahoo's daily bar is final a little later
+CLOSE_FINAL_HOUR = 16.75
+
+
+def closed_session(now: pd.Timestamp) -> pd.Timestamp:
+    """The newest session that has closed at ``now`` (Oslo time, naive): today after 16:45, otherwise the session
+    before. A daily bar dated later than this is half a day."""
+    day = now.normalize()
+    if (now - day) < pd.Timedelta(hours=CLOSE_FINAL_HOUR):
+        day -= pd.Timedelta(days=1)
+    while not is_session(day):
+        day -= pd.Timedelta(days=1)
+    return day
+
+
 def oslo_now() -> pd.Timestamp:
     return pd.Timestamp.now(tz="Europe/Oslo").tz_localize(None)
 

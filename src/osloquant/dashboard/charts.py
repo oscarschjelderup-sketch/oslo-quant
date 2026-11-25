@@ -16,7 +16,7 @@ def price_chart(snap: mk.Snapshot, code: str, case=None, sessions: int = 260) ->
     page draws it), and the diamond where the view was logged."""
     P = snap.panel
     if code not in P["close"].columns:
-        return '<p class="empty">no prices</p>'
+        return '<p class="empty">ingen kurser</p>'
     c = P["close"][code].dropna().iloc[-sessions:]
     v = P["volume"][code].reindex(c.index)
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.78, 0.22], vertical_spacing=0.03)

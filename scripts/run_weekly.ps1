@@ -26,7 +26,7 @@ if (-not (Test-Path $oq)) {
     exit 3
 }
 # the statements once a week (six requests per company): P/E, margins and the light cases read them
-$output = & $oq record --raw --finance 2>&1 | ForEach-Object { "$_" }
+$output = & $oq record --raw --finance --closed-only 2>&1 | ForEach-Object { "$_" }
 $output | Out-File -FilePath $log -Append -Encoding utf8
 "record --finance exit code $LASTEXITCODE" | Out-File -FilePath $log -Append -Encoding utf8
 $output = & $oq dashboard --refresh-only 2>&1 | ForEach-Object { "$_" }

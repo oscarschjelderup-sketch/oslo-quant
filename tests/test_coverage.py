@@ -71,7 +71,7 @@ def test_light_case_uses_ltm_converts_currency_and_names_its_sources():
     assert nofx["mcap_nok"] == 2000.0 and nofx["multiples"] == {} and any("DKKNOK" in w for w in nofx["warnings"])
     # statements well behind the price date are flagged
     late = lc.compute("XYZ", "Xyz", "Energy", 200.0, "2026-11-30", 10.0, "USD", 10.0, "2026-11-30", inc_y, inc_q, bal, cf_y, cf_q)
-    assert any("only to 2026-06-30" in w for w in late["warnings"])
+    assert any("bare til 2026-06-30" in w for w in late["warnings"])
 
 
 def test_financials_get_the_justified_pb_instead_of_ev():

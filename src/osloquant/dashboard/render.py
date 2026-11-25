@@ -753,7 +753,7 @@ def insider_front(rows: list[dict], shorts_moved: list[dict], static: bool = Fal
     b = "".join(f'<li>{L(m["code"])} short {m["now"]:.2f} % ({m["change"]:+.2f} pp på 7 dager, {dato(m["date"])})'
                 + (f' – {E(m["holders"][0][0])}' if m["holders"] else '') + '</li>' for m in shorts_moved)
     if not a and not b:
-        body = '<p class="empty">No insider trade or short move of 0.25 pp or more in followed stocks in the last 7 days.</p>'
+        body = '<p class="empty">Ingen innsidehandel og ingen shortendring på 0,25 pp eller mer i aksjer du følger de siste 7 dagene.</p>'
     else:
         body = f'<ul class="news">{a}{b}</ul>'
     return (f'<h2>Innsidere og short i aksjer du følger</h2><div class="card">{body}<div class="src">Innsidehandler: NewsWeb (kjøp, salg, tegning). '
@@ -779,8 +779,8 @@ def report_block(code: str, rep: dict | None) -> str:
         return ""
     s = rep.get("summary")
     if not s:
-        return ('<div class="card"><h3>Siste kvartalsrapport</h3><p class="empty">No report read yet: oq dashboard --refresh reads new reports '
-                'from NewsWeb for companies configured in ~/osloquant-home/reports.yaml.</p></div>')
+        return ('<div class="card"><h3>Siste kvartalsrapport</h3><p class="empty">Ingen rapport lest ennå: oq dashboard --refresh leser nye rapporter '
+                'fra NewsWeb for selskapene i ~/osloquant-home/reports.yaml.</p></div>')
     prev = ((s.get("previous") or {}).get("metrics") or {})
     cons = (s.get("consensus") or {}).get("values") or {}
     rows = []
@@ -817,7 +817,7 @@ def report_block(code: str, rep: dict | None) -> str:
         crow.append(f'<tr><td>{E(r["label"])}</td><td><b>{_fmt_metric(r["metric"], v)}</b></td><td>{_fmt_metric(r["metric"] + ("_pct" if r.get("pct") else ""), cv)}</td><td>{diff}</td></tr>')
     case_t = ((f'<h3 style="margin-top:14px">Mot forutsetningene i casen ({s["year"]}E, EST)</h3><table class="odds"><thead><tr><th></th><th>Rapporten</th><th>Casen</th>'
                '<th>Avvik</th></tr></thead><tbody>' + "".join(crow) + '</tbody></table>') if crow and case else
-              '<p class="empty">No case model values for this year.</p>')
+              '<p class="empty">Ingen modellverdier fra caset for dette året.</p>')
     krow = []
     for k in s["kill"]:
         st = k["status"]
@@ -1001,7 +1001,7 @@ def _rationale(r: dict) -> str:
     """The full rationale (folded when long); rows seeded from a written case point to the case instead."""
     t = r.get("thesis") or ""
     if not t:
-        return f'<span class="src">no rationale text – seeded from {E(r.get("source") or "the research book")}</span>'
+        return f'<span class="src">ingen begrunnelse skrevet – hentet fra {E(r.get("source") or "research book")}</span>'
     if len(t) <= 160:
         return E(t)
     return f'<details><summary>{E(t[:140])}…</summary>{E(t)}</details>'
@@ -1218,13 +1218,13 @@ def fingerprint_block(fp: dict | None) -> str:
     if not fp or fp["views"] < 2:
         return ""
     if fp["marks"]:
-        items = "".join(f'<li>{E(m["what"])} in {m["n"]} of {fp["views"]} views: {", ".join(link(c) for c in m["codes"])}</li>' for m in fp["marks"])
+        items = "".join(f'<li>{E(m["what"])} i {m["n"]} av {fp["views"]} syn: {", ".join(link(c) for c in m["codes"])}</li>' for m in fp["marks"])
         inner = f'<div class="warn"><b>Samme tall i flere selskaper:</b><ul>{items}</ul></div>'
     else:
-        inner = f'<div class="ok">No target, probability set or bull/bear spread is repeated across the {fp["views"]} open views.</div>'
+        inner = f'<div class="ok">Ingen kursmål, sannsynligheter eller bull/bear-spenn går igjen på tvers av de {fp["views"]} åpne synene.</div>'
     return ('<h2>Malspor</h2><div class="card">' + inner
-            + '<div class="src">Two companies at different prices with the same target, or the same scenario probabilities, say more about the spreadsheet '
-              'than about the companies. Not an error – a question to answer in the next view.</div></div>')
+            + '<div class="src">To selskaper med ulik kurs og samme kursmål, eller de samme scenariosannsynlighetene, sier mer om regnearket '
+              'enn om selskapene. Ikke en feil – et spørsmål å svare på i neste syn.</div></div>')
 
 
 def _px(v) -> str:
@@ -1270,7 +1270,7 @@ def calibration_page(table: pd.DataFrame, summary: dict, check, kills: list[dict
             prow = "".join(f'<tr><td>{link(code)}</td><td>{int(r["n"])}</td><td>{pct(r["tsr"])}</td><td>{pct(r["ex"])}</td><td>{pct(r["hit"], 0, False)}</td></tr>' for code, r in per.iterrows())
             body.append(f'<h2>Per case</h2><div class="card"><table><thead><tr><th>Selskap</th><th>Vurderinger</th><th>Snitt totalavk.</th><th>Snitt mot OSEBX</th><th>Retning riktig</th></tr></thead><tbody>{prow}</tbody></table></div>')
         else:
-            body.append('<h2>Per case</h2><div class="card"><p class="empty">No call has a price after its date yet (a view logged today is scored from tomorrow).</p></div>')
+            body.append('<h2>Per case</h2><div class="card"><p class="empty">Ingen syn har en kurs etter datoen sin ennå (et syn logget i dag får poeng fra i morgen).</p></div>')
     kb = sum(bool(k["breached"]) for k in kills)
     body.append(f'<h2>Kill-kriterier</h2><div class="card"><p>{len(kills)} checks logged, {kb} breached, '
                 f'{sum(bool(k["breached"]) and str(k.get("action", "")).lower() not in ("held", "none", "nothing", "ignored") for k in kills)} acted on.</p>'
@@ -1344,7 +1344,7 @@ def signal_brackets_block() -> str:
     m = (doc.get("measured") or {})
     b = m.get("bracket")
     if not b:
-        return '<h2>Signalenes utfallsodds</h2><div class="card"><p class="empty">not measured yet: oq signals brackets --write</p></div>'
+        return '<h2>Signalenes utfallsodds</h2><div class="card"><p class="empty">ikke målt ennå: oq signals brackets --write</p></div>'
     rows = []
     for name, s in (doc.get("signals") or {}).items():
         br = s.get("bracket") or {}

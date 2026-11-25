@@ -209,7 +209,7 @@ def run_one(code: str, c, snap, refresh: bool = True, days: int = 120, today: pd
                 schema.record_data(provider="yahoo", codes=[code], force_update=True, sleeping_time=0.8)
         after = lcm.build(code, snap=snap)
         log["lightcase"] = {"before": snapshot(before), "after": snapshot(after), "diff": diff(before, after), "warnings": after.get("warnings", [])}
-        log["steps"].append("light case rebuilt" + (" after re-recording the statements" if refresh else ""))
+        log["steps"].append("lett case bygget på nytt" + (" etter ny henting av regnskapet" if refresh else ""))
     except Exception as e:  # noqa: BLE001 – the loop reports, it does not stop the other companies
         log["lightcase"] = {"before": snapshot(before), "after": None, "error": str(e)}
         log["steps"].append(f"light case not rebuilt: {e}")
@@ -222,7 +222,7 @@ def run_one(code: str, c, snap, refresh: bool = True, days: int = 120, today: pd
             pdf, msg = rp.download(code, m["messageId"])
             rep = {"message_id": m["messageId"], "title": msg["title"], "date": str(msg["publishedTime"])[:10], "pdf": pdf.name,
                    "url": f"https://newsweb.oslobors.no/message/{m['messageId']}", "source": "NewsWeb"}
-            log["steps"].append(f"report found on NewsWeb: {msg['title']} ({rep['date']})")
+            log["steps"].append(f"rapport funnet på NewsWeb: {msg['title']} ({rep['date']})")
     except Exception as e:  # noqa: BLE001
         log["steps"].append(f"NewsWeb not read: {e}")
     log["report"] = rep
@@ -245,7 +245,7 @@ def run_one(code: str, c, snap, refresh: bool = True, days: int = 120, today: pd
                 p = _write_suggested_spec(code, dry, rep["title"])
                 log["reader"] = {"mode": "dry-run", "found": {k: v["value"] for k, v in dry["found"].items()}, "missing": dry["missing"],
                                  "metrics": dry.get("metrics", {}), "suggested_spec": str(p)}
-                log["steps"].append(f"no spec in reports.yaml: dry run found {len(dry['found'])} of {len(dry['found']) + len(dry['missing'])} rows; suggested spec written")
+                log["steps"].append(f"ingen leserspesifikasjon i reports.yaml: prøvekjøringen fant {len(dry['found'])} av {len(dry['found']) + len(dry['missing'])} rader; forslag skrevet")
             except Exception as e:  # noqa: BLE001
                 log["reader"] = {"mode": "dry-run", "error": str(e)}
                 log["steps"].append(f"dry run failed: {e}")
@@ -284,6 +284,7 @@ def _chg(d: dict) -> str:
 
 def block_html(code: str, log: dict | None) -> str:
     """The stock page block: what the loop did after the newest report and what moved in the light case."""
+    from osloquant.dashboard import lightcase as lcm
     from osloquant.dashboard.render import E
 
     if not log:
@@ -308,8 +309,8 @@ def block_html(code: str, log: dict | None) -> str:
             + (f'<table class="odds"><thead><tr><th>Lett case</th><th>Før</th><th>Etter</th><th>Endring</th></tr></thead><tbody>{rows}</tbody></table>' if rows else
                f'<div class="warn">{E(lc.get("error") or "lett case ikke bygget på nytt")}</div>')
             + (f'<div class="sub" style="margin-top:8px">{reader}</div>' if reader else "")
-            + "".join(f'<div class="warn">{E(w)}</div>' for w in lc.get("warnings") or [])
-            + f'<div class="src">Kjørt {stempel(log["ran_at"])} (oq case after-report). ' + " · ".join(E(s) for s in log.get("steps", [])) + '</div></div>')
+            + "".join(f'<div class="warn">{E(lcm.norsk(w))}</div>' for w in lc.get("warnings") or [])
+            + f'<div class="src">Kjørt {stempel(log["ran_at"])} (oq case after-report). ' + " · ".join(E(lcm.norsk(s)) for s in log.get("steps", [])) + '</div></div>')
 
 
 def queue_html(items: list[dict], today: pd.Timestamp) -> str:
