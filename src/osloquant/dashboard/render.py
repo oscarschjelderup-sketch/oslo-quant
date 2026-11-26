@@ -1423,8 +1423,9 @@ def lightcase_block(lc: dict | None) -> str:
     rets = " · ".join(x for x in (f'ROE {pct(r.get("roe"), 0, False)}' if r.get("roe") is not None else "",
                                   f'ROIC {pct(r.get("roic"), 0, False)}' if r.get("roic") is not None else "",
                                   f'skatt {pct(r.get("tax_rate"), 0, False)} ({periode(r.get("tax_period"))})') if x)
-    warn = "".join(f"<li>{E(w)}</li>" for w in lc.get("warnings", []))
     from osloquant.dashboard import lightcase as lcm
+
+    warn = "".join(f"<li>{E(lcm.norsk(w))}</li>" for w in lc.get("warnings", []))
 
     q, n, h = lcm.quality(lc), lcm.normalised(lc), lcm.history(lc)
     qline = (f'<p>{grade_chip(q)} <b>Kvalitet {q["grade"]}</b>'

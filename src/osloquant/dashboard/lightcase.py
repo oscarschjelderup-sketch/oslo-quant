@@ -56,6 +56,7 @@ _EN_NO = (
      r"Yahoo har kvartalsregnskap bare til \1: en nyere rapport kan være ute (se kalenderen og NewsWeb), og den er ikke med i disse tallene"),
     (r"^net debt missing in Yahoo's balance sheet: EV is the market value alone \(cash not deducted\)$",
      "netto gjeld mangler i Yahoos balanse: EV er markedsverdien alene (kontanter er ikke trukket fra)"),
+    (r"^reporting currency unknown – run oq case build with --refresh$", "rapporteringsvalutaen er ukjent – kjør oq case build med --refresh"),
     (r"^light case rebuilt after re-recording the statements$", "lett case bygget på nytt etter ny henting av regnskapet"),
     (r"^light case rebuilt$", "lett case bygget på nytt"),
     (r"^report found on NewsWeb: (.+)$", r"rapport funnet på NewsWeb: \1"),
@@ -298,7 +299,7 @@ def quality(case: dict) -> dict:
     c_issues, b_issues, notes = [], [], []
     price = case.get("price") or {}
     cur = case.get("currency") or {}
-    warns = " ".join(norsk(w) for w in case.get("warnings") or [])
+    warns = " ".join(case.get("warnings") or [])
     if not price.get("value"):
         c_issues.append("no price in the store")
     if not case.get("shares"):
