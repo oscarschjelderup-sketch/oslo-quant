@@ -55,8 +55,8 @@ def _all_feeds_down(monkeypatch) -> None:
 def test_e4_the_evening_job_records_quoted_bars_and_the_weekly_job_the_statements():
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     evening, weekly = (scripts / "run_signals.ps1").read_text(encoding="utf-8"), (scripts / "run_weekly.ps1").read_text(encoding="utf-8")
-    assert "& $oq record --raw 2>&1" in evening and "& $oq record 2>&1" not in evening
-    assert "& $oq record --raw --finance 2>&1" in weekly
+    assert "& $oq record --raw --closed-only 2>&1" in evening and "& $oq record 2>&1" not in evening
+    assert "& $oq record --raw --finance --closed-only 2>&1" in weekly
     for text in (evening, weekly):                       # E6: the log keeps æ, ø and å
         assert "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8" in text
 

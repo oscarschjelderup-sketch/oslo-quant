@@ -65,9 +65,16 @@ def missed(snap: mk.Snapshot, cases: list[bk.Case], watch: list[dict], sessions:
     return sorted(out, key=lambda i: (i["date"], i["code"]))
 
 
+def default_day(now: pd.Timestamp) -> pd.Timestamp:
+    """The day whose week the summary covers when none is given: the week that has just ended. On Saturday and
+    Sunday that is this week; from Monday (a Sunday run the laptop missed and caught up) it is last week."""
+    now = now.normalize()
+    return now if now.weekday() >= 5 else now - pd.Timedelta(days=now.weekday() + 1)
+
+
 def summary(day: pd.Timestamp | None = None) -> dict:
     snap = mk.snapshot()
-    day = (day or pd.Timestamp.now()).normalize()
+    day = (day or default_day(pd.Timestamp.now())).normalize()
     monday, sunday = week_of(day)
     C = snap.panel["close"]
     sessions = [d for d in C.index if monday <= d <= sunday]
@@ -144,26 +151,26 @@ def to_html(s: dict) -> str:
     n = s["names"]
     link = lambda c: rd.link(c, None, True)  # noqa: E731
     miss = "".join(f'<div class="item"><span class="chip risk">{E(m["kind"])}</span> {link(m["code"])} {E(m["date"])} – <b>{E(m["title"])}</b>'
-                   f'<div class="src">{E(m["detail"])}</div></div>' for m in s["missed"]) or '<p class="empty">none: every decision item got a logged judgement or kill check</p>'
-    logged = "".join(f'<li>#{r["seq"]} {link(r["code"])} ' + (f'{E(r["rating"])} TP {r["target"]:g} at {r["price"]:g} <span class="src">view dated {E(r["date"])}, {E(r.get("source", ""))}</span>'
-                     if r["kind"] == "judgement" else E(f'{r["kind"]} {r["date"]}')) + '</li>' for r in s["logged"]) or '<li class="empty">none</li>'
+                   f'<div class="src">{E(m["detail"])}</div></div>' for m in s["missed"]) or '<p class="empty">ingen: hvert beslutningspunkt fikk en logget vurdering eller kill-sjekk</p>'
+    logged = "".join(f'<li>#{r["seq"]} {link(r["code"])} ' + (f'{E(r["rating"])} kursmål {r["target"]:g} ved {r["price"]:g} <span class="src">syn datert {E(r["date"])}, {E(r.get("source", ""))}</span>'
+                     if r["kind"] == "judgement" else E(f'{r["kind"]} {r["date"]}')) + '</li>' for r in s["logged"]) or '<li class="empty">ingen</li>'
     book = "".join(f'<tr><td>{link(b["code"])}</td><td>{E(b["rating"] or "–")}</td><td>{b["close"]:.2f}</td><td>{_p(b["week"])}</td>'
                    f'<td>{"–" if b["target"] is None else format(b["target"], "g")}</td><td>{_p(b["to_tp"])}</td></tr>' for b in s["book"])
     grp = "".join(f'<tr><td>{E(g)}</td><td>{_p(v)}</td></tr>' for g, v in s["groups"].items())
     mv = lambda ser: ", ".join(f'{link(c)} {E(n.get(c, c))} {_p(v)}' for c, v in ser.items())  # noqa: E731
     sig = s["signals"]
-    fs = "".join(f'<li>{E(a.session)} {link(a.code)} {E(a.signal)} at {a.price:.2f}</li>' for a in s["followed_signals"]) or '<li class="empty">none on research-book or watched stocks</li>'
-    ann = "".join(f'<li>{rd.when(a["time"])} {link(a["code"])} <a href="{E(a["url"])}">{E(a["title"])}</a></li>' for a in s["announcements"]) or '<li class="empty">none in the cache</li>'
-    body = f"""<h1>Uke {s['monday']:%V} <span class="code">{s['monday']:%d %b} – {s['sunday']:%d %b %Y}</span></h1>
-<p class="src">Sessions {', '.join(s['sessions'])}. Returns from the close of {s['start']:%d %b} to {s['end']:%d %b}, Yahoo Finance daily closes via the oslo-quant store (delayed).</p>
+    fs = "".join(f'<li>{E(a.session)} {link(a.code)} {E(a.signal)} ved {a.price:.2f}</li>' for a in s["followed_signals"]) or '<li class="empty">ingen i research book eller overvåkningen</li>'
+    ann = "".join(f'<li>{rd.when(a["time"])} {link(a["code"])} <a href="{E(a["url"])}">{E(a["title"])}</a></li>' for a in s["announcements"]) or '<li class="empty">ingen i hurtigbufferen</li>'
+    body = f"""<h1>Uke {s['monday']:%V} <span class="code">{s['monday']:%Y-%m-%d} – {s['sunday']:%Y-%m-%d}</span></h1>
+<p class="src">Handelsdager {', '.join(s['sessions'])}. Avkastning fra sluttkursen {s['start']:%Y-%m-%d} til {s['end']:%Y-%m-%d}, daglige sluttkurser fra Yahoo Finance via oslo-quant-lageret (forsinket).</p>
 <div class="card decide"><h2>Vurderinger som burde vært gjort ({len(s['missed'])})</h2>{miss}</div>
 <h2>Vurderinger logget denne uka ({len(s['logged'])})</h2><div class="card"><ul class="news">{logged}</ul></div>
 <h2>Hva endret seg</h2>
-<div class="grid2"><div class="card"><h3>Research book</h3><table><thead><tr><th>Code</th><th>View</th><th>Close</th><th>Week</th><th>TP</th><th>To TP</th></tr></thead><tbody>{book}</tbody></table></div>
+<div class="grid2"><div class="card"><h3>Research book</h3><table><thead><tr><th>Kode</th><th>Syn</th><th>Kurs</th><th>Uke</th><th>Kursmål</th><th>Til kursmål</th></tr></thead><tbody>{book}</tbody></table></div>
 <div class="card"><h3>Sektorer (median)</h3><table><tbody>{grp}</tbody></table></div></div>
 <div class="card"><h3>Største bevegelser</h3><p>Opp: {mv(s['best'])}</p><p>Ned: {mv(s['worst'])}</p></div>
 <div class="grid2"><div class="card"><h3>Signaler: {sig[sg.BUY]} kjøp, {sig[sg.RISK]} risiko, {sig[sg.INFO]} info</h3><ul class="news">{fs}</ul></div>
-<div class="card"><h3>Børsmeldinger (book og overvåkning)</h3><ul class="news">{ann}</ul><div class="src">Oslo Børs NewsWeb, private use only.</div></div></div>"""
+<div class="card"><h3>Børsmeldinger (book og overvåkning)</h3><ul class="news">{ann}</ul><div class="src">Oslo Børs NewsWeb, kun til privat bruk.</div></div></div>"""
     return rd.page(f"Uke {s['monday']:%V}", "", body, static=True)
 
 

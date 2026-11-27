@@ -49,6 +49,31 @@ BALANCE_STALE_DAYS = 400
 
 
 # ------------------------------------------------------------------------------------------------ pure computation
+
+#: texts the light case and the after-report loop wrote in English before 25 Nov 2026, still in stored files
+_EN_NO = (
+    (r"^Yahoo has quarterly statements only to (.+?): a newer report may be out \(see the calendar and NewsWeb\) and is not in these figures$",
+     r"Yahoo har kvartalsregnskap bare til \1: en nyere rapport kan være ute (se kalenderen og NewsWeb), og den er ikke med i disse tallene"),
+    (r"^net debt missing in Yahoo's balance sheet: EV is the market value alone \(cash not deducted\)$",
+     "netto gjeld mangler i Yahoos balanse: EV er markedsverdien alene (kontanter er ikke trukket fra)"),
+    (r"^reporting currency unknown – run oq case build with --refresh$", "rapporteringsvalutaen er ukjent – kjør oq case build med --refresh"),
+    (r"^light case rebuilt after re-recording the statements$", "lett case bygget på nytt etter ny henting av regnskapet"),
+    (r"^light case rebuilt$", "lett case bygget på nytt"),
+    (r"^report found on NewsWeb: (.+)$", r"rapport funnet på NewsWeb: \1"),
+    (r"^no spec in reports\.yaml: dry run found (\d+) of (\d+) rows; suggested spec written$",
+     r"ingen leserspesifikasjon i reports.yaml: prøvekjøringen fant \1 av \2 rader; forslag skrevet"),
+)
+
+
+def norsk(text: str) -> str:
+    """A stored English sentence in Norwegian; anything else as it is."""
+    import re
+
+    for pat, rep in _EN_NO:
+        if re.match(pat, text or ""):
+            return re.sub(pat, rep, text)
+    return text
+
 def implied_growth(ev: float, nopat: float, roic: float, wacc: float) -> float | None:
     """g in EV = NOPAT (1 - g/ROIC) / (WACC - g); None when there is no economic answer (no profit, no return on
     capital, or a price that would need growth at or above the cost of capital)."""
@@ -335,7 +360,7 @@ def compute(code: str, name: str, group: str, price: float, price_date: str, sha
     tax = pf["tax_rate"]["value"]
     m: dict = {}
     if nd is None and not fin:
-        warn.append("net debt missing in Yahoo's balance sheet: EV is the market value alone (cash not deducted)")
+        warn.append("netto gjeld mangler i Yahoos balanse: EV er markedsverdien alene (kontanter er ikke trukket fra)")
     if mcap:
         m["pe"] = mcap / ni if ni and ni > 0 else None
         m["pb"] = mcap / (eq - (mi or 0)) if eq and eq - (mi or 0) > 0 else None
@@ -364,8 +389,8 @@ def compute(code: str, name: str, group: str, price: float, price_date: str, sha
         rev_model = {"model": "value driver", "wacc_est": wacc, "nopat": nopat, "roic": roic, **rd}
     through = _latest(bal_q, "total_equity")[1] if len(bal_q) else None
     if through and (pd.Timestamp(price_date) - pd.Timestamp(through)).days > 115:
-        warn.append(f"Yahoo has quarterly statements only to {through}: a newer report may be out (see the calendar and NewsWeb) "
-                    "and is not in these figures")
+        warn.append(f"Yahoo har kvartalsregnskap bare til {through}: en nyere rapport kan være ute (se kalenderen og NewsWeb), "
+                    "og den er ikke med i disse tallene")
     return {"code": code, "name": name, "group": group, "financial": fin, "built_at": built_at or datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "price": {"value": price, "date": price_date, "source": "Yahoo Finance via the oslo-quant store (daily close, delayed)"},
             "shares": shares, "currency": {"reporting": currency or "NOK", "fx": fx, "fx_date": fx_date,

@@ -51,8 +51,10 @@ def arguments_against(c: bk.Case | None, lc: dict | None, rep: dict | None, aler
         rv = lc.get("reverse") or {}
         if rv.get("reads"):
             out.append({"rank": 3, "text": str(rv["reads"]), "source": f"lett case, bygget {str(lc.get('built_at', ''))[:10]} (Yahoo-regnskap, EST-forutsetninger)"})
+        from osloquant.dashboard import lightcase as lcm
+
         for w in lc.get("warnings") or []:
-            out.append({"rank": 4, "text": str(w), "source": f"lett case, bygget {str(lc.get('built_at', ''))[:10]}"})
+            out.append({"rank": 4, "text": lcm.norsk(str(w)), "source": f"lett case, bygget {str(lc.get('built_at', ''))[:10]}"})
     for a in alerts:
         if a.kind == sg.RISK:
             out.append({"rank": 5, "text": f"{a.signal}: {a.detail}", "source": f"signal {a.session} (lageret, forsinket)"})
