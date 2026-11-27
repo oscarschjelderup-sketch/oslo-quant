@@ -50,6 +50,7 @@ class Driver:
     note: str = ""
     weekly: bool = False     # published weekly (the salmon price)
     step: float = 10.0       # the move the sensitivity is stated for: +10 % for a price, +0.25 pp for a rate
+    steps: bool = False      # published only on the days it changes (the ECB rate): the history is the rate in force
 
 
 DRIVERS: tuple[Driver, ...] = (
@@ -59,6 +60,9 @@ DRIVERS: tuple[Driver, ...] = (
     Driver("us10y", "USA 10 år", "Renter", "%", "rate", 2, "Yahoo Finance (^TNX), forsinket", step=0.25),
     Driver("us2y", "USA 2 år", "Renter", "%", "rate", 2, "FRED (DGS2, US Treasury)", "følger forventningene til Fed-renten tettest", step=0.25),
     Driver("fed", "Fed-renten, øvre grense", "Renter", "%", "rate", 2, "FRED (DFEDTARU, Federal Reserve)", step=0.25),
+    Driver("esb", "ESB-renten (innskudd)", "Renter", "%", "rate", 2, "ESB-statistikk (ECB Data Portal, FM DFR)",
+           "innskuddsrenten, den ESB styrer etter; ESB publiserer endringsdagene, og renten mellom dem er den som gjelder", step=0.25,
+           steps=True),
     Driver("usdnok", "USD/NOK", "Valuta", "", "price", 3, "Norges Bank, fixing 14:15"),
     Driver("eurnok", "EUR/NOK", "Valuta", "", "price", 3, "Norges Bank, fixing 14:15"),
     Driver("i44", "Kronekursindeks I44", "Valuta", "", "price", 2, "Norges Bank", "importveid; høyere = svakere krone"),

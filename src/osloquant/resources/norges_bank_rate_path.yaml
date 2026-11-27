@@ -1,0 +1,71 @@
+# Norges Bank's policy rate path: the projected policy rate (quarterly average, per cent) published with each Monetary
+# Policy Report (Pengepolitisk rapport, PPR). Copied from the report's own chart-data workbook ("data" below; the sheet
+# with the columns "Policy rate (level)" and "Policy rate MPR x/yy", column "Policy rate"), from the report's quarter
+# onward. The bank publishes no stable machine-readable path: the workbook's name and layout change from report to
+# report, so the file is filled in by hand after each report (DECISIONS D73). The dashboard warns when a
+# report date in norges_bank_meetings.yaml has passed that is newer than the newest report here.
+# The first quarter of a path is partly history (the report is published inside it); the bank's own number is kept.
+# Norges Bank allows reproduction with the bank as the source. Workbooks as they stood on the day in "copied".
+source: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/
+copied: 2026-11-27
+reports:
+  - report: "PPR 2/24"
+    published: 2024-06-20
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2024/mpr-22024/
+    data: https://www.norges-bank.no/contentassets/d0bfbe13692a4dc28d569698605e2c8d/data-charts-mpr-2-24.xlsx
+    sheet: "Data F"
+    path: {2024Q2: 4.5, 2024Q3: 4.51, 2024Q4: 4.51, 2025Q1: 4.42, 2025Q2: 4.25, 2025Q3: 4.06, 2025Q4: 3.84, 2026Q1: 3.64, 2026Q2: 3.46, 2026Q3: 3.29, 2026Q4: 3.11, 2027Q1: 2.96, 2027Q2: 2.87, 2027Q3: 2.79, 2027Q4: 2.73}
+  - report: "PPR 3/24"
+    published: 2024-09-19
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2024/mpr-32024/
+    data: https://www.norges-bank.no/contentassets/6eac537aaa4d43138f063f0ddb53eaf7/data-charts-mpr-3-24.xlsx
+    sheet: "Data E"
+    path: {2024Q3: 4.5, 2024Q4: 4.49, 2025Q1: 4.4, 2025Q2: 4.21, 2025Q3: 3.99, 2025Q4: 3.73, 2026Q1: 3.51, 2026Q2: 3.32, 2026Q3: 3.16, 2026Q4: 3.02, 2027Q1: 2.9, 2027Q2: 2.82, 2027Q3: 2.76, 2027Q4: 2.71}
+  - report: "PPR 4/24"
+    published: 2024-12-19
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2024/mpr-42024/
+    data: https://www.norges-bank.no/contentassets/d5ec881d66e04f6bb66d98c0359061d7/data-charts-mpr-4-24.xlsx
+    sheet: "Data E"
+    path: {2024Q4: 4.5, 2025Q1: 4.46, 2025Q2: 4.22, 2025Q3: 4.0, 2025Q4: 3.8, 2026Q1: 3.6, 2026Q2: 3.42, 2026Q3: 3.27, 2026Q4: 3.16, 2027Q1: 3.05, 2027Q2: 2.99, 2027Q3: 2.94, 2027Q4: 2.91}
+  - report: "PPR 1/25"
+    published: 2025-03-27
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2025/mpr-12025/
+    data: https://www.norges-bank.no/contentassets/43b34866438f42188c87cae82de77b1a/data-mpr-1-25.xlsx
+    sheet: "Data A"
+    path: {2025Q1: 4.5, 2025Q2: 4.49, 2025Q3: 4.38, 2025Q4: 4.21, 2026Q1: 3.99, 2026Q2: 3.77, 2026Q3: 3.58, 2026Q4: 3.42, 2027Q1: 3.3, 2027Q2: 3.22, 2027Q3: 3.15, 2027Q4: 3.11, 2028Q1: 3.07, 2028Q2: 3.04, 2028Q3: 3.01, 2028Q4: 3.0}
+  - report: "PPR 2/25"
+    published: 2025-06-19
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2025/mpr-22025/
+    data: https://www.norges-bank.no/contentassets/5a0246e76ce74764b599d570f5be2086/data-mpr--2-25.xlsx
+    sheet: "Data A"
+    path: {2025Q2: 4.47, 2025Q3: 4.21, 2025Q4: 3.98, 2026Q1: 3.81, 2026Q2: 3.62, 2026Q3: 3.49, 2026Q4: 3.39, 2027Q1: 3.29, 2027Q2: 3.24, 2027Q3: 3.19, 2027Q4: 3.14, 2028Q1: 3.12, 2028Q2: 3.12, 2028Q3: 3.11, 2028Q4: 3.1}
+  - report: "PPR 3/25"
+    published: 2025-09-18
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2025/mpr-32025/
+    data: https://www.norges-bank.no/contentassets/fc03fffcebcc444ea932a86a7ccefcbf/data-mpr-3-25.xlsx
+    sheet: "Data A"
+    path: {2025Q3: 4.22, 2025Q4: 4.0, 2026Q1: 4.0, 2026Q2: 3.92, 2026Q3: 3.85, 2026Q4: 3.74, 2027Q1: 3.61, 2027Q2: 3.5, 2027Q3: 3.41, 2027Q4: 3.34, 2028Q1: 3.3, 2028Q2: 3.27, 2028Q3: 3.24, 2028Q4: 3.21}
+  - report: "PPR 4/25"
+    published: 2025-12-18
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2025/mpr-42025/
+    data: https://www.norges-bank.no/contentassets/30c238dbcbca4a1d9e7ed1ef86dd591f/data-mpr425-eng2.xlsx
+    sheet: "Data A"
+    path: {2025Q4: 4.0, 2026Q1: 4.0, 2026Q2: 3.92, 2026Q3: 3.83, 2026Q4: 3.71, 2027Q1: 3.57, 2027Q2: 3.45, 2027Q3: 3.37, 2027Q4: 3.31, 2028Q1: 3.26, 2028Q2: 3.24, 2028Q3: 3.22, 2028Q4: 3.2}
+  - report: "PPR 1/26"
+    published: 2026-03-26
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2026/mpr-12026/
+    data: https://www.norges-bank.no/contentassets/5f75a2df29094805b154b09819ae2990/data-mpr-1-26.xlsx
+    sheet: "Data A"
+    path: {2026Q1: 4.0, 2026Q2: 4.07, 2026Q3: 4.26, 2026Q4: 4.35, 2027Q1: 4.3, 2027Q2: 4.26, 2027Q3: 4.12, 2027Q4: 3.98, 2028Q1: 3.83, 2028Q2: 3.69, 2028Q3: 3.6, 2028Q4: 3.54, 2029Q1: 3.49, 2029Q2: 3.45, 2029Q3: 3.42, 2029Q4: 3.4}
+  - report: "PPR 2/26"
+    published: 2026-06-18
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2026/mpr-22026/
+    data: https://www.norges-bank.no/contentassets/7ec16c9e488f45748618b019f93d310b/data-mpr-2-26.xlsx
+    sheet: "Data A"
+    path: {2026Q2: 4.15, 2026Q3: 4.32, 2026Q4: 4.55, 2027Q1: 4.55, 2027Q2: 4.48, 2027Q3: 4.38, 2027Q4: 4.2, 2028Q1: 4.05, 2028Q2: 3.9, 2028Q3: 3.75, 2028Q4: 3.62, 2029Q1: 3.5, 2029Q2: 3.41, 2029Q3: 3.34, 2029Q4: 3.29, 2030Q1: 3.24}
+  - report: "PPR 3/26"
+    published: 2026-09-24
+    url: https://www.norges-bank.no/en/news-events/publications/Monetary-Policy-Report/2026/mpr-32026/
+    data: https://www.norges-bank.no/contentassets/1462461ecf6a423eb7bc3e89c1cb0d2b/data-mpr-3-26.xlsx
+    sheet: "Data A"
+    path: {2026Q3: 4.27, 2026Q4: 4.51, 2027Q1: 4.57, 2027Q2: 4.6, 2027Q3: 4.58, 2027Q4: 4.46, 2028Q1: 4.38, 2028Q2: 4.28, 2028Q3: 4.14, 2028Q4: 3.99, 2029Q1: 3.83, 2029Q2: 3.7, 2029Q3: 3.59, 2029Q4: 3.49, 2030Q1: 3.39, 2030Q2: 3.28}

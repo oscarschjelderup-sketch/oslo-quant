@@ -104,7 +104,7 @@ def test_the_macro_feed_keeps_what_it_could_not_fetch_and_names_it(home, monkeyp
     monkeypatch.setattr(fd, "_salmon_history", lambda weeks=160: hist)
     monkeypatch.setattr(fd, "_power_history", lambda old, today=None: hist)
     doc = fd.fetch_macro()
-    assert set(doc["series"]) == (set(fd.MACRO_NB) | set(fd.MACRO_YAHOO) | {"laks", "kraft_no2"}) - {"gass_ttf"}
+    assert set(doc["series"]) == (set(fd.MACRO_NB) | set(fd.MACRO_YAHOO) | {"laks", "kraft_no2", "esb"}) - {"gass_ttf"}
     assert doc["errors"] == ["gass_ttf: ingen data fra Yahoo"]
     fd.write("macro", doc)
 
@@ -114,7 +114,7 @@ def test_the_macro_feed_keeps_what_it_could_not_fetch_and_names_it(home, monkeyp
     monkeypatch.setattr(fd, "_nb_history", down)                                       # Norges Bank is down the next evening
     doc2 = fd.fetch_macro()
     assert doc2["series"]["styringsrente"] == hist and any(e.startswith("styringsrente: TimeoutError") for e in doc2["errors"])
-    for name in ("_yahoo_histories", "_salmon_history", "_power_history"):
+    for name in ("_yahoo_histories", "_salmon_history", "_power_history", "_ecb_history"):
         monkeypatch.setattr(fd, name, down)
     (fd.cache_dir() / "macro.json").unlink()
     with pytest.raises(RuntimeError):                                                  # nothing at all: the feed fails, and the source list says so

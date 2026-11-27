@@ -209,6 +209,11 @@ a.mcell:hover { border-color:var(--accent); text-decoration:none; }
 .mc-tip { display:none; position:absolute; left:6px; top:2px; z-index:3; font-size:11px; background:rgba(255,255,255,0.92); border:1px solid var(--line); border-radius:4px; padding:1px 6px; pointer-events:none; }
 .mexp { font-size:12px; margin:2px 0 6px; } .mexp ul { list-style:none; margin:3px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px 12px; } .mexp li { white-space:nowrap; }
 .mper { display:flex; align-items:center; gap:6px; margin:4px 0 2px; }
+/* the policy rate against the rate paths (D73) */
+.rp { position:relative; height:300px; margin:4px 0 10px; }
+.rp-legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--muted); }
+.rp-key i { display:inline-block; width:18px; height:3px; vertical-align:middle; margin-right:5px; border-radius:2px; }
+.rp-new i { background:#0b5cad; height:4px; } .rp-mid i { background:#4f8fd0; } .rp-mid2 i { background:#93b9e2; } .rp-old i { background:#c9d2d9; } .rp-act i { background:#1d2a33; height:4px; }
 /* the sector matrix: blue = the stocks beat the market when the driver rose, orange = they lagged. Not green and red: co-movement is not up or down. */
 table.mxt td.mx { text-align:center; white-space:nowrap; }
 td.mx.pos1 { background:#eef4fb; } td.mx.pos2 { background:#d6e6f7; } td.mx.pos3 { background:#b4d1f0; }

@@ -39,7 +39,15 @@ makro, og rettelsen av de to gule varslene. Ingen åpne PR-er. En CI-kjøring ti
   - Bygg makrokalenderen: rentemøtene til Norges Bank, Fed og ECB, og SSBs kalender for tallslipp (KPI,
     arbeidsledighet, BNP og detaljomsetning). Vis den på makrosiden, og vis de neste sju dagene på «I dag».
 
-- [ ] **Steg 2: Renter**
+- [x] **Steg 2: Renter** – ferdig 27. nov. 2026 (PR inn i `ferie-2026-11`, D73)
+  - ESB-renten (innskuddsrenten) hentes nå fra ESBs egen dataportal med makrofeeden og vises som eget kort under
+    «Renter». Rentebanene fra de ti siste pengepolitiske rapportene (2/24–3/26) er skrevet av fra Norges Banks
+    figurdata til en kildefil; dashbordet varsler når en ny rapport er lagt frem og filen ikke er fylt på.
+  - /makro har fått «Styringsrenten mot rentebanen»: graf med faktisk styringsrente mot banene, og en tabell over hva
+    hver rapport signaliserte og hva som skjedde. Renten har endt over banen for alle rapporter fra 2/24 til 4/25.
+  - «Renter og sektorene» måler hver sektorgruppe mot 3 mnd statskasseveksel og 10 års stat over 156 uker, og
+    rapportdagene (9). Målbart bare for 10 års stat (shipping, energi, konsum/eiendom, industri); resten står som
+    «ingen målbar følsomhet». Før- og etter-bilder: `Pareto Equity Research/ferie-2026-11/steg2/`.
   - Hent ECB-renten fra ECBs egen dataportal og Norges Banks rentebane.
   - Vis styringsrenten mot rentebanen på makrosiden, slik at Oscar ser hva Norges Bank har signalisert og hva som
     faktisk har skjedd.
@@ -81,7 +89,10 @@ hva som anbefales slått sammen til main først. Vent med sammenslåingen til Os
 
 ## Hvor jeg stoppet
 
-Steg 1 er ferdig. Neste «jobb» starter steg 2 (renter).
+Steg 1 og 2 er ferdige. Neste «jobb» starter steg 3 (rapportene som har kommet, utenom Outlet).
+
+**Etter 17. des. 2026:** Norges Bank legger frem PPR 4/26. Da sier /makro og datahelse-siden at rentebanen må fylles
+på: kopier banen fra rapportens figurdata inn i `src/osloquant/resources/norges_bank_rate_path.yaml` (se D73).
 
 **Outlet Q3 (del av steg 3) er gjort 12. nov.:** rapportanalysen ligger privat i Toolkit-mappen
 `OUTLET/Q3_2026_rapportanalyse.md` (utenfor git). Steg 3 gjenstår for de andre selskapene i research book og på
@@ -103,6 +114,11 @@ Ingen ennå.
   Toolkit-mappen, utenfor git). Tall og funn står bare der, ikke i denne filen, siden repoet er offentlig.
 
 ## Venter på Oscar
+
+- **Rentebanen for hånd (steg 2, 27. nov.):** Norges Bank har ingen fast maskinlesbar kilde for banen, så den skrives
+  av for hånd etter hver rapport (fire ganger i året). Vil du heller at dashbordet prøver å finne figurdata-filen selv
+  på rapportsiden (skjørt: filnavn og ark endres fra gang til gang), eller holder det med varselet? Bygges ikke uten
+  svar.
 
 - **Nettside andre kan åpne, og skykreditten til research (spurt 11. nov.):** Hvem er «andre»: venner og rekrutterere
   med en vanlig lenke (offentlig side med få, utvalgte sider), eller noen få med tilgang til alt (lukket side)? Ikke

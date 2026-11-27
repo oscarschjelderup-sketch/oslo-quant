@@ -84,8 +84,13 @@ def driver_card(d: mc.Driver, series: dict[str, pd.Series], table: pd.DataFrame,
     chart = (f'<p class="empty">For kort historikk til en graf ({len(series[d.key])} noteringer). Serien bygges opp dag for dag.</p>' if short
              else f'<div class="mc" data-key="{_E(d.key)}" role="img" aria-label="{_E(d.name)} over tid"></div>')
     note = f'{_E(d.note[0].upper() + d.note[1:])}. ' if d.note else ""
+    when = f'Siste notering {dato(c["date"])}'
+    if d.steps:                                    # a rate published only when it changes: say when it last did
+        s = series[d.key]
+        moved = s[s.diff().abs() > 1e-9]
+        when = f'Renten som gjaldt {dato(c["date"])}' + (f'; sist endret {dato(moved.index[-1])}' if len(moved) else "")
     return (f'<div class="card mcard">{head}{figs}{chart}{_exposed(table, d, names)}'
-            f'<div class="src">{note}Siste notering {dato(c["date"])}. Kilde: {_E(d.source)}.</div></div>')
+            f'<div class="src">{note}{when}. Kilde: {_E(d.source)}.</div></div>')
 
 
 def matrix_html(table: pd.DataFrame, groups: dict[str, str], order: list[str]) -> str:
@@ -143,7 +148,29 @@ def calendar_html(events: list[dict], today: pd.Timestamp, days: int = 45) -> st
             f'<tbody>{tr}</tbody></table>')
 
 
-def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: list[dict], today: pd.Timestamp) -> str:
+def rates_html(series: dict[str, pd.Series], groups: dict[str, str], today: pd.Timestamp, fetched: str, closes: pd.DataFrame | None) -> str:
+    """The two rate sections under the rate cards (D73): the policy rate against Norges Bank's paths, and the sectors."""
+    from osloquant.dashboard import calendar as calmod
+    from osloquant.dashboard import market as mk
+    from osloquant.dashboard import ratepath as rp
+
+    doc = rp.load_paths()
+    rate = series.get("styringsrente", pd.Series(dtype=float))
+    if closes is None:
+        try:
+            from osloquant.dashboard import odds as od
+
+            closes = od.long_closes()
+        except Exception:  # noqa: BLE001 – no store: the section says it is not computed
+            closes = pd.DataFrame()
+    table = rp.sector_rates(closes, series, groups)
+    events = rp.report_day_moves(closes, series.get("osebx", pd.Series(dtype=float)), groups, doc)
+    return (rp.path_section(doc, rate, today, calmod.norges_bank_meetings(), fetched)
+            + rp.sector_section(table, events, series, mk.GROUP_ORDER + ["Other"], rp.path_revisions(doc)))
+
+
+def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: list[dict], today: pd.Timestamp,
+              closes: pd.DataFrame | None = None) -> str:
     from osloquant.dashboard import market as mk
     from osloquant.dashboard import pricechart as pc
     from osloquant.dashboard.render import page
@@ -165,6 +192,8 @@ def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: l
     for g in mc.GROUP_ORDER:
         cards = "".join(driver_card(d, series, table, snap.names) for d in mc.DRIVERS if d.group == g)
         sections.append(f'<h2 id="g-{_E(g.lower())}">{_E(g)}</h2><div class="mgrid">{cards}</div>')
+        if g == "Renter":
+            sections.append(rates_html(series, groups, today, fetched, closes))
     matrix = ('<h2 id="folsomhet">Hvem følger hva</h2><div class="card">' + matrix_html(table, groups, mk.GROUP_ORDER + ["Other"])
               + '<div class="src" style="margin-top:6px"><b>Slik er det målt:</b> ukentlig avkastning for hver aksje de siste tre årene (inntil 156 uker), regnet mot ukentlig endring i '
               'driveren, med OSEBX ved siden av i samme regresjon. Det som står igjen er hva aksjen har gjort utover børsen når driveren beveget seg. '
@@ -181,8 +210,12 @@ def page_html(series: dict[str, pd.Series], table: pd.DataFrame, snap, events: l
            + 'Selskapshendelser: research book og selskapenes finanskalendere på NewsWeb.'
            + (f' <span class="st-warn">Møteplanen må fylles på: {_E("; ".join(refill))}.</span>' if refill else '') + '</div></div>')
     keys = [d.key for d in mc.DRIVERS]
-    body = (head + strip + periods + "".join(sections) + matrix + cal + series_json(series, keys) + chart_scripts()
-            + f'<div class="src attrib">{pc.attribution_html()}' + (f" {mc.fred_notice_html()}" if fred else "") + "</div>")
+    from osloquant.dashboard import ratepath as rp
+
+    body = (head + strip + periods + "".join(sections) + matrix + cal + series_json(series, keys)
+            + rp.chart_json(rp.load_paths(), series.get("styringsrente", pd.Series(dtype=float))) + chart_scripts() + '<script src="/static/ratepath.js"></script>'
+            + f'<div class="src attrib">{pc.attribution_html()}' + (f" {mc.fred_notice_html()}" if fred else "")
+            + f' ESB-renten: ESB-statistikk (ECB statistics), gjengitt uendret etter <a href="{fd.ECB_TERMS}" rel="noopener">ESBs vilkår for gjenbruk</a>.</div>')
     return page("Makro", "/makro", body)
 
 

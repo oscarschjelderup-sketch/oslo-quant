@@ -17,6 +17,7 @@ def home(tmp_path, monkeypatch):
     from osloquant.dashboard import feeds
 
     monkeypatch.setattr(feeds, "fetch_ssb_calendar", lambda: [])  # SSB's calendar page is never asked from a test
+    monkeypatch.setattr(feeds, "_ecb_history", lambda today=None: {"t": ["2026-09-16", "2026-09-17"], "v": [2.5, 2.5]})  # nor the ECB
     init_env(tmp_path)
     yield tmp_path
     dispose_engines()

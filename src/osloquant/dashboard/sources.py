@@ -55,8 +55,10 @@ SOURCES: tuple[Source, ...] = (
     Source("salmon", "Laksepris", "SSB tabell 03024", "feed", "weekly", "sektordriveren for sjømat", "salmon"),
     Source("shorts", "Shortposisjoner", "Finanstilsynet", "feed", "daily", "Eiere-fanen og shortendringene på «I dag»", "shorts"),
     Source("news", "Nyhetsoverskrifter", "RSS: E24, DN, Finansavisen, NRK", "feed", "daily", "nyhetslisten på aksjesiden", "news"),
-    Source("macro", "Makroserier", "Norges Bank, Yahoo Finance, SSB, hvakosterstrommen.no, FRED", "feed", "daily",
+    Source("macro", "Makroserier", "Norges Bank, Yahoo Finance, SSB, hvakosterstrommen.no, FRED, ESB (ECB Data Portal)", "feed", "daily",
            "makrostripen, makrosiden og følsomheten per aksje", "macro"),
+    Source("ratepath", "Rentebanen", "Norges Banks pengepolitiske rapporter, skrevet av for hånd", "file", "report",
+           "«Styringsrenten mot rentebanen» og rapportdagene i «Renter og sektorene» på makrosiden", "norges_bank_rate_path.yaml"),
     Source("consensus", "Konsensus før rapport", "MFN (Modular Finance)", "event", "event", "konsensus-kolonnen i rapportanalysen (bare der den er registrert)", "consensus"),
 )
 BY_KEY = {s.key: s for s in SOURCES}
@@ -64,7 +66,8 @@ FEED_KEY = {s.ref: s.key for s in SOURCES if s.kind == "feed"}
 TABLE_KEY = {"Stock1dAdjKdata": "prices_adj", "Stock1dKdata": "prices_raw", "Index1dKdata": "index", "IncomeStatement": "finance",
              "BalanceSheet": "finance", "CashFlowStatement": "finance", "FinanceFactor": "finance"}
 STATE_NO = {"ok": "ok", "partial": "delvis", "stale": "utdatert", "failed": "feilet", "never": "aldri hentet"}
-EXPECTED_NO = {"daily": "hver børsdag etter stengetid", "weekly": "minst én gang i uken", "event": "når en ny rapport leses"}
+EXPECTED_NO = {"daily": "hver børsdag etter stengetid", "weekly": "minst én gang i uken", "event": "når en ny rapport leses",
+               "report": "for hånd etter hver pengepolitiske rapport"}
 
 
 # ------------------------------------------------------------------------------------------------ sessions and holidays
@@ -284,6 +287,21 @@ def _feed_status(src: Source, now: pd.Timestamp, run: dict) -> dict:
     return {"state": state, "detail": detail, "data_to": ok_at}
 
 
+def _file_status(now: pd.Timestamp) -> dict:
+    """The rate-path file: ok while its newest report is the newest the bank has published by the meeting file."""
+    from osloquant.dashboard import calendar as cal
+    from osloquant.dashboard import ratepath as rp
+
+    doc = rp.load_paths()
+    if doc is None:
+        return {"state": "never", "detail": f"kildefilen mangler (resources/{rp.PATH_FILE})", "copied": None}
+    note = rp.refill_note(now.normalize(), doc, cal.norges_bank_meetings())
+    newest = doc["reports"][-1]
+    copied = pd.Timestamp(str(doc.get("copied"))) if doc.get("copied") else None
+    return {"state": "stale" if note else "ok", "copied": copied,
+            "detail": note or f'{len(doc["reports"])} rapporter, nyeste {newest["report"]} ({dato(newest["published"])})'}
+
+
 def status(now: pd.Timestamp | None = None) -> list[dict]:
     """One dict per source: state, when it last worked, when it was last tried, the error, the failure count, the
     numbers it affects."""
@@ -295,11 +313,15 @@ def status(now: pd.Timestamp | None = None) -> list[dict]:
         if src.kind == "event":         # fetched only when a report is read: never stale, but a failed attempt shows
             last = (run.get("runs") or [{}])[-1]
             st = {"state": "ok", "detail": last.get("note") or ("ingen forsøk registrert" if not run else "")}
+        elif src.kind == "file":        # a resource file copied by hand (D73): stale when a newer report has come out
+            st = _file_status(now)
         else:
             st = _table_status(src, now, run) if src.kind == "table" else _feed_status(src, now, run)
         attempt, ok_at = _oslo(run.get("last_attempt")), _oslo(run.get("last_ok"))
         if src.kind == "feed" and ok_at is None:
             ok_at = _oslo((fd.read(src.ref) or {}).get("fetched_at"))
+        if src.kind == "file":
+            ok_at = st.get("copied")
         all_runs = run.get("runs") or []
         failing = bool(all_runs) and not all_runs[-1].get("ok")          # the newest attempt failed: the data shown is older
         state = st["state"]

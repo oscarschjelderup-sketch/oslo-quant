@@ -452,6 +452,39 @@ def _power_history(old: dict | None, today=None) -> dict:
     return {"t": days, "v": [have[d] for d in days]}
 
 
+# ------------------------------------------------------------------------------------------------ the ECB's own data portal (D73)
+#: the deposit facility rate, the rate the ECB steers by. The series holds only the days the rate changed («date of
+#: changes»), so the history is the rate in force on each business day, carried from the last change.
+ECB_DFR = "https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.DFR.LEV"
+ECB_TERMS = "https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html"
+ECB_SINCE = "2015-01-01"        # well before the three years shown, so the rate in force on the first day is known
+
+
+def parse_ecb_changes(text: str) -> list[tuple[str, float]]:
+    """(date, level) for every change in an ECB Data Portal CSV («format=csvdata»), oldest first."""
+    rows = list(csv.DictReader(io.StringIO(text.lstrip("﻿"))))
+    pts = sorted((r["TIME_PERIOD"], float(r["OBS_VALUE"])) for r in rows if r.get("TIME_PERIOD") and r.get("OBS_VALUE") not in (None, ""))
+    if not pts:
+        raise ValueError("no observations in the ECB answer")
+    return pts
+
+
+def steps_to_days(changes: list[tuple[str, float]], end, n: int = MACRO_OBS) -> dict:
+    """The rate in force on each business day up to ``end``, the last ``n`` days."""
+    import pandas as pd
+
+    s = pd.Series([v for _, v in changes], index=pd.to_datetime([d for d, _ in changes])).sort_index()
+    s = s[~s.index.duplicated(keep="last")]
+    days = pd.bdate_range(s.index[0], pd.Timestamp(end))
+    daily = s.reindex(days.union(s.index)).ffill().reindex(days).iloc[-n:]
+    return {"t": [f"{d:%Y-%m-%d}" for d in daily.index], "v": [float(v) for v in daily.tolist()]}
+
+
+def _ecb_history(today=None) -> dict:
+    today = today or datetime.now(UTC).date()
+    return steps_to_days(parse_ecb_changes(_get(f"{ECB_DFR}?format=csvdata&startPeriod={ECB_SINCE}").decode("utf-8")), today)
+
+
 # ------------------------------------------------------------------------------------------------ FRED (St. Louis Fed)
 FRED = "https://api.stlouisfed.org/fred"
 #: the notice the FRED API terms require wherever the data is shown
@@ -651,7 +684,7 @@ def fetch_macro() -> dict:
         errors += [f"{k}: ingen data fra Yahoo" for k in MACRO_YAHOO if k not in got]
     except Exception as e:  # noqa: BLE001
         errors.append(f"Yahoo: {type(e).__name__}")
-    for key, fn in (("laks", _salmon_history), ("kraft_no2", lambda: _power_history(old.get("kraft_no2")))):
+    for key, fn in (("laks", _salmon_history), ("kraft_no2", lambda: _power_history(old.get("kraft_no2"))), ("esb", _ecb_history)):
         try:
             series[key] = fn()
         except Exception as e:  # noqa: BLE001
@@ -669,8 +702,8 @@ def fetch_macro() -> dict:
     return {"series": series, "errors": errors, "fred": fred_info,
             "releases": releases if releases is not None else before.get("releases") or [],
             "ssb_releases": ssb if ssb is not None else before.get("ssb_releases") or [],
-            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 og publiseringskalenderen (CC BY 4.0), hvakosterstrommen.no (ENTSO-E)"
-                      + (", FRED (St. Louis Fed)" if uses_fred else "")}
+            "source": "Norges Bank (NLOD), Yahoo Finance (forsinket), SSB tabell 03024 og publiseringskalenderen (CC BY 4.0), hvakosterstrommen.no (ENTSO-E), "
+                      "ESB-statistikk (ECB Data Portal)" + (", FRED (St. Louis Fed)" if uses_fred else "")}
 
 
 RSS = (("E24", "https://e24.no/rss2/"), ("DN", "https://services.dn.no/api/feed/rss/"),
