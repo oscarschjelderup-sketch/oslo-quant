@@ -1276,3 +1276,37 @@ Found in the system check of 25 Nov 2026 (D71 is the macro calendar on the holid
   page) is in Norwegian; texts already stored in English are translated when shown (`lightcase.norsk`). The browser
   helper of the tests retries when Edge still holds its DevTools port file (a PermissionError on Windows made 17
   browser tests fail at setup).
+
+## D73. Rates: the ECB rate, Norges Bank's rate path against the policy rate, and the sectors
+
+Step 2 of the holiday plan (`FERIEPLAN.md`, 27 Nov 2026).
+
+- **The ECB rate from the ECB's own data portal.** The deposit facility rate (`FM/B.U2.EUR.4F.KR.DFR.LEV`) is fetched
+  with the macro feed, no key. The series holds only the days the rate changed, so the stored history is the rate in
+  force on each business day, carried from the last change, and the card says when it last changed. A portal that is
+  down keeps the old series and names it in the feed's errors. Terms: the ESCB reuse policy, free with «Source: ECB
+  statistics» and unaltered data; the card and the page foot say so with the link. It is a card under «Renter»; like
+  Norges Bank's and the Fed's rates it changes too rarely to be measured (ten changes in three years).
+- **The rate path is copied by hand.** Norges Bank publishes the path only in each report's chart workbook, whose file
+  name and sheet change from report to report (checked for ten reports, 2/24 to 3/26), so a fetcher would break every
+  quarter. `resources/norges_bank_rate_path.yaml` holds the ten paths as printed (quarterly averages from the report's
+  quarter on), each with the report page, the workbook, the sheet and the day copied. A report day in Norges Bank's
+  meeting file that has passed and is newer than the newest path makes /makro and the data-health page say «Rentebanen
+  må fylles på» (a new source of kind «file», stale until filled). Nothing is extrapolated.
+- **Signalled against actual.** /makro «Styringsrenten mot rentebanen»: the policy rate as a step line against the
+  paths (the newest three in blue, older in grey) on one weekly grid – the chart library spaces points by count, so a
+  daily line next to quarterly paths squeezed the future into the right edge. The table gives per report the path for
+  the next quarter and four quarters on against the quarter's actual average (our business-day mean of Norges Bank's
+  daily series; complete quarters only; it matched the bank's own 4.15 for Q2 2026), and the mean gap over every
+  complete quarter. On 27 Nov 2026 every report from 2/24 to 4/25 had the rate end above its path (mean gaps +0.11 to
+  +0.41 pp); 1/26 +0.04, 2/26 −0.05.
+- **Rates and the sectors, on our own data.** Each sector group as one equal-weighted portfolio, weekly return over
+  156 weeks against the weekly change in the 3-month bill and the 10-year yield, OSEBX in the same regression (the D65
+  method on the group). Result on 27 Nov 2026, per +0.25 pp: 10-year – shipping +2.3 % (t 3.2), energy +1.4 % (t 3.0),
+  consumer/telecom/real estate −1.2 % (t −3.1), industrials −0.9 % (t −2.2); seafood, finance, technology and
+  investment companies no measurable link. 3-month bill: no group measurable. On the nine days a new path came out,
+  no group moved measurably against OSEBX with the size of the revision (mean change over shared quarters). The page
+  says this in words with the counts, and that the long rate moves with oil, the krone and foreign rates, so a
+  sign here can come from them. The policy rate and the ECB rate are named as not measured (too few steps).
+- **Not built:** the Fed's dot-plot median (its projection tables are HTML pages; the ECB publishes no path), market-implied paths
+  (forward rates; no free source with terms that allow it), and report-day moves per stock (nine days are too few).

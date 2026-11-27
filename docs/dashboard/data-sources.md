@@ -227,6 +227,29 @@ Installed yfinance is 1.1.0; PyPI has 1.7.0 (26 Aug 2026).
 
 ---
 
+## 8. Rates (D73): the ECB's data portal and Norges Bank's rate path
+
+**ECB deposit facility rate. Status: VERIFIED 27 Nov 2026.**
+`GET https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.DFR.LEV?format=csvdata&startPeriod=2015-01-01`
+returns a comma-separated CSV with `TIME_PERIOD` and `OBS_VALUE`. The series is «date of changes (raw data)»: one row
+per change (2026-06-17 2.25, 2026-09-16 2.5 on the day checked), so the dashboard carries the rate in force forward to
+each business day. No key, no stated rate limit; asked once per macro run. FRED's copy (ECBDFR) carries «Copyright»
+and is not used (D70).
+- **Terms:** the ESCB reuse policy (https://www.ecb.europa.eu/stats/ecb_statistics/governance_and_quality_framework/html/usage_policy.en.html):
+  free reuse when the source is credited («Source: ECB statistics») and the data are not altered. The card and the
+  page foot say «ESB-statistikk (ECB statistics)» with a link to the policy.
+
+**Norges Bank's policy rate path. Status: no stable machine-readable source; copied by hand.**
+Each Monetary Policy Report page (`/en/news-events/publications/Monetary-Policy-Report/<year>/mpr-<n><year>/`) links a
+chart-data workbook, but its file name changes every time (`data-charts-mpr-2-24.xlsx`, `data-mpr--2-25.xlsx`,
+`data-mpr425-eng2.xlsx` …), and so does the sheet (`Data F`, `Data E`, `Data A`). The path is the column
+«Policy rate» / «Policy rate (level)» next to «Policy rate MPR x/yy», quarterly averages from the report's quarter.
+`src/osloquant/resources/norges_bank_rate_path.yaml` holds the ten reports 2/24–3/26 with the page, the workbook URL,
+the sheet and the day copied (27 Nov 2026). The policy rate itself is `IR/B.KPRA.SD.R` (section 2). Norges Bank allows
+reproduction with the bank as the source.
+
+---
+
 ## Polling plan (summary)
 
 | Source | Poll | As-of field |
@@ -238,6 +261,8 @@ Installed yfinance is 1.1.0; PyPI has 1.7.0 (26 Aug 2026).
 | EIA Brent XLS | daily | last date row |
 | RSS (E24, DN, Finansavisen, NRK) | 5-10 min (Finansavisen's 10-item feed needs ≤5 min) | `pubDate` |
 | Fish Pool JSON | daily | `time` / `id` |
+| ECB Data Portal (DFR) | daily, with the macro feed | `TIME_PERIOD` of the last change |
+| Norges Bank rate path | by hand after each Monetary Policy Report | `published` in the resource file |
 
 ---
 
